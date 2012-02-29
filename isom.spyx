@@ -1,0 +1,170 @@
+from libc.stdlib cimport malloc, free
+
+cdef int factorial(int n):
+
+	cdef int i, fac
+	fac = 1
+	for i in range(1, n + 1):
+		fac *= i
+	return fac
+
+cdef int binomial(int n, int k):
+
+	if n < 0 or k > n or k < 0:
+		return 0
+	if k == 0:
+		return 1
+	if n == 0:
+		return 0
+	return binomial(n - 1, k) + binomial(n - 1, k - 1)
+
+cdef int *permutations[10]
+cdef int number_of_permutations[10]
+
+cdef int *generate_permutations(int n, int *number_of):
+
+	cdef int *p, fac, i, j
+
+	# see if we've already generated it!
+	if number_of_permutations[n] != 0: 
+	
+		fac = number_of_permutations[n]
+		p = permutations[n]
+	
+	else:
+
+		perms = Permutations(n).list()
+		fac = len(perms)
+		p = <int *> malloc (sizeof(int) * n * fac)
+		for i in range(fac):
+			for j in range(n):
+				p[(i * n) + j] = <int> perms[i][j]
+
+		permutations[n] = p
+		number_of_permutations[n] = fac
+	
+	if number_of:
+		number_of[0] = fac
+
+	return p
+
+cdef void minimize_edges(int *edges, int m):
+
+	cdef int i, *e
+
+	for i in range(m):
+		e = &edges[i * 3]
+		if e[0] > e[1]:
+			e[0], e[1] = e[1], e[0]
+		if e[1] > e[2]:
+			e[1], e[2] = e[2], e[1]
+		if e[0] > e[1]:
+			e[0], e[1] = e[1], e[0]
+
+	cdef int round = 1, swapped
+	
+	while True:
+	
+		swapped = 0
+		for i in range(m - round):
+			
+			e = &edges[i * 3]
+			
+			if e[0] < e[3]:
+				continue
+			if e[0] == e[3]:
+				if e[1] < e[4]:
+					continue
+				if e[1] == e[4]:
+					if e[2] < e[5]:
+						continue
+						
+			e[0], e[3] = e[3], e[0]
+			e[1], e[4] = e[4], e[1]
+			e[2], e[5] = e[5], e[2]
+
+			swapped = 1
+			
+		if swapped == 0:
+			break
+			
+		round += 1
+
+def minimal_isomorph (g):
+
+	cdef int i, n, m, *edges, *new_edges, *e
+	
+	n = g[0]
+	m = len(g[1])
+	
+	edges = <int *> malloc (sizeof(int) * 3 * m)
+	new_edges = <int *> malloc (sizeof(int) * 3 * m)
+	winning_edges = <int *> malloc (sizeof(int) * 3 * m)
+	
+	for i in range(m):
+		e = &edges[3 * i]
+		e[0] = g[1][i][0]
+		e[1] = g[1][i][1]
+		e[2] = g[1][i][2]
+	
+	cdef int *p, np
+	p = generate_permutations(n, &np)
+
+	for i in range(np):
+	
+		for j in range(3 * m):
+			new_edges[j] = p[n * i + edges[j] - 1]
+	
+		minimize_edges(new_edges, m)
+
+		if i == 0:
+			for j in range(3 * m):
+				winning_edges[j] = new_edges[j]
+			continue
+
+		for j in range(3 * m):
+			if new_edges[j] > winning_edges[j]:
+				break
+		else: # We have a new winner
+			for j in range(3 * m):
+				winning_edges[j] = new_edges[j]
+	
+	edge_list = []
+	for i in range(0, 3 * m, 3):
+		edge_list.append((winning_edges[i], winning_edges[i + 1], winning_edges[i + 2]))
+	
+	free(edges)
+	free(new_edges)
+	free(winning_edges)
+
+	return (n, tuple(edge_list))
+
+
+	
+# def get_permutations (n):
+# 
+# 	cdef int *p, np, i, j
+# 	p = generate_permutations(n, &np)
+# 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
+
+
+
+# def minimal_isomorph (g):
+# 	
+# 	n = g[0]
+# 	min_edges = g[1]
+# 	
+# 	for p in itertools.permutations(range(1, n + 1), n):
+# 		
+# 		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(2)]))
+# 			for e in g[1]]))
+# 		
+# 		if edges < min_edges:
+# 			min_edges = edges
+# 			
+# 	return (n, min_edges)
+# 
+
+
+
+#print len(generate_graphs(6))
