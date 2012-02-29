@@ -48,6 +48,39 @@ cdef int *generate_permutations(int n, int *number_of):
 
 	return p
 
+cdef int *permutations_fixing[10][10]
+cdef int number_of_permutations_fixing[10][10]
+
+cdef int *generate_permutations_fixing(int n, int s, int *number_of):
+
+	cdef int *p, fac, i, j
+
+	# see if we've already generated it!
+	if number_of_permutations_fixing[n][s] != 0: 
+	
+		fac = number_of_permutations_fixing[n][s]
+		p = permutations_fixing[n][s]
+	
+	else:
+
+		perms = Permutations(range(s + 1, n + 1)).list()
+		fac = len(perms)
+		p = <int *> malloc (sizeof(int) * n * fac)
+		for i in range(fac):
+			for j in range(n):
+				if j < s:
+					p[(i * n) + j] = j + 1
+				else:
+					p[(i * n) + j] = <int> perms[i][j - s]
+
+		permutations_fixing[n][s] = p
+		number_of_permutations_fixing[n][s] = fac
+	
+	if number_of:
+		number_of[0] = fac
+
+	return p
+
 cdef void minimize_edges(int *edges, int m):
 
 	cdef int i, *e
@@ -90,13 +123,17 @@ cdef void minimize_edges(int *edges, int m):
 			
 		round += 1
 
-def minimal_isomorph (g):
+def minimal_isomorph (g, tg):
 
 	cdef int i, n, m, *edges, *new_edges, *e
 	
 	n = g[0]
 	m = len(g[1])
-	
+	if tg:
+		t = tg[0]
+	else:
+		t = 0
+
 	edges = <int *> malloc (sizeof(int) * 3 * m)
 	new_edges = <int *> malloc (sizeof(int) * 3 * m)
 	winning_edges = <int *> malloc (sizeof(int) * 3 * m)
@@ -107,8 +144,8 @@ def minimal_isomorph (g):
 		e[1] = g[1][i][1]
 		e[2] = g[1][i][2]
 	
-	cdef int *p, np
-	p = generate_permutations(n, &np)
+	cdef int *p, np, is_lower
+	p = generate_permutations_fixing(n, t, &np)
 
 	for i in range(np):
 	
@@ -122,10 +159,16 @@ def minimal_isomorph (g):
 				winning_edges[j] = new_edges[j]
 			continue
 
+		is_lower = 1
+
 		for j in range(3 * m):
 			if new_edges[j] > winning_edges[j]:
+				is_lower = 0
 				break
-		else: # We have a new winner
+			elif new_edges[j] < winning_edges[j]:
+				break
+		
+		if is_lower: # We have a new winner
 			for j in range(3 * m):
 				winning_edges[j] = new_edges[j]
 	
