@@ -1,3 +1,32 @@
+"""
+
+flagmatic 2
+
+Copyright (c) 2012, E. R. Vaughan. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+"""
+
 from libc.stdlib cimport malloc, free
 
 cdef int factorial(int n):
@@ -213,9 +242,9 @@ def minimal_isomorph (g, tg):
 	return (n, tuple(edge_list))
 
 
-def has_forbidden_edge_numbers(g, forbidden_edge_numbers):
+def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
 
-	cdef int *c, nc, i, j, k, l, n, fe, *edges, *e, got, *comb, num_e
+	cdef int *c, nc, i, j, k, l, n, fe, *edges, *e, got, *comb, num_e, mhh
 
 	n = g[0]
 	m = len(g[1])
@@ -238,22 +267,46 @@ def has_forbidden_edge_numbers(g, forbidden_edge_numbers):
 		if fe < 1:
 			raise ValueError
 		
-		c = generate_combinations(n, k, &nc)
+		if must_have_highest:
+		
+			c = generate_combinations(n - 1, k - 1, &nc)
 
-		for i in range(nc):
-			comb = &c[k * i]
-			num_e = 0
-			for j in range(m):
-				got = 0
-				e = &edges[3 * j]
-				for l in range(k):
-					if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
-						got += 1
-				if got == 3:
-					num_e += 1
-					if num_e == fe:
-						free(edges)
-						return True
+			for i in range(nc):
+				comb = &c[(k - 1) * i]
+				num_e = 0
+				for j in range(m):
+					got = 0
+					e = &edges[3 * j]
+					for l in range(k - 1):
+						if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+							got += 1
+					if n == e[0] or n == e[1] or n == e[2]:
+							got += 1
+					if got == 3:
+						num_e += 1
+						if num_e == fe:
+							free(edges)
+							return True
+
+		else:
+
+			c = generate_combinations(n, k, &nc)
+
+			for i in range(nc):
+				comb = &c[k * i]
+				num_e = 0
+				for j in range(m):
+					got = 0
+					e = &edges[3 * j]
+					for l in range(k):
+						if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+							got += 1
+					if got == 3:
+						num_e += 1
+						if num_e == fe:
+							free(edges)
+							return True
+
 	free(edges)
 	return False
 	
