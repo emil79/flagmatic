@@ -33,7 +33,7 @@ cdef int *generate_permutations(int n, int *number_of):
 	
 	else:
 
-		perms = Permutations(n).list()
+		perms = Permutations(range(1, n + 1)).list()
 		fac = len(perms)
 		p = <int *> malloc (sizeof(int) * n * fac)
 		for i in range(fac):
@@ -75,6 +75,36 @@ cdef int *generate_permutations_fixing(int n, int s, int *number_of):
 
 		permutations_fixing[n][s] = p
 		number_of_permutations_fixing[n][s] = fac
+	
+	if number_of:
+		number_of[0] = fac
+
+	return p
+
+cdef int *combinations[10][10]
+cdef int number_of_combinations[10][10]
+
+cdef int *generate_combinations(int n, int s, int *number_of):
+
+	cdef int *p, fac, i, j
+
+	# see if we've already generated it!
+	if number_of_combinations[n][s] != 0: 
+	
+		fac = number_of_combinations[n][s]
+		p = combinations[n][s]
+	
+	else:
+
+		perms = Combinations(range(1, n + 1), s).list()
+		fac = len(perms)
+		p = <int *> malloc (sizeof(int) * s * fac)
+		for i in range(fac):
+			for j in range(s):
+				p[(i * s) + j] = <int> perms[i][j]
+
+		combinations[n][s] = p
+		number_of_combinations[n][s] = fac
 	
 	if number_of:
 		number_of[0] = fac
@@ -183,6 +213,49 @@ def minimal_isomorph (g, tg):
 	return (n, tuple(edge_list))
 
 
+def has_forbidden_edge_numbers(g, forbidden_edge_numbers):
+
+	cdef int *c, nc, i, j, k, l, n, fe, *edges, *e, got, *comb, num_e
+
+	n = g[0]
+	m = len(g[1])
+	edges = <int *> malloc (sizeof(int) * 3 * m)
+	
+	for i in range(m):
+		e = &edges[3 * i]
+		e[0] = g[1][i][0]
+		e[1] = g[1][i][1]
+		e[2] = g[1][i][2]
+
+	for pk, pfe in forbidden_edge_numbers.iteritems():
+
+		k = <int> pk
+		fe = <int> pfe
+		
+		if k > n:
+			continue # vacuous condition
+
+		if fe < 1:
+			raise ValueError
+		
+		c = generate_combinations(n, k, &nc)
+
+		for i in range(nc):
+			comb = &c[k * i]
+			num_e = 0
+			for j in range(m):
+				got = 0
+				e = &edges[3 * j]
+				for l in range(k):
+					if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+						got += 1
+				if got == 3:
+					num_e += 1
+					if num_e == fe:
+						free(edges)
+						return True
+	free(edges)
+	return False
 	
 # def get_permutations (n):
 # 
