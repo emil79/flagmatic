@@ -39,12 +39,12 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 
 	check_forbidden_edge_numbers = len(forbidden_edge_numbers) > 0
 
-	t = tg[0]
+	s = tg[0]
 
-	if n < t:
+	if n < s:
 		return []
 
-	if n == t:
+	if n == s:
 		return [tg]
 
 	max_ne = (n - 1) * (n - 2) / 2
@@ -60,7 +60,7 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 	
 		pe = len(sg[1])
 		ds = degrees(sg)
-		maxd = max(ds[t:] + [0])
+		maxd = max(ds[s:] + [0])
 			
 		for ne in range(maxd, max_ne + 1):
 		
@@ -80,6 +80,52 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 
 def generate_graphs(n, forbidden_edge_numbers={}):
 	
-	t = (0, ())
-	return generate_flags(n, t, forbidden_edge_numbers=forbidden_edge_numbers)
+	tg = (0, ())
+	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers)
+
+
+def flag_products (g, s, m, typs, flags):
+
+	n = g[0]
+
+	vertices = range(1, n + 1)
+
+	num_typs = len(typs)
+	num_flags = len(flags)
 	
+	pair_densities = dict(((i, j, k), 0) for i in range(num_typs)
+		for j in range(num_flags) for k in range(num_flags))
+	
+	for tv in Permutations(vertices, s):
+	
+		tg = induced_subgraph(g, tv)
+		
+		if not tg in typs:
+			continue
+		
+		tindex = typs.index(tg)
+	
+		non_typ_verts = [x for x in vertices if not x in tv]
+	
+		for fav in Combinations(non_typ_verts, m - s):
+
+			fag = minimal_isomorph(induced_subgraph(g, tv + fav), tg)
+			faindex = flags.index(fag)
+			
+			remaining_verts = [x for x in non_typ_verts if not x in fav]
+			
+			for fbv in Combinations(remaining_verts, m - s):
+
+				fbg = minimal_isomorph(induced_subgraph(g, tv + fbv), tg)
+				fbindex = flags.index(fbg)
+				
+				pair_densities[(tindex, faindex, fbindex)] += 1
+
+	total = falling_factorial(n, s) * binomial(n - s, m - s) * binomial(n - m, m - s)
+
+	for key in pair_densities.iterkeys():
+		pair_densities[key] = Integer(pair_densities[key]) / total
+
+	return pair_densities
+
+

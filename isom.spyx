@@ -29,53 +29,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from libc.stdlib cimport malloc, free
 
-cdef int factorial(int n):
+# cdef int factorial(int n):
+# 
+# 	cdef int i, fac
+# 	fac = 1
+# 	for i in range(1, n + 1):
+# 		fac *= i
+# 	return fac
+# 
+# cdef int binomial(int n, int k):
+# 
+# 	if n < 0 or k > n or k < 0:
+# 		return 0
+# 	if k == 0:
+# 		return 1
+# 	if n == 0:
+# 		return 0
+# 	return binomial(n - 1, k) + binomial(n - 1, k - 1)
 
-	cdef int i, fac
-	fac = 1
-	for i in range(1, n + 1):
-		fac *= i
-	return fac
-
-cdef int binomial(int n, int k):
-
-	if n < 0 or k > n or k < 0:
-		return 0
-	if k == 0:
-		return 1
-	if n == 0:
-		return 0
-	return binomial(n - 1, k) + binomial(n - 1, k - 1)
-
-cdef int *permutations[10]
-cdef int number_of_permutations[10]
-
-cdef int *generate_permutations(int n, int *number_of):
-
-	cdef int *p, fac, i, j
-
-	# see if we've already generated it!
-	if number_of_permutations[n] != 0: 
-	
-		fac = number_of_permutations[n]
-		p = permutations[n]
-	
-	else:
-
-		perms = Permutations(range(1, n + 1)).list()
-		fac = len(perms)
-		p = <int *> malloc (sizeof(int) * n * fac)
-		for i in range(fac):
-			for j in range(n):
-				p[(i * n) + j] = <int> perms[i][j]
-
-		permutations[n] = p
-		number_of_permutations[n] = fac
-	
-	if number_of:
-		number_of[0] = fac
-
-	return p
 
 cdef int *permutations_fixing[10][10]
 cdef int number_of_permutations_fixing[10][10]
@@ -110,6 +81,20 @@ cdef int *generate_permutations_fixing(int n, int s, int *number_of):
 
 	return p
 
+
+cdef int *generate_permutations(int n, int *number_of):
+
+	return generate_permutations_fixing(n, <int> 0, number_of)
+
+
+# def get_permutations (n):
+# 
+# 	cdef int *p, np, i, j
+# 	p = generate_permutations(n, &np)
+# 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
+
+
+
 cdef int *combinations[10][10]
 cdef int number_of_combinations[10][10]
 
@@ -139,6 +124,7 @@ cdef int *generate_combinations(int n, int s, int *number_of):
 		number_of[0] = fac
 
 	return p
+
 
 cdef void minimize_edges(int *edges, int m):
 
@@ -185,6 +171,7 @@ cdef void minimize_edges(int *edges, int m):
 def minimal_isomorph (g, tg):
 
 	cdef int i, n, m, *edges, *new_edges, *e
+	cdef int *p, np, is_lower
 	
 	n = g[0]
 	m = len(g[1])
@@ -203,7 +190,6 @@ def minimal_isomorph (g, tg):
 		e[1] = g[1][i][1]
 		e[2] = g[1][i][2]
 	
-	cdef int *p, np, is_lower
 	p = generate_permutations_fixing(n, t, &np)
 
 	for i in range(np):
@@ -240,6 +226,18 @@ def minimal_isomorph (g, tg):
 	free(winning_edges)
 
 	return (n, tuple(edge_list))
+
+
+def induced_subgraph (g, S):
+
+	good_edges = [e for e in g[1] if all(x in S for x in e)]
+	p = [0 for i in range(g[0] + 1)]
+	for i in range(len(S)):
+		p[S[i]] = i + 1
+
+	edges = sorted([tuple(sorted([p[x] for x in e])) for e in good_edges])
+
+	return (len(S), tuple(edges))
 
 
 def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
@@ -310,14 +308,6 @@ def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=Fals
 	free(edges)
 	return False
 	
-# def get_permutations (n):
-# 
-# 	cdef int *p, np, i, j
-# 	p = generate_permutations(n, &np)
-# 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
-
-
-
 # def minimal_isomorph (g):
 # 	
 # 	n = g[0]
