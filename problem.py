@@ -51,9 +51,19 @@ class flagmatic_problem(object):
 		self._graphs = generate_graphs(n, forbidden_edge_numbers=self.forbidden_edge_numbers)
 		print "Generated %d graphs." % len(self._graphs)
 	
+		print "Generating types and flags..."
 		for s in range(n % 2, n - 1, 2):
-			self._types.extend(generate_graphs(s, forbidden_edge_numbers=self.forbidden_edge_numbers))
+			m = (n + s) / 2
+			these_types = generate_graphs(s, forbidden_edge_numbers=self.forbidden_edge_numbers)
+			these_flags = []
+			for tg in these_types:
+				these_flags.append(generate_flags(m, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
+			for g in self._graphs:
+				these_flags_products = flag_products(g, s, m, these_types, these_flags)
+			self._types.extend(these_types)
+			self._flags.extend(these_flags)
 
+		print "Generating flags..."
 		for tg in self._types:
 			self._flags.append(generate_flags((n + tg[0]) / 2, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
 	
