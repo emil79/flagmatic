@@ -106,8 +106,6 @@ def flag_products (g, s, m, typs, flags):
 		
 		tindex = typs.index(tg)
 	
-		continue
-	
 		non_typ_verts = [x for x in vertices if not x in tv]
 	
 		for fav in Combinations(non_typ_verts, m - s):

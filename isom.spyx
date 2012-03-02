@@ -27,39 +27,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-from libc.stdlib cimport malloc, free
+#clang c
 
-# cdef int factorial(int n):
-# 
-# 	cdef int i, fac
-# 	fac = 1
-# 	for i in range(1, n + 1):
-# 		fac *= i
-# 	return fac
-# 
-# cdef int binomial(int n, int k):
-# 
-# 	if n < 0 or k > n or k < 0:
-# 		return 0
-# 	if k == 0:
-# 		return 1
-# 	if n == 0:
-# 		return 0
-# 	return binomial(n - 1, k) + binomial(n - 1, k - 1)
+from libc.stdlib cimport malloc, calloc, free
 
+cdef class combinatorial_info_block:
+	cdef int np
+	cdef int *p
 
-cdef int *permutations_fixing[10][10]
-cdef int number_of_permutations_fixing[10][10]
+previous_permutations = {}
 
 cdef int *generate_permutations_fixing(int n, int s, int *number_of):
 
 	cdef int *p, fac, i, j
 
 	# see if we've already generated it!
-	if number_of_permutations_fixing[n][s] != 0: 
+	key = (n, s)
+	if key in previous_permutations.iterkeys():
 	
-		fac = number_of_permutations_fixing[n][s]
-		p = permutations_fixing[n][s]
+		cib = <combinatorial_info_block>previous_permutations[key]
+		fac = cib.np
+		p = cib.p
 	
 	else:
 
@@ -73,8 +61,10 @@ cdef int *generate_permutations_fixing(int n, int s, int *number_of):
 				else:
 					p[(i * n) + j] = <int> perms[i][j - s]
 
-		permutations_fixing[n][s] = p
-		number_of_permutations_fixing[n][s] = fac
+		cib = combinatorial_info_block()
+		cib.np = fac
+		cib.p = p
+		previous_permutations[key] = cib
 	
 	if number_of:
 		number_of[0] = fac
@@ -95,19 +85,20 @@ cdef int *generate_permutations(int n, int *number_of):
 
 
 
-cdef int *combinations[10][10]
-cdef int number_of_combinations[10][10]
+previous_combinations = {}
 
 cdef int *generate_combinations(int n, int s, int *number_of):
 
 	cdef int *p, fac, i, j
 
 	# see if we've already generated it!
-	if number_of_combinations[n][s] != 0: 
+	key = (n, s)
+	if key in previous_combinations.iterkeys():
 	
-		fac = number_of_combinations[n][s]
-		p = combinations[n][s]
-	
+		cib = <combinatorial_info_block>previous_combinations[key]
+		fac = cib.np
+		p = cib.p
+
 	else:
 
 		perms = Combinations(range(1, n + 1), s).list()
@@ -117,8 +108,10 @@ cdef int *generate_combinations(int n, int s, int *number_of):
 			for j in range(s):
 				p[(i * s) + j] = <int> perms[i][j]
 
-		combinations[n][s] = p
-		number_of_combinations[n][s] = fac
+		cib = combinatorial_info_block()
+		cib.np = fac
+		cib.p = p
+		previous_combinations[key] = cib
 	
 	if number_of:
 		number_of[0] = fac
@@ -126,21 +119,22 @@ cdef int *generate_combinations(int n, int s, int *number_of):
 	return p
 
 
-#cdef int *pair_combinations[10][10][10][10]
-#cdef int number_of_pair_combinations[10][10][10][10]
+
+previous_pair_combinations = {}
 
 cdef int *generate_pair_combinations(int n, int s, int m1, int m2, int *number_of):
 
 	cdef int *p, fac, i, j
 
 	# see if we've already generated it!
-	#if number_of_pair_combinations[n][s][m1][m2] != 0: 
+	key = (n, s, m1, m2)
+	if key in previous_pair_combinations.iterkeys():
 	
-		#fac = number_of_pair_combinations[n][s][m1][m2]
-		#p = pair_combinations[n][s][m1][m2]
+		cib = <combinatorial_info_block>previous_pair_combinations[key]
+		fac = cib.np
+		p = cib.p
 	
-	#else:
-	if True:
+	else:
 	
 		fac = falling_factorial(n, s) * binomial(n - s, m1 - s) * binomial(n - m1, m2 - s)
 		p = <int *> malloc (sizeof(int) * n * fac)
@@ -174,19 +168,23 @@ cdef int *generate_pair_combinations(int n, int s, int m1, int m2, int *number_o
 					first_two = False
 					i += 1			
 
-		#pair_combinations[n][s][m1][m2] = p
-		#pair_number_of_combinations[n][s][m1][m2] = fac
+		cib = combinatorial_info_block()
+		cib.np = fac
+		cib.p = p
+		previous_pair_combinations[key] = cib
 	
 	if number_of:
 		number_of[0] = fac
 
 	return p
 
+
 def get_pair_combinations (n, s, m1, m2):
 
 	cdef int *p, np, i, j
 	p = generate_pair_combinations(n, s, m1, m2, &np)
 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
+
 
 cdef void minimize_edges(int *edges, int m):
 
@@ -300,6 +298,223 @@ def induced_subgraph (g, S):
 	edges = sorted([tuple(sorted([p[x] for x in e])) for e in good_edges])
 
 	return (len(S), tuple(edges))
+
+
+cdef void c_induced_subgraph (int *edges, int *new_edges, int m, int *new_m, int *verts, int s):
+
+	cdef int nm = 0, i, j, k, *e, got, te[3]
+	
+	for i in range(m):
+		e = &edges[3 * i]
+		got = 0
+		for j in range(s):
+			if e[0] == verts[j]:
+				got += 1
+				te[0] = j + 1
+			elif e[1] == verts[j]:
+				got += 1
+				te[1] = j + 1
+			elif e[2] == verts[j]:
+				got += 1
+				te[2] = j + 1
+		if got == 3:
+			e = &new_edges[3 * nm]
+			e[0] = te[0]
+			e[1] = te[1]
+			e[2] = te[2]
+			nm += 1
+	
+	new_m[0] = nm
+
+	return
+
+cdef void c_minimal_isomorph (int n, int *edges, int m, int t):
+
+	cdef int i, *new_edges, *winning_edges, *e
+	cdef int *p, np, is_lower
+	
+	new_edges = <int *> malloc (sizeof(int) * 3 * m)
+	winning_edges = <int *> malloc (sizeof(int) * 3 * m)
+	
+	p = generate_permutations_fixing(n, t, &np)
+
+	for i in range(np):
+	
+		for j in range(3 * m):
+			new_edges[j] = p[n * i + edges[j] - 1]
+	
+		minimize_edges(new_edges, m)
+
+		if i == 0:
+			for j in range(3 * m):
+				winning_edges[j] = new_edges[j]
+			continue
+
+		is_lower = 1
+
+		for j in range(3 * m):
+			if new_edges[j] > winning_edges[j]:
+				is_lower = 0
+				break
+			elif new_edges[j] < winning_edges[j]:
+				break
+		
+		if is_lower: # We have a new winner
+			for j in range(3 * m):
+				winning_edges[j] = new_edges[j]
+	
+	for i in range(3 * m):
+		edges[i] = winning_edges[i]
+	
+	free(new_edges)
+	free(winning_edges)
+
+	return
+
+
+def fast_flag_products (g, tg, flags1, m1, flags2, m2):
+
+	cdef int *p, *pp, np, s, *edges, *cur_edges, *e
+	cdef int n, ne, i, j, k, cnte
+	cdef int *flags1edges, *flags2edges, num_flags1, f1me, num_flags2, f2me
+	cdef int *flags1_num_edges, *flags2_num_edges
+	cdef int cnf1e, cnf2e, f1index, f2index, *results
+	
+	sig_on()
+	
+	s = tg[0]
+	n = g[0]
+	ne = len(g[1])
+	nte = len(tg[1])
+
+	p = generate_pair_combinations(n, s, <int> m1, <int> m2, &np)
+	pp = <int *> malloc (sizeof(int) * n)
+	edges = <int *> malloc (sizeof(int) * 3 * ne)
+	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
+	type_edges = <int *> malloc (sizeof(int) * 3 * nte)
+
+	# copy g
+	for i in range(ne):
+		e = &edges[3 * i]
+		e[0] = g[1][i][0]
+		e[1] = g[1][i][1]
+		e[2] = g[1][i][2]
+
+	# copy tg
+	for i in range(nte):
+		e = &type_edges[3 * i]
+		e[0] = tg[1][i][0]
+		e[1] = tg[1][i][1]
+		e[2] = tg[1][i][2]
+
+	f1me = binomial(m1, 3)
+	f2me = binomial(m2, 3)
+
+	num_flags1 = len(flags1)
+	flags1_num_edges = <int *> malloc (sizeof(int) * num_flags1)
+	flags1edges = <int *> malloc (sizeof(int) * f1me * 3 * num_flags1)
+
+	num_flags2 = len(flags2)
+	flags2_num_edges = <int *> malloc (sizeof(int) * num_flags2)
+	flags2edges = <int *> malloc (sizeof(int) * f2me * 3 * num_flags2)
+
+	results = <int *> calloc (num_flags1 * num_flags2, sizeof(int))
+
+	for i in range(num_flags1):
+		k = len(flags1[i][1])
+		flags1_num_edges[i] = k
+		for j in range(k):
+			e = &flags1edges[(f1me * 3 * i) + (3 * j)]
+			e[0] = flags1[i][1][j][0]
+			e[1] = flags1[i][1][j][1]
+			e[2] = flags1[i][1][j][2]
+
+	for i in range(num_flags2):
+		k = len(flags2[i][1])
+		flags2_num_edges[i] = k
+		for j in range(k):
+			e = &flags2edges[(f2me * 3 * i) + (3 * j)]
+			e[0] = flags2[i][1][j][0]
+			e[1] = flags2[i][1][j][1]
+			e[2] = flags2[i][1][j][2]
+
+	cdef int has_type = 0
+	cdef int has_f1 = 0
+
+	for i in range(np):
+	
+		print i
+	
+		for j in range(n):
+			pp[j] = p[(i * n) + j]
+		
+		if pp[0] != 0:
+		
+			has_type = 0
+			c_induced_subgraph(edges, cur_edges, ne, &cnte, pp, s)
+			
+			if cnte == nte:
+				if all(cur_edges[j] == type_edges[j] for j in range(nte * 3)):
+					has_type = 1
+
+		if has_type == 0:
+			continue
+		
+		print "G"
+		
+		if has_type and pp[s] != 0:
+
+			has_f1 = 0
+
+			c_induced_subgraph(edges, cur_edges, ne, &cnf1e, pp, m1)
+			c_minimal_isomorph(n, cur_edges, cnf1e, s)
+			
+			for j in range(num_flags1):
+				if flags1_num_edges[j] == cnf1e:
+					if all(cur_edges[k] == flags1edges[(f1me * 3 * j) + k] for k in range(cnf1e * 3)):
+						has_f1 = 1
+						f1index = j
+						break		
+
+		if has_f1 == 0:
+			continue
+
+		print "2"
+
+		for j in range(m2 - s):
+			pp[s + j] = pp[m1 + j]
+
+		c_induced_subgraph(edges, cur_edges, ne, &cnf2e, pp, m2)
+		c_minimal_isomorph(n, cur_edges, cnf2e, s)
+		
+		print "3"
+		
+		for j in range(num_flags2):
+			if flags2_num_edges[j] == cnf2e:
+				if all(cur_edges[k] == flags2edges[(f2me * 3 * j) + k] for k in range(cnf2e * 3)):
+					f2index = j
+					results[(f1index * num_flags2) + f2index] += 1
+					print f1index, f2index, results[(f1index * num_flags2) + f2index]
+					break		
+
+	M = Matrix(QQ, num_flags1, num_flags2)
+	for i in range(num_flags1):
+		for j in range(num_flags2):
+			M[i, j] = Integer(results[(i * num_flags2) + j]) / Integer(np)
+	
+	free(pp)
+	free(edges)
+	free(cur_edges)
+	free(type_edges)
+	free(flags1_num_edges)
+	free(flags1edges)
+	free(flags2_num_edges)
+	free(flags2edges)
+	free(results)
+	
+	sig_off()
+	
+	return M
 
 
 def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
