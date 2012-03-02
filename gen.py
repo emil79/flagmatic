@@ -93,8 +93,9 @@ def flag_products (g, s, m, typs, flags):
 	num_typs = len(typs)
 	num_flags = [len(fl) for fl in flags]
 	
-	pair_densities = dict(((i, j, k), 0) for i in range(num_typs)
-		for j in range(num_flags[i]) for k in range(num_flags[i]))
+	#pair_densities = dict(((i, j, k), 0) for i in range(num_typs)
+	#	for j in range(num_flags[i]) for k in range(num_flags[i]))
+	pair_densities = {}
 	
 	for tv in Permutations(vertices, s):
 	
@@ -104,6 +105,8 @@ def flag_products (g, s, m, typs, flags):
 			continue
 		
 		tindex = typs.index(tg)
+	
+		continue
 	
 		non_typ_verts = [x for x in vertices if not x in tv]
 	
@@ -119,7 +122,8 @@ def flag_products (g, s, m, typs, flags):
 				fbg = minimal_isomorph(induced_subgraph(g, tv + fbv), tg)
 				fbindex = flags[tindex].index(fbg)
 				
-				pair_densities[(tindex, faindex, fbindex)] += 1
+				key = (tindex, faindex, fbindex)
+				pair_densities[key] = pair_densities.setdefault(key, 0) + 1
 
 	total = falling_factorial(n, s) * binomial(n - s, m - s) * binomial(n - m, m - s)
 

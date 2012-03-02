@@ -126,6 +126,68 @@ cdef int *generate_combinations(int n, int s, int *number_of):
 	return p
 
 
+#cdef int *pair_combinations[10][10][10][10]
+#cdef int number_of_pair_combinations[10][10][10][10]
+
+cdef int *generate_pair_combinations(int n, int s, int m1, int m2, int *number_of):
+
+	cdef int *p, fac, i, j
+
+	# see if we've already generated it!
+	#if number_of_pair_combinations[n][s][m1][m2] != 0: 
+	
+		#fac = number_of_pair_combinations[n][s][m1][m2]
+		#p = pair_combinations[n][s][m1][m2]
+	
+	#else:
+	if True:
+	
+		fac = falling_factorial(n, s) * binomial(n - s, m1 - s) * binomial(n - m1, m2 - s)
+		p = <int *> malloc (sizeof(int) * n * fac)
+		i = 0
+		vertices = range(1, n + 1)
+		perms = Permutations(vertices, s)
+		for perm in perms:
+			available_verts = [v for v in vertices if not v in perm]
+			combs1 = Combinations(available_verts, m1 - s)
+			first_one = True
+			for comb1 in combs1:
+				remaining_verts = [v for v in available_verts if not v in comb1]
+				combs2 = Combinations(remaining_verts, m2 - s)
+				first_two = True
+				for comb2 in combs2:
+					for j in range(s):
+						if first_one:
+							p[(i * n) + j] = <int> perm[j]
+						else:
+							p[(i * n) + j] = <int> 0
+					for j in range(m1 - s):
+						if first_two:
+							p[(i * n) + s + j] = <int> comb1[j]
+						else:
+							p[(i * n) + s + j] = <int> 0
+					for j in range(m2 - s):
+						p[(i * n) + m1 + j] = <int> comb2[j]
+					for j in range(n - m1 - m2 + s):
+						p[(i * n) + m1 + m2 - s + j] = <int> 0
+					first_one = False
+					first_two = False
+					i += 1			
+
+		#pair_combinations[n][s][m1][m2] = p
+		#pair_number_of_combinations[n][s][m1][m2] = fac
+	
+	if number_of:
+		number_of[0] = fac
+
+	return p
+
+def get_pair_combinations (n, s, m1, m2):
+
+	cdef int *p, np, i, j
+	p = generate_pair_combinations(n, s, m1, m2, &np)
+	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
+
 cdef void minimize_edges(int *edges, int m):
 
 	cdef int i, *e

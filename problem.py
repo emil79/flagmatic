@@ -27,11 +27,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+import sys
+
 class flagmatic_problem(object):
 
 	forbidden_edge_numbers = {}
 	forbidden_graphs = []
 	forbidden_induced_graphs = []
+
+	_flag_products = {}
 
 	def __init__(self):
 		self._n = 0
@@ -47,26 +51,36 @@ class flagmatic_problem(object):
 	def n(self, n):
 		self._n = n
 
-		print "Generating graphs..."
+		sys.stdout.write("Generating graphs...\n")
 		self._graphs = generate_graphs(n, forbidden_edge_numbers=self.forbidden_edge_numbers)
-		print "Generated %d graphs." % len(self._graphs)
+		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
-		print "Generating types and flags..."
+		sys.stdout.write("Generating types and flags...\n")
+		num_types = 0
+		self._flag_products = {}
+	
 		for s in range(n % 2, n - 1, 2):
-			m = (n + s) / 2
+			
 			these_types = generate_graphs(s, forbidden_edge_numbers=self.forbidden_edge_numbers)
+			sys.stdout.write("Generated %d types of order %d, " % (
+				len(these_types), s))
+
+			m = (n + s) / 2
 			these_flags = []
 			for tg in these_types:
 				these_flags.append(generate_flags(m, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
-			for g in self._graphs:
-				these_flags_products = flag_products(g, s, m, these_types, these_flags)
+			sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
+
+			for gi in range(len(self._graphs)):
+				these_flags_products = flag_products(self._graphs[gi], s, m, these_types, these_flags)
+				for key in these_flags_products.iterkeys():
+					ti, fai, fbi = key
+					self._flag_products[(gi, ti + num_types, fai, fbi)] = these_flags_products[key]
+			
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
+			num_types += len(these_types)
 
-		print "Generating flags..."
-		for tg in self._types:
-			self._flags.append(generate_flags((n + tg[0]) / 2, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
-	
 	@property
 	def graphs(self):
 		return self._graphs
@@ -79,4 +93,11 @@ class flagmatic_problem(object):
 	def flags(self):
 		return self._flags
 	
-
+	def write_dats(self):
+	
+		for key in sorted(self._flag_products.keys()):
+			gi, ti, fai, fbi = key
+			value = self._flag_products[key]
+			sys.stdout.write("%d %d %d %d %s\n" % (gi + 1, ti + 2, fai + 1, fbi + 1,
+				value.n(digits=64)))
+	
