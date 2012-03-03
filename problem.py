@@ -56,7 +56,6 @@ class flagmatic_problem(object):
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
 		sys.stdout.write("Generating types and flags...\n")
-		num_types = 0
 		self._flag_products = {}
 	
 		for s in range(n % 2, n - 1, 2):
@@ -70,16 +69,21 @@ class flagmatic_problem(object):
 			for tg in these_types:
 				these_flags.append(generate_flags(m, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
 			sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
-
-			for gi in range(len(self._graphs)):
-				these_flags_products = flag_products(self._graphs[gi], s, m, these_types, these_flags)
-				for key in these_flags_products.iterkeys():
-					ti, fai, fbi = key
-					self._flag_products[(gi, ti + num_types, fai, fbi)] = these_flags_products[key]
 			
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
-			num_types += len(these_types)
+
+	def calculate_flag_products(self):
+	
+		sys.stdout.write("Averaging flag products...\n")
+		for ti in range(len(self._types)):
+			tg = self._types[ti]
+			s = tg[0]
+			m = (self._n + s) / 2
+			for gi in range(len(self._graphs)):
+				self._flag_products[(gi, ti)] = equal_flag_products(self._graphs[gi],
+						tg, self._flags[ti], m)
+
 
 	@property
 	def graphs(self):
