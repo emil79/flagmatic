@@ -470,28 +470,17 @@ cdef void c_minimal_isomorph (int n, int *edges, int m, int t):
 	return
 
 
-# cdef class result_block:
-# 	cdef int len, denominator
-# 	cdef int rows, cols, size
-# 	cdef int *p
-# 
-# def matrix_from_result_block (result_block rb, int k):
-# 
-# 	cdef int i, j
-# 	M = Matrix(QQ, rb.rows, rb.cols)
-# 	for i in range(rb.rows):
-# 		for j in range(rb.cols):
-# 			M[i, j] = Integer(rb.p[(rb.size * k) + (i * rb.rows) + j]) / rb.denominator
-# 	
-# 	return M
+#
+# TODO: Make this function accept more than one type on s vertices.
+#
 
-def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_block flags2):
+def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_block flags2):
 
 	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
 	cdef int n, s, m1, m2, ne, i, j, k, gi
 	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
-	cdef int f1index, f2index, *grb
+	cdef int f1index, f2index, *grb, equal_flags_mode
 		
 	results = []
 	
@@ -500,35 +489,31 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 	n = gb.n
 	s = tb.n
 	m1 = flags1.n
-	m2 = flags2.n
 
-	if m1 == m2:
-		p = generate_equal_pair_combinations(n, s, m1, &np)
-	else:
+	if flags2:
+
+		equal_flags_mode = 0
+		m2 = flags2.n
 		p = generate_pair_combinations(n, s, m1, m2, &np)
+
+	else:
+
+		equal_flags_mode = 1
+		m2 = flags1.n
+		flags2 = flags1
+		p = generate_equal_pair_combinations(n, s, m1, &np)
 
 	cur_edges = <int *> malloc (sizeof(int) * 3 * 35)	
 	pf1 = <int *> malloc (sizeof(int) * m1)
 	pf2 = <int *> malloc (sizeof(int) * m2)
-
-# 	rb = result_block()
-# 	rb.len = gb.len
-# 	rb.rows = flags1.len
-# 	rb.cols = flags2.len
-# 	rb.size = rb.rows * rb.cols
-# 	if m1 == m2:
-# 		rb.denominator = np * 2
-# 	else:
-# 		rb.denominator = np
-# 	rb.p = <int *> calloc (rb.size * rb.len, sizeof(int))
-
 	grb = <int *> malloc (flags1.len * flags2.len * sizeof(int))
 
 	for gi in range(gb.len):
+
+		sig_on()
 	
 		memset(grb, 0, flags1.len * flags2.len * sizeof(int))
 	
-		#grb = &rb.p[gi * rb.size]
 		ne = gb.graphs[gi].ne
 		edges = gb.graphs[gi].edges
 
@@ -588,9 +573,16 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 						grb[(f1index * flags1.len) + f2index] += 1
 						break
 
+		sig_off()
+
+		#
+		# TODO: Maybe get this into pure C somehow.
+		#
+
 		resarray = matrix(QQ, flags1.len, flags2.len, sparse=True)
 
-		if m1 == m2:
+		if equal_flags_mode:
+		
 			npd = Integer(np * 2)
 			for i in range(flags1.len):
 				for j in range(i, flags1.len):
@@ -598,6 +590,7 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 					if k != 0:
 						resarray[i, j] = k / npd
 		else:
+		
 			npd = Integer(np)
 			for i in range(flags1.len):
 				for j in range(flags2.len):
@@ -607,13 +600,13 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 		
 		results.append(resarray)
 
+	free(cur_edges)
 	free(pf1)
 	free(pf2)
-	free(cur_edges)
 	free(grb)
-	sig_off()
 	
 	return results
+
 
 def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
 
@@ -682,23 +675,4 @@ def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=Fals
 
 	free(edges)
 	return False
-	
-# def minimal_isomorph (g):
-# 	
-# 	n = g[0]
-# 	min_edges = g[1]
-# 	
-# 	for p in itertools.permutations(range(1, n + 1), n):
-# 		
-# 		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(2)]))
-# 			for e in g[1]]))
-# 		
-# 		if edges < min_edges:
-# 			min_edges = edges
-# 			
-# 	return (n, min_edges)
-# 
 
-
-
-#print len(generate_graphs(6))

@@ -84,7 +84,7 @@ def generate_graphs(n, forbidden_edge_numbers={}):
 	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers)
 
 
-def flag_products (g, s, m, typs, flags):
+def slow_flag_products (g, s, m, typs, flags):
 
 	n = g[0]
 
@@ -131,3 +131,17 @@ def flag_products (g, s, m, typs, flags):
 	return pair_densities
 
 
+# def slow_minimal_isomorph (g):
+# 	
+# 	n = g[0]
+# 	min_edges = g[1]
+# 	
+# 	for p in itertools.permutations(range(1, n + 1), n):
+# 		
+# 		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(2)]))
+# 			for e in g[1]]))
+# 		
+# 		if edges < min_edges:
+# 			min_edges = edges
+# 			
+# 	return (n, min_edges)
