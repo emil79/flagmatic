@@ -27,7 +27,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+import os
+import pexpect
 import sys
+
+cdsp_binary = "/Users/emil/Projects/flagmatic/csdp"
 
 class flagmatic_problem(object):
 
@@ -35,7 +39,7 @@ class flagmatic_problem(object):
 	forbidden_graphs = []
 	forbidden_induced_graphs = []
 
-	_flag_products = {}
+	_flag_products = []
 
 	def __init__(self):
 		self._n = 0
@@ -56,11 +60,14 @@ class flagmatic_problem(object):
 		self._graph_block = make_graph_block(self._graphs, n)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
+		self._graph_densities = []
+		for g in self._graphs:
+			self._graph_densities.append(len(g[1]) / binomial(n, 3))
+	
 		sys.stdout.write("Generating types and flags...\n")
-		self._flag_products = {}
+		self._flag_products = []
 		self._types = []
 		self._flags = []
-		num_types = 0
 	
 		for s in range(n % 2, n - 1, 2):
 			
@@ -76,10 +83,11 @@ class flagmatic_problem(object):
 						
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
-			num_types += len(these_types)
+
 
  	def calculate_flag_products(self):
  	
+		self._flag_products = []
  		sys.stdout.write("Averaging flag products...\n")
  		for ti in range(len(self._types)):
  			tg = self._types[ti]
@@ -87,8 +95,8 @@ class flagmatic_problem(object):
  			m = (self._n + s) / 2
  			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti + 1, s, m))
  			flags_block = make_graph_block(self._flags[ti], m)
-			self._flag_products[ti] = flag_products(self._graph_block,
-				make_graph_block([tg], s), flags_block, None)
+			self._flag_products.append(flag_products(self._graph_block,
+				make_graph_block([tg], s), flags_block, None))
 
 	@property
 	def graphs(self):
@@ -102,10 +110,56 @@ class flagmatic_problem(object):
 	def flags(self):
 		return self._flags
 	
-	def write_dats(self):
+	def write_sdp_input_file(self):
 	
-		for key in sorted(self._flag_products.keys()):
-			gi, ti, fai, fbi = key
-			value = self._flag_products[key]
-			sys.stdout.write("%d %d %d %d %s\n" % (gi + 1, ti + 2, fai + 1, fbi + 1,
-				value.n(digits=64)))
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+	
+		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
+	
+		with open(self._sdp_input_filename, "w") as f:
+	
+			f.write("%d\n" % (num_graphs + 1,))
+			f.write("%d\n" % (num_types + 3,))
+			f.write("1 %s -%d -1\n" % (" ".join([str(len(P._flags[i])) for i in range(num_types)]),
+				num_graphs))
+			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
+			f.write("0 1 1 1 -1.0\n")
+	
+			for i in range(num_graphs):
+				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
+				f.write("%d %d %d %d 1.0\n" % (i + 1, num_types + 2, i + 1, i + 1))
+	
+			for i in range(num_graphs):
+				d = self._graph_densities[i]
+				if d != 0:
+					f.write("%d %d 1 1 %s\n" % (i + 1, num_types + 3, d.n(digits=64)))
+			
+			f.write("%d %d 1 1 1.0\n" % (num_graphs + 1, num_types + 3))
+		
+			for i in range(num_graphs):
+				for j in range(num_types):
+					for key, value in self._flag_products[j][i].dict().iteritems():
+						f.write("%d %d %d %d %s\n" % (i + 1, j + 2, key[0] + 1, key[1] + 1,
+							value.n(digits=64)))
+
+	def run_csdp(self):
+	
+		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
+	
+		cmd = "%s %s %s" % (cdsp_binary, self._sdp_input_filename, self._sdp_output_filename)
+		print cmd
+		p = pexpect.spawn(cmd, timeout=60*60*24*7)
+		
+		while True:
+			if p.eof():
+				break
+			try:
+				p.expect("\r\n")
+				line = p.before.strip() + "\n"
+				sys.stdout.write(line)
+			except pexpect.EOF:
+				break
+		p.close()
+		returncode = p.exitstatus
+		
