@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #clang c
 
 from libc.stdlib cimport malloc, calloc, free
-
+from libc.string cimport memset
 
 ctypedef struct raw_graph:
 	int n, ne
@@ -419,7 +419,8 @@ cdef void c_induced_subgraph (int *edges, int *new_edges, int m, int *new_m, int
 			e[1] = te[1]
 			e[2] = te[2]
 			nm += 1
-	
+
+	minimize_edges(new_edges, nm)	
 	new_m[0] = nm
 
 	return
@@ -469,20 +470,20 @@ cdef void c_minimal_isomorph (int n, int *edges, int m, int t):
 	return
 
 
-cdef class result_block:
-	cdef int len, denominator
-	cdef int rows, cols, size
-	cdef int *p
-
-def matrix_from_result_block (result_block rb, int k):
-
-	cdef int i, j
-	M = Matrix(QQ, rb.rows, rb.cols)
-	for i in range(rb.rows):
-		for j in range(rb.cols):
-			M[i, j] = Integer(rb.p[(rb.size * k) + (i * rb.rows) + j]) / rb.denominator
-	
-	return M
+# cdef class result_block:
+# 	cdef int len, denominator
+# 	cdef int rows, cols, size
+# 	cdef int *p
+# 
+# def matrix_from_result_block (result_block rb, int k):
+# 
+# 	cdef int i, j
+# 	M = Matrix(QQ, rb.rows, rb.cols)
+# 	for i in range(rb.rows):
+# 		for j in range(rb.cols):
+# 			M[i, j] = Integer(rb.p[(rb.size * k) + (i * rb.rows) + j]) / rb.denominator
+# 	
+# 	return M
 
 def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_block flags2):
 
@@ -491,6 +492,8 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
 	cdef int f1index, f2index, *grb
+		
+	results = []
 	
 	sig_on()
 	
@@ -508,20 +511,24 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 	pf1 = <int *> malloc (sizeof(int) * m1)
 	pf2 = <int *> malloc (sizeof(int) * m2)
 
-	rb = result_block()
-	rb.len = gb.len
-	rb.rows = flags1.len
-	rb.cols = flags2.len
-	rb.size = rb.rows * rb.cols
-	if m1 == m2:
-		rb.denominator = np * 2
-	else:
-		rb.denominator = np
-	rb.p = <int *> calloc (rb.size * rb.len, sizeof(int))
+# 	rb = result_block()
+# 	rb.len = gb.len
+# 	rb.rows = flags1.len
+# 	rb.cols = flags2.len
+# 	rb.size = rb.rows * rb.cols
+# 	if m1 == m2:
+# 		rb.denominator = np * 2
+# 	else:
+# 		rb.denominator = np
+# 	rb.p = <int *> calloc (rb.size * rb.len, sizeof(int))
+
+	grb = <int *> malloc (flags1.len * flags2.len * sizeof(int))
 
 	for gi in range(gb.len):
 	
-		grb = &rb.p[gi * rb.size]
+		memset(grb, 0, flags1.len * flags2.len * sizeof(int))
+	
+		#grb = &rb.p[gi * rb.size]
 		ne = gb.graphs[gi].ne
 		edges = gb.graphs[gi].edges
 
@@ -581,20 +588,32 @@ def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_
 						grb[(f1index * flags1.len) + f2index] += 1
 						break
 
+		resarray = matrix(QQ, flags1.len, flags2.len, sparse=True)
+
 		if m1 == m2:
+			npd = Integer(np * 2)
 			for i in range(flags1.len):
-				grb[(i * flags1.len) + i] *= 2
-				for j in range(i + 1, flags1.len):
-					grb[(i * flags1.len) + j] += grb[(j * flags1.len) + i]
-					grb[(j * flags1.len) + i] = grb[(i * flags1.len) + j]
+				for j in range(i, flags1.len):
+					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
+					if k != 0:
+						resarray[i, j] = k / npd
+		else:
+			npd = Integer(np)
+			for i in range(flags1.len):
+				for j in range(flags2.len):
+					k = grb[(i * flags1.len) + j]
+					if k != 0:
+						resarray[i, j] = k / npd		
+		
+		results.append(resarray)
 
 	free(pf1)
 	free(pf2)
 	free(cur_edges)
-	
+	free(grb)
 	sig_off()
 	
-	return rb
+	return results
 
 def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
 
