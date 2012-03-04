@@ -31,7 +31,10 @@ import os
 import pexpect
 import sys
 
-cdsp_binary = "/Users/emil/Projects/flagmatic/csdp"
+# pexpect in Sage has a bug, which prevents it using commands with full paths.
+# So for now, CSDP has to be in a directory in $PATH.
+
+cdsp_cmd = "csdp"
 
 class flagmatic_problem(object):
 
@@ -121,7 +124,7 @@ class flagmatic_problem(object):
 	
 			f.write("%d\n" % (num_graphs + 1,))
 			f.write("%d\n" % (num_types + 3,))
-			f.write("1 %s -%d -1\n" % (" ".join([str(len(P._flags[i])) for i in range(num_types)]),
+			f.write("1 %s -%d -1\n" % (" ".join([str(len(self._flags[i])) for i in range(num_types)]),
 				num_graphs))
 			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
 			f.write("0 1 1 1 -1.0\n")
@@ -143,11 +146,11 @@ class flagmatic_problem(object):
 						f.write("%d %d %d %d %s\n" % (i + 1, j + 2, key[0] + 1, key[1] + 1,
 							value.n(digits=64)))
 
-	def run_csdp(self):
+	def run_csdp(self, show_output=False):
 	
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 	
-		cmd = "%s %s %s" % (cdsp_binary, self._sdp_input_filename, self._sdp_output_filename)
+		cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
 		print cmd
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
 		
@@ -157,9 +160,38 @@ class flagmatic_problem(object):
 			try:
 				p.expect("\r\n")
 				line = p.before.strip() + "\n"
-				sys.stdout.write(line)
+				if show_output:
+					sys.stdout.write(line)
 			except pexpect.EOF:
 				break
 		p.close()
 		returncode = p.exitstatus
 		
+		print "Returncode is %d" % returncode
+		
+		num_types = len(self._types)
+		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[i]), len(self._flags[i]))
+			for i in range(num_types)]
+		
+		with open(self._sdp_output_filename, "r") as f:
+			
+			for line in f:
+				numbers = line.split()
+				if numbers[0] != "2":
+					continue
+				ti = int(numbers[1]) - 2
+				if ti < 0 or ti >= num_types:
+					continue
+				j = int(numbers[2]) - 1
+				k = int(numbers[3]) - 1
+				self._sdp_Q_matrices[ti][j, k] = numbers[4]
+				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
+
+def test_sdp(n, show_output=False):
+	P = flagmatic_problem()
+	P.forbidden_edge_numbers={4:3}
+	P.n = n
+	P.calculate_flag_products()
+	P.write_sdp_input_file()
+	P.run_csdp(show_output=show_output)
+	return P
