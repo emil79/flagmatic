@@ -146,20 +146,22 @@ class flagmatic_problem(object):
 						f.write("%d %d %d %d %s\n" % (i + 1, j + 2, key[0] + 1, key[1] + 1,
 							value.n(digits=64)))
 
+
 	def run_csdp(self, show_output=False):
 	
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 	
 		cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
-		print cmd
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
-		
+		obj_val = None
 		while True:
 			if p.eof():
 				break
 			try:
 				p.expect("\r\n")
 				line = p.before.strip() + "\n"
+				if "Primal objective value:" in line:
+					obj_val = -RDF(line.split()[-1])
 				if show_output:
 					sys.stdout.write(line)
 			except pexpect.EOF:
@@ -167,7 +169,8 @@ class flagmatic_problem(object):
 		p.close()
 		returncode = p.exitstatus
 		
-		print "Returncode is %d" % returncode
+		sys.stdout.write("Returncode is %d. Objective value is %s.\n" % (returncode,
+			obj_val))
 		
 		num_types = len(self._types)
 		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[i]), len(self._flags[i]))
@@ -186,6 +189,35 @@ class flagmatic_problem(object):
 				k = int(numbers[3]) - 1
 				self._sdp_Q_matrices[ti][j, k] = numbers[4]
 				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
+
+	def find_sharps(self):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		fbounds = [RDF(self._graph_densities[i]) for i in range(num_graphs)]
+		
+		for ti in range(num_types):
+			num_flags = len(self._flags[ti])
+			for j in range(num_flags):
+				for k in range(j, num_flags):
+					value = self._sdp_Q_matrices[ti][j, k]
+					if j != k:
+						value *= 2
+					for gi in range(num_graphs):
+						key = (j, k)
+						d = self._flag_products[ti][gi].dict()
+						if key in d:
+							fbounds[gi] += d[key] * value
+
+		tolerance = 0.00001
+		bound = max(fbounds)
+		sharp_indices = [gi for gi in range(num_graphs)
+			if abs(fbounds[gi] - bound) < tolerance]
+		
+		sys.stdout.write("The following %d graphs are sharp:\n" % len(sharp_indices))
+		for gi in sharp_indices:
+			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
+		
 
 def test_sdp(n, show_output=False):
 	P = flagmatic_problem()
