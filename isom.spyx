@@ -42,7 +42,7 @@ cdef class graph_block:
 
 def make_graph_block(graphs, n):
 
-	cdef int i, j, *e
+	cdef int i, j, ne, *e
 	gb = graph_block()
 	gb.n = n
 	gb.len = len(graphs)
@@ -66,6 +66,7 @@ def make_graph_block(graphs, n):
 cdef class combinatorial_info_block:
 	cdef int np
 	cdef int *p
+
 
 previous_permutations = {}
 
@@ -103,18 +104,15 @@ cdef int *generate_permutations_fixing(int n, int s, int *number_of):
 
 	return p
 
-
 cdef int *generate_permutations(int n, int *number_of):
 
 	return generate_permutations_fixing(n, <int> 0, number_of)
-
 
 # def get_permutations (n):
 # 
 # 	cdef int *p, np, i, j
 # 	p = generate_permutations(n, &np)
 # 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
-
 
 
 previous_combinations = {}
@@ -209,13 +207,11 @@ cdef int *generate_pair_combinations(int n, int s, int m1, int m2, int *number_o
 
 	return p
 
-
 def get_pair_combinations (n, s, m1, m2):
 
 	cdef int *p, np, i, j
 	p = generate_pair_combinations(n, s, m1, m2, &np)
 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
-
 
 previous_equal_pair_combinations = {}
 
@@ -326,6 +322,7 @@ cdef void minimize_edges(int *edges, int m):
 			break
 			
 		round += 1
+
 
 def minimal_isomorph (g, tg):
 
@@ -472,195 +469,58 @@ cdef void c_minimal_isomorph (int n, int *edges, int m, int t):
 	return
 
 
-def fast_flag_products (g, tg, flags1, m1, flags2, m2):
+cdef class result_block:
+	cdef int len, denominator
+	cdef int rows, cols, size
+	cdef int *p
 
-	cdef int *p, *pp, *pf1, *pf2, np, s, *edges, *cur_edges, *e
-	cdef int n, ne, i, j, k, cnte
-	cdef int *flags1edges, *flags2edges, num_flags1, f1me, num_flags2, f2me
-	cdef int *flags1_num_edges, *flags2_num_edges
-	cdef int cnf1e, cnf2e, f1index, f2index, *results
-	
-	sig_on()
-	
-	s = tg[0]
-	n = g[0]
-	ne = len(g[1])
-	nte = len(tg[1])
+def matrix_from_result_block (result_block rb, int k):
 
-	p = generate_pair_combinations(n, s, <int> m1, <int> m2, &np)
-	pf1 = <int *> malloc (sizeof(int) * m1)
-	pf2 = <int *> malloc (sizeof(int) * m2)
-	edges = <int *> malloc (sizeof(int) * 3 * ne)
-	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
-	type_edges = <int *> malloc (sizeof(int) * 3 * nte)
-
-	# copy g
-	for i in range(ne):
-		e = &edges[3 * i]
-		e[0] = g[1][i][0]
-		e[1] = g[1][i][1]
-		e[2] = g[1][i][2]
-
-	# copy tg
-	for i in range(nte):
-		e = &type_edges[3 * i]
-		e[0] = tg[1][i][0]
-		e[1] = tg[1][i][1]
-		e[2] = tg[1][i][2]
-
-	f1me = binomial(m1, 3)
-	f2me = binomial(m2, 3)
-
-	num_flags1 = len(flags1)
-	flags1_num_edges = <int *> malloc (sizeof(int) * num_flags1)
-	flags1edges = <int *> malloc (sizeof(int) * f1me * 3 * num_flags1)
-
-	num_flags2 = len(flags2)
-	flags2_num_edges = <int *> malloc (sizeof(int) * num_flags2)
-	flags2edges = <int *> malloc (sizeof(int) * f2me * 3 * num_flags2)
-
-	results = <int *> calloc (num_flags1 * num_flags2, sizeof(int))
-
-	for i in range(num_flags1):
-		k = len(flags1[i][1])
-		flags1_num_edges[i] = k
-		for j in range(k):
-			e = &flags1edges[(f1me * 3 * i) + (3 * j)]
-			e[0] = flags1[i][1][j][0]
-			e[1] = flags1[i][1][j][1]
-			e[2] = flags1[i][1][j][2]
-
-	for i in range(num_flags2):
-		k = len(flags2[i][1])
-		flags2_num_edges[i] = k
-		for j in range(k):
-			e = &flags2edges[(f2me * 3 * i) + (3 * j)]
-			e[0] = flags2[i][1][j][0]
-			e[1] = flags2[i][1][j][1]
-			e[2] = flags2[i][1][j][2]
-
-	cdef int has_type = 0
-	cdef int has_f1 = 0
-
-	for i in range(np):
-	
-		pp = &p[(i * n)]
-	
-		if pp[0] != 0:
-	
-			for j in range(s):
-				pf1[j] = pp[j]
-				pf2[j] = pp[j]
-		
-			has_type = 0
-			c_induced_subgraph(edges, cur_edges, ne, &cnte, pf1, s)
-			
-			if cnte == nte:
-				if all(cur_edges[j] == type_edges[j] for j in range(nte * 3)):
-					has_type = 1
-
-		if has_type == 0:
-			continue
-		
-		if has_type and pp[s] != 0:
-
-			has_f1 = 0
-
-			for j in range(m1 - s):
-				pf1[s + j] = pp[s + j]
-
-			c_induced_subgraph(edges, cur_edges, ne, &cnf1e, pf1, m1)
-			c_minimal_isomorph(n, cur_edges, cnf1e, s)
-			
-			for j in range(num_flags1):
-				if flags1_num_edges[j] == cnf1e:
-					if all(cur_edges[k] == flags1edges[(f1me * 3 * j) + k] for k in range(cnf1e * 3)):
-						has_f1 = 1
-						f1index = j
-						break
-
-		if has_f1 == 0:
-			continue
-
-		for j in range(m2 - s):
-			pf2[s + j] = pp[m1 + j]
-
-		c_induced_subgraph(edges, cur_edges, ne, &cnf2e, pf2, m2)
-		c_minimal_isomorph(n, cur_edges, cnf2e, s)
-		
-		for j in range(num_flags2):
-			if flags2_num_edges[j] == cnf2e:
-				if all(cur_edges[k] == flags2edges[(f2me * 3 * j) + k] for k in range(cnf2e * 3)):
-					f2index = j
-					results[(f1index * num_flags2) + f2index] += 1
-					break		
-
-	M = Matrix(QQ, num_flags1, num_flags2)
-	for i in range(num_flags1):
-		for j in range(num_flags2):
-			M[i, j] = Integer(results[(i * num_flags2) + j]) / Integer(np)
-	
-	free(pf1)
-	free(pf2)
-	free(edges)
-	free(cur_edges)
-	free(type_edges)
-	free(flags1_num_edges)
-	free(flags1edges)
-	free(flags2_num_edges)
-	free(flags2edges)
-	free(results)
-	
-	sig_off()
+	cdef int i, j
+	M = Matrix(QQ, rb.rows, rb.cols)
+	for i in range(rb.rows):
+		for j in range(rb.cols):
+			M[i, j] = Integer(rb.p[(rb.size * k) + (i * rb.rows) + j]) / rb.denominator
 	
 	return M
 
+def gb_flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_block flags2):
 
-cdef class result_block:
-	cdef int len, rows, cols, size
-	cdef int *p
-
-def gb_flag_products (graph_block gb, tg, graph_block flags1, graph_block flags2):
-
-	cdef int *p, *pp, *pf1, *pf2, *grb, np, s, *edges, *cur_edges, *e
-	cdef int n, ne, nte, i, j, k, cnte, gi, m1, m2
-	cdef int cnf1e, cnf2e, f1index, f2index, *results
+	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
+	cdef int n, s, m1, m2, ne, i, j, k, gi
+	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
+	cdef int f1index, f2index, *grb
 	
 	sig_on()
 	
 	n = gb.n
+	s = tb.n
 	m1 = flags1.n
 	m2 = flags2.n
-
-	# copy tg
-	s = tg[0]
-	nte = len(tg[1])
-	type_edges = <int *> malloc (sizeof(int) * 3 * 35)
-	for i in range(nte):
-		e = &type_edges[3 * i]
-		e[0] = tg[1][i][0]
-		e[1] = tg[1][i][1]
-		e[2] = tg[1][i][2]
 
 	if m1 == m2:
 		p = generate_equal_pair_combinations(n, s, m1, &np)
 	else:
 		p = generate_pair_combinations(n, s, m1, m2, &np)
-	
+
+	cur_edges = <int *> malloc (sizeof(int) * 3 * 35)	
 	pf1 = <int *> malloc (sizeof(int) * m1)
 	pf2 = <int *> malloc (sizeof(int) * m2)
-	cur_edges = <int *> malloc (sizeof(int) * 3 * 35)
 
 	rb = result_block()
 	rb.len = gb.len
 	rb.rows = flags1.len
 	rb.cols = flags2.len
 	rb.size = rb.rows * rb.cols
+	if m1 == m2:
+		rb.denominator = np * 2
+	else:
+		rb.denominator = np
 	rb.p = <int *> calloc (rb.size * rb.len, sizeof(int))
 
 	for gi in range(gb.len):
-		
+	
 		grb = &rb.p[gi * rb.size]
 		ne = gb.graphs[gi].ne
 		edges = gb.graphs[gi].edges
@@ -681,8 +541,8 @@ def gb_flag_products (graph_block gb, tg, graph_block flags1, graph_block flags2
 				has_type = 0
 				c_induced_subgraph(edges, cur_edges, ne, &cnte, pf1, s)
 				
-				if cnte == nte:
-					if all(cur_edges[j] == type_edges[j] for j in range(nte * 3)):
+				if cnte == tb.graphs[0].ne:
+					if all(cur_edges[j] == tb.graphs[0].edges[j] for j in range(cnte * 3)):
 						has_type = 1
 	
 			if has_type == 0:
@@ -716,313 +576,25 @@ def gb_flag_products (graph_block gb, tg, graph_block flags1, graph_block flags2
 			
 			for j in range(flags2.len):
 				if flags2.graphs[j].ne == cnf2e:
-					if all(cur_edges[k] == flags2.graphs[j].edges[k] for k in range(cnf1e * 3)):
+					if all(cur_edges[k] == flags2.graphs[j].edges[k] for k in range(cnf2e * 3)):
 						f2index = j
-						grb[(f1index * flags2.len) + f2index] += 1
-						if m1 == m2 and f1index != f2index:
-							grb[(f2index * flags2.len) + f1index] += 1
+						grb[(f1index * flags1.len) + f2index] += 1
 						break
 
-		#M = Matrix(QQ, num_flags1, num_flags2)
-		#for i in range(num_flags1):
-		#	for j in range(num_flags2):
-		#		M[i, j] = Integer(results[(i * num_flags2) + j]) / Integer(np)
-	#M = None
-	
+		if m1 == m2:
+			for i in range(flags1.len):
+				grb[(i * flags1.len) + i] *= 2
+				for j in range(i + 1, flags1.len):
+					grb[(i * flags1.len) + j] += grb[(j * flags1.len) + i]
+					grb[(j * flags1.len) + i] = grb[(i * flags1.len) + j]
+
 	free(pf1)
 	free(pf2)
 	free(cur_edges)
-	free(type_edges)
 	
 	sig_off()
 	
 	return rb
-
-
-def equal_flag_products (g, tg, flags, _m):
-
-	cdef int *p, *pp, *pf1, *pf2, np, s, *edges, *cur_edges, *e
-	cdef int n, m, ne, nte, i, j, k, cnte
-	cdef int *flags_edges, num_flags, fme
-	cdef int *flags_num_edges
-	cdef int cnf1e, cnf2e, f1index, f2index, *results
-	
-	sig_on()
-	
-	m = _m
-	s = tg[0]
-	n = g[0]
-	ne = len(g[1])
-	nte = len(tg[1])
-
-	p = generate_equal_pair_combinations(n, s, <int> m, &np)
-	pf1 = <int *> malloc (sizeof(int) * m)
-	pf2 = <int *> malloc (sizeof(int) * m)
-	edges = <int *> malloc (sizeof(int) * 3 * ne)
-	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
-	type_edges = <int *> malloc (sizeof(int) * 3 * nte)
-
-	# copy g
-	for i in range(ne):
-		e = &edges[3 * i]
-		e[0] = g[1][i][0]
-		e[1] = g[1][i][1]
-		e[2] = g[1][i][2]
-
-	# copy tg
-	for i in range(nte):
-		e = &type_edges[3 * i]
-		e[0] = tg[1][i][0]
-		e[1] = tg[1][i][1]
-		e[2] = tg[1][i][2]
-
-	fme = binomial(m, 3)
-
-	num_flags = len(flags)
-	flags_num_edges = <int *> malloc (sizeof(int) * num_flags)
-	flags_edges = <int *> malloc (sizeof(int) * fme * 3 * num_flags)
-
-	results = <int *> calloc (num_flags * num_flags, sizeof(int))
-
-	for i in range(num_flags):
-		k = len(flags[i][1])
-		flags_num_edges[i] = k
-		for j in range(k):
-			e = &flags_edges[(fme * 3 * i) + (3 * j)]
-			e[0] = flags[i][1][j][0]
-			e[1] = flags[i][1][j][1]
-			e[2] = flags[i][1][j][2]
-
-	cdef int has_type = 0
-	cdef int has_f1 = 0
-
-	for i in range(np):
-	
-		pp = &p[(i * n)]
-	
-		if pp[0] != 0:
-	
-			for j in range(s):
-				pf1[j] = pp[j]
-				pf2[j] = pp[j]
-		
-			has_type = 0
-			c_induced_subgraph(edges, cur_edges, ne, &cnte, pf1, s)
-			
-			if cnte == nte:
-				if all(cur_edges[j] == type_edges[j] for j in range(nte * 3)):
-					has_type = 1
-
-		if has_type == 0:
-			continue
-		
-		if has_type and pp[s] != 0:
-
-			has_f1 = 0
-
-			for j in range(m - s):
-				pf1[s + j] = pp[s + j]
-
-			c_induced_subgraph(edges, cur_edges, ne, &cnf1e, pf1, m)
-			c_minimal_isomorph(n, cur_edges, cnf1e, s)
-			
-			for j in range(num_flags):
-				if flags_num_edges[j] == cnf1e:
-					if all(cur_edges[k] == flags_edges[(fme * 3 * j) + k] for k in range(cnf1e * 3)):
-						has_f1 = 1
-						f1index = j
-						break
-
-		if has_f1 == 0:
-			continue
-
-		for j in range(m - s):
-			pf2[s + j] = pp[m + j]
-
-		c_induced_subgraph(edges, cur_edges, ne, &cnf2e, pf2, m)
-		c_minimal_isomorph(n, cur_edges, cnf2e, s)
-		
-		for j in range(num_flags):
-			if flags_num_edges[j] == cnf2e:
-				if all(cur_edges[k] == flags_edges[(fme * 3 * j) + k] for k in range(cnf2e * 3)):
-					f2index = j
-					results[(f1index * num_flags) + f2index] += 1
-					break		
-
-	M = Matrix(QQ, num_flags, num_flags)
-	for i in range(num_flags):
-		for j in range(num_flags):
-			M[i, j] = Integer(results[(i * num_flags) + j]) / Integer(np)
-
-	M += M.T
-	for i in range(num_flags):
-		M[i, i] /= 2
-	
-	free(pf1)
-	free(pf2)
-	free(edges)
-	free(cur_edges)
-	free(type_edges)
-	free(flags_num_edges)
-	free(flags_edges)
-	free(results)
-	
-	sig_off()
-	
-	return M
-
-
-def multiple_equal_flag_products (g, typs, _s, flags, _m):
-
-	cdef int *p, *pp, *pf1, *pf2, np, *edges, *cur_edges, *e
-	cdef int n, s, m, ne, fme, i, j, k, cnte, cnf1e, cnf2e
-	cdef int num_types, *num_type_edges, **type_edges
-	cdef int *num_flags, **num_flag_edges, **flag_edges
-	cdef int tindex, f1index, f2index, **results
-	
-	
-	sig_on()
-
-	n = g[0]	
-	s = _s
-	m = _m
-
-	p = generate_equal_pair_combinations(n, s, m, &np)
-	pf1 = <int *> malloc (sizeof(int) * m)
-	pf2 = <int *> malloc (sizeof(int) * m)
-
-	ne = len(g[1])
-	edges = <int *> malloc (sizeof(int) * 3 * ne)
-	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
-
-	# copy g
-	for i in range(ne):
-		e = &edges[3 * i]
-		e[0] = g[1][i][0]
-		e[1] = g[1][i][1]
-		e[2] = g[1][i][2]
-
-	num_types = len(typs)
-	num_type_edges = <int *> malloc (sizeof(int) * num_types)
-	type_edges = <int **> malloc (sizeof(int *) * num_types)
-	num_flags = <int *> malloc (sizeof(int) * num_types)
-	num_flag_edges = <int **> malloc (sizeof(int *) * num_types)
-	flag_edges = <int **> malloc (sizeof(int *) * num_types)
-	results = <int **> malloc (sizeof(int *) * num_types)
-	fme = binomial(m, 3)
-
-	for i in range(num_types):
-
-		num_type_edges[i] = len(typs[i][1])
-		type_edges[i] = <int *> malloc (sizeof(int) * num_type_edges[i] * 3)
-
-		for j in range(num_type_edges[i]):
-			e = &type_edges[i][3 * j]
-			e[0] = typs[i][1][j][0]
-			e[1] = typs[i][1][j][1]
-			e[2] = typs[i][1][j][2]
-
-		num_flags[i] = len(flags[i])
-		results[i] = <int *> calloc (num_flags[i] * num_flags[i], sizeof(int))
-		num_flag_edges[i] = <int *> malloc (sizeof(int) * num_flags[i])
-		flag_edges[i] = <int *> malloc (sizeof(int) * fme * 3 * num_flags[i])
-	
-		for j in range(num_flags[i]):
-			num_flag_edges[i][j] = len(flags[i][j][1])
-			for k in range(num_flag_edges[i][j]):
-				e = &flag_edges[i][(fme * 3 * j) + (3 * k)]
-				e[0] = flags[i][j][1][k][0]
-				e[1] = flags[i][j][1][k][1]
-				e[2] = flags[i][j][1][k][2]
-
-	cdef int has_type = 0
-	cdef int has_f1 = 0
-
-	for i in range(np):
-	
-		pp = &p[(i * n)]
-	
-		if pp[0] != 0:
-	
-			for j in range(s):
-				pf1[j] = pp[j]
-				pf2[j] = pp[j]
-		
-			has_type = 0
-			c_induced_subgraph(edges, cur_edges, ne, &cnte, pf1, s)
-			
-			for j in range(num_types):
-				if cnte == num_type_edges[j]:
-					if all(cur_edges[k] == type_edges[j][k] for k in range(cnte * 3)):
-						has_type = 1
-						tindex = j
-						break
-
-		if has_type == 0:
-			continue
-		
-		if has_type and pp[s] != 0:
-
-			has_f1 = 0
-
-			for j in range(m - s):
-				pf1[s + j] = pp[s + j]
-
-			c_induced_subgraph(edges, cur_edges, ne, &cnf1e, pf1, m)
-			c_minimal_isomorph(n, cur_edges, cnf1e, s)
-			
-			for j in range(num_flags[tindex]):
-				if num_flag_edges[tindex][j] == cnf1e:
-					if all(cur_edges[k] == flag_edges[tindex][(fme * 3 * j) + k] for k in range(cnf1e * 3)):
-						has_f1 = 1
-						f1index = j
-						break
-
-		if has_f1 == 0:
-			continue
-
-		for j in range(m - s):
-			pf2[s + j] = pp[m + j]
-
-		c_induced_subgraph(edges, cur_edges, ne, &cnf2e, pf2, m)
-		c_minimal_isomorph(n, cur_edges, cnf2e, s)
-		
-		for j in range(num_flags[tindex]):
-			if num_flag_edges[tindex][j] == cnf2e:
-				if all(cur_edges[k] == flag_edges[tindex][(fme * 3 * j) + k] for k in range(cnf2e * 3)):
-					f2index = j
-					results[tindex][(f1index * num_flags[tindex]) + f2index] += 1
-					break		
-
-	matrices = []
-	for ti in range(num_types):
-		M = Matrix(QQ, num_flags[ti], num_flags[ti])
-		for i in range(num_flags[ti]):
-			for j in range(num_flags[ti]):
-				M[i, j] = Integer(results[ti][(i * num_flags[ti]) + j]) / Integer(np)
-		matrices.append((M + M.T) / 2)
-			
-	for i in range(num_types):
-		free(type_edges[i])
-		free(num_flag_edges[i])
-		free(flag_edges[i])
-		free(results[i])
-	
-	free(type_edges)
-	free(num_flag_edges)
-	free(flag_edges)
-	free(results)
-	free(num_type_edges)
-	free(num_flags)
-	free(pf1)
-	free(pf2)
-	free(edges)
-	free(cur_edges)
-
-	sig_off()
-	
-	return matrices
-
 
 def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
 

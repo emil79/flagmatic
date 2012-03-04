@@ -91,9 +91,10 @@ class flagmatic_problem(object):
  			tg = self._types[ti]
  			s = tg[0]
  			m = (self._n + s) / 2
- 			print ti, m, s
+ 			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti + 1, s, m))
  			flags_block = make_graph_block(self._flags[ti], m)
-			self._flag_products[ti] = gb_flag_products(self._graph_block, tg, flags_block, flags_block)
+			self._flag_products[ti] = gb_flag_products(self._graph_block,
+				make_graph_block([tg], s), flags_block, flags_block)
 			
 # 			for gi in range(len(self._graphs)):
 # 				self._flag_products[(gi, ti)] = multiple_equal_flag_products(self._graphs[gi],
