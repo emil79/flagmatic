@@ -29,12 +29,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #clang c
 
+#
+# TODO: enforce number of vertices <= 7.
+#  More sanity checking.
+#
+#
+#
+
 from libc.stdlib cimport malloc, calloc, free
 from libc.string cimport memset
 
+DEF MAX_NUMBER_OF_EDGES = 35
+
 ctypedef struct raw_graph:
 	int n, ne
-	int edges[35 * 3]
+	int edges[MAX_NUMBER_OF_EDGES * 3]
 
 cdef class graph_block:
 	cdef int n, len
@@ -108,11 +117,11 @@ cdef int *generate_permutations(int n, int *number_of):
 
 	return generate_permutations_fixing(n, <int> 0, number_of)
 
-# def get_permutations (n):
-# 
-# 	cdef int *p, np, i, j
-# 	p = generate_permutations(n, &np)
-# 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
+def get_permutations (n):
+ 
+	cdef int *p, np, i, j
+	p = generate_permutations(n, &np)
+	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
 
 
 previous_combinations = {}
@@ -147,6 +156,12 @@ cdef int *generate_combinations(int n, int s, int *number_of):
 		number_of[0] = fac
 
 	return p
+
+def get_combinations (n, s):
+
+	cdef int *p, np, i, j
+	p = generate_combinations(n, s, &np)
+	return [[p[(i * s) + j] for j in range(s)] for i in range(np)]
 
 
 previous_pair_combinations = {}
@@ -212,6 +227,7 @@ def get_pair_combinations (n, s, m1, m2):
 	cdef int *p, np, i, j
 	p = generate_pair_combinations(n, s, m1, m2, &np)
 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
+
 
 previous_equal_pair_combinations = {}
 
@@ -384,18 +400,6 @@ def minimal_isomorph (g, tg):
 	return (n, tuple(edge_list))
 
 
-def induced_subgraph (g, S):
-
-	good_edges = [e for e in g[1] if all(x in S for x in e)]
-	p = [0 for i in range(g[0] + 1)]
-	for i in range(len(S)):
-		p[S[i]] = i + 1
-
-	edges = sorted([tuple(sorted([p[x] for x in e])) for e in good_edges])
-
-	return (len(S), tuple(edges))
-
-
 cdef void c_induced_subgraph (int *edges, int *new_edges, int m, int *new_m, int *verts, int s):
 
 	cdef int nm = 0, i, j, k, *e, got, te[3]
@@ -503,7 +507,7 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 		flags2 = flags1
 		p = generate_equal_pair_combinations(n, s, m1, &np)
 
-	cur_edges = <int *> malloc (sizeof(int) * 3 * 35)	
+	cur_edges = <int *> malloc (sizeof(int) * 3 * MAX_NUMBER_OF_EDGES)
 	pf1 = <int *> malloc (sizeof(int) * m1)
 	pf2 = <int *> malloc (sizeof(int) * m2)
 	grb = <int *> malloc (flags1.len * flags2.len * sizeof(int))

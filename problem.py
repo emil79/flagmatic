@@ -73,13 +73,7 @@ class flagmatic_problem(object):
 			for tg in these_types:
 				these_flags.append(generate_flags(m, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
 			sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
-			
-			#for gi in range(len(self._graphs)):
-			#	flag_products = multiple_equal_flag_products(self._graphs[gi],
-			#			these_types, s, these_flags, m)
-			#	for mi in range(len(these_types)):
-			#		self._flag_products[(gi, mi + num_types)] = flag_products[mi]
-			
+						
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
 			num_types += len(these_types)
@@ -95,11 +89,6 @@ class flagmatic_problem(object):
  			flags_block = make_graph_block(self._flags[ti], m)
 			self._flag_products[ti] = flag_products(self._graph_block,
 				make_graph_block([tg], s), flags_block, None)
-			
-# 			for gi in range(len(self._graphs)):
-# 				self._flag_products[(gi, ti)] = multiple_equal_flag_products(self._graphs[gi],
-# 						[tg], s, [self._flags[ti]], m)
-
 
 	@property
 	def graphs(self):
@@ -120,4 +109,3 @@ class flagmatic_problem(object):
 			value = self._flag_products[key]
 			sys.stdout.write("%d %d %d %d %s\n" % (gi + 1, ti + 2, fai + 1, fbi + 1,
 				value.n(digits=64)))
-	
