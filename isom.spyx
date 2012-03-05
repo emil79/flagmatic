@@ -593,6 +593,7 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
 					if k != 0:
 						resarray[i, j] = k / npd
+						resarray[j, i] = resarray[i, j]
 		else:
 		
 			npd = Integer(np)

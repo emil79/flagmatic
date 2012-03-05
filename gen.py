@@ -77,11 +77,62 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 
 	return [g for graphs in new_graphs for g in graphs]
 
-
 def generate_graphs(n, forbidden_edge_numbers={}):
 	
 	tg = (0, ())
 	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers)
+
+
+def flag_orbits(tg, flags):
+
+	s = tg[0]
+	min_flags = []
+
+	for fg in flags:
+		mfg = fg
+		for perm in Permutations(range(1, s + 1)):
+			permplus = perm + range(s + 1, fg[0] + 1)
+			ntg = (tg[0], tuple(sorted([tuple(sorted([perm[e[i] - 1] for i in range(3)])) for e in tg[1]])))
+			nfg = (fg[0], tuple(sorted([tuple(sorted([permplus[e[i] - 1] for i in range(3)])) for e in fg[1]])))
+			mnfg = minimal_isomorph(nfg, ntg)
+			if mnfg < mfg:
+				mfg = mnfg
+		min_flags.append(mfg)
+
+	orbs = []
+	for mfg in set(min_flags):
+		orbs.append(tuple([i for i in range(len(min_flags)) if min_flags[i] == mfg]))
+
+	return sorted(orbs)
+	
+
+def flag_basis(tg, flags, orthogonalize=True):
+
+	orbs = flag_orbits(tg, flags)
+	
+	Inv = matrix(QQ, len(orbs), len(flags), sparse=True)
+	row = 0
+	for orb in orbs:
+		for j in orb:
+			Inv[row, j] = 1
+		row += 1
+	
+	# There might be no anti-invariant part.
+	if len(orbs) == len(flags):
+		return Inv
+	
+	AntiInv = matrix(QQ, len(flags) - len(orbs), len(flags), sparse=True)
+	row = 0
+	for orb in orbs:
+		for j in orb[1:]:
+			AntiInv[row, orb[0]] = 1
+			AntiInv[row, j] = -1
+			row += 1
+
+	if orthogonalize:
+		AntiInv, mu = AntiInv.gram_schmidt()
+	
+	return block_matrix([[Inv],[AntiInv]])
 
 
 # Deprecated: use flag_products instead

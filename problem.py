@@ -113,6 +113,27 @@ class flagmatic_problem(object):
 	def flags(self):
 		return self._flags
 	
+	def change_flag_basis(self):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		self._new_flag_products = []
+		for ti in range(num_types):
+			B = flag_basis(self._types[ti], self._flags[ti])
+			row_div = B.subdivisions()[0]
+			try:
+				inv_rows = row_div[0]
+			except IndexError:
+				inv_rows = B.nrows()
+			antiinv_rows = B.nrows() - inv_rows
+			print "%d : %d" % (inv_rows, antiinv_rows)
+			nfp = []
+			for gi in range(num_graphs):
+				D = self._flag_products[ti][gi]
+				ND = B * D * B.T
+				nfp.append(ND)
+			self._new_flag_products.append(nfp)
+		
 	def write_sdp_input_file(self):
 	
 		num_graphs = len(self._graphs)
@@ -142,7 +163,9 @@ class flagmatic_problem(object):
 		
 			for i in range(num_graphs):
 				for j in range(num_types):
-					for key, value in self._flag_products[j][i].dict().iteritems():
+					for key, value in self._new_flag_products[j][i].dict().iteritems():
+						if key[1] < key[0]:
+							continue
 						f.write("%d %d %d %d %s\n" % (i + 1, j + 2, key[0] + 1, key[1] + 1,
 							value.n(digits=64)))
 
@@ -205,7 +228,7 @@ class flagmatic_problem(object):
 						value *= 2
 					for gi in range(num_graphs):
 						key = (j, k)
-						d = self._flag_products[ti][gi].dict()
+						d = self._new_flag_products[ti][gi].dict()
 						if key in d:
 							fbounds[gi] += d[key] * value
 
@@ -224,6 +247,7 @@ def test_sdp(n, show_output=False):
 	P.forbidden_edge_numbers={4:3}
 	P.n = n
 	P.calculate_flag_products()
+	P.change_flag_basis()
 	P.write_sdp_input_file()
 	P.run_csdp(show_output=show_output)
 	return P
