@@ -118,20 +118,28 @@ class flagmatic_problem(object):
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		self._new_flag_products = []
+		self._new_flag_basis = []
+		
 		for ti in range(num_types):
+		
 			B = flag_basis(self._types[ti], self._flags[ti])
+			self._new_flag_basis.append(B)
+		
 			row_div = B.subdivisions()[0]
 			try:
 				inv_rows = row_div[0]
+				is_subdivided = True
 			except IndexError:
-				inv_rows = B.nrows()
-			antiinv_rows = B.nrows() - inv_rows
-			print "%d : %d" % (inv_rows, antiinv_rows)
+				is_subdivided = False
+		
 			nfp = []
 			for gi in range(num_graphs):
 				D = self._flag_products[ti][gi]
 				ND = B * D * B.T
+				if is_subdivided:
+					ND.subdivide(inv_rows, inv_rows)
 				nfp.append(ND)
+		
 			self._new_flag_products.append(nfp)
 		
 	def write_sdp_input_file(self):
@@ -139,36 +147,63 @@ class flagmatic_problem(object):
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 	
+# 		is_subdivided = [len(self._new_flag_basis[i].subdivisions()[0]) > 0
+# 			for i in range(num_types)]
+# 	
+# 		print is_subdivided
+		
+		inv_block_sizes = []
+		anti_inv_block_sizes = []
+		for i in range(num_types):
+			row_div = self._new_flag_basis[i].subdivisions()[0]
+			if len(row_div) > 0:
+				inv_block_sizes.append(row_div[0])
+				anti_inv_block_sizes.append(len(self._flags[i]) - row_div[0])
+			else:
+				inv_block_sizes.append(len(self._flags[i]))
+				anti_inv_block_sizes.append(1)
+	
+		print inv_block_sizes, anti_inv_block_sizes
+	
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
 		with open(self._sdp_input_filename, "w") as f:
 	
 			f.write("%d\n" % (num_graphs + 1,))
-			f.write("%d\n" % (num_types + 3,))
-			f.write("1 %s -%d -1\n" % (" ".join([str(len(self._flags[i])) for i in range(num_types)]),
-				num_graphs))
+			f.write("%d\n" % (2 * num_types + 3,))
+			f.write("1 ")
+			for i in range(num_types):
+				f.write("%d " % inv_block_sizes[i])
+				f.write("%d " % anti_inv_block_sizes[i])
+			f.write("-%d -1\n" % num_graphs)
 			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
 			f.write("0 1 1 1 -1.0\n")
 	
 			for i in range(num_graphs):
 				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
-				f.write("%d %d %d %d 1.0\n" % (i + 1, num_types + 2, i + 1, i + 1))
+				f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
 				d = self._graph_densities[i]
 				if d != 0:
-					f.write("%d %d 1 1 %s\n" % (i + 1, num_types + 3, d.n(digits=64)))
+					f.write("%d %d 1 1 %s\n" % (i + 1, 2 * num_types + 3, d.n(digits=64)))
 			
-			f.write("%d %d 1 1 1.0\n" % (num_graphs + 1, num_types + 3))
+			f.write("%d %d 1 1 1.0\n" % (num_graphs + 1, 2 * num_types + 3))
 		
 			for i in range(num_graphs):
 				for j in range(num_types):
 					for key, value in self._new_flag_products[j][i].dict().iteritems():
-						if key[1] < key[0]:
+						row, col = key
+						if row < col: # only print upper triangle
 							continue
-						f.write("%d %d %d %d %s\n" % (i + 1, j + 2, key[0] + 1, key[1] + 1,
+						if row < inv_block_sizes[j]:
+							block = 2 * j + 2
+						else:
+							block = 2 * j + 3
+							row -= inv_block_sizes[j]
+							col -= inv_block_sizes[j]
+						f.write("%d %d %d %d %s\n" % (i + 1, block, row + 1, col + 1,
 							value.n(digits=64)))
-
 
 	def run_csdp(self, show_output=False):
 	

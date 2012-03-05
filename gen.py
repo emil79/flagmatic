@@ -106,6 +106,8 @@ def flag_orbits(tg, flags):
 	return sorted(orbs)
 	
 
+from sage.modules.misc import gram_schmidt
+
 def flag_basis(tg, flags, orthogonalize=True):
 
 	orbs = flag_orbits(tg, flags)
@@ -129,9 +131,17 @@ def flag_basis(tg, flags, orthogonalize=True):
 			AntiInv[row, j] = -1
 			row += 1
 
-	if orthogonalize:
-		AntiInv, mu = AntiInv.gram_schmidt()
+	sys.stdout.write("Inv-AntiInv: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
+		len(flags)))
 	
+	if orthogonalize:
+	
+		# Note: the following does not preserve sparsity
+		#AntiInv, mu = AntiInv.gram_schmidt()
+	
+		AntiInvRows, mu = gram_schmidt(AntiInv.rows())
+		AntiInv = matrix(QQ, AntiInvRows, sparse=True)
+
 	return block_matrix([[Inv],[AntiInv]])
 
 
