@@ -300,7 +300,12 @@ class flagmatic_problem(object):
 def test_sdp(n, show_output=False):
 	P = flagmatic_problem()
 	#P.forbidden_edge_numbers={4:3}
-	P.forbidden_graphs=[(5,((1,2,3),(1,2,4),(1,2,5),(3,4,5)))]
+	#P.forbidden_graphs=[(5,((1,2,3),(1,2,4),(1,2,5),(3,4,5)))]
+	#P.forbidden_induced_graphs=[(4,((1,2,3),(1,2,4),(1,3,4)))]
+	
+	P.forbidden_edge_numbers={4:4}
+	P.forbidden_induced_graphs=[(4,((1,2,3),))]
+	
 	P.n = n
 	P.set_inv_anti_inv_bases()
 	P.calculate_product_densities()

@@ -763,7 +763,7 @@ def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=Fals
 	return False
 
 
-def has_forbidden_graphs(g, graph_block forbidden_gb, must_have_highest=False):
+def has_forbidden_graphs(g, graph_block forbidden_gb, must_have_highest=False, induced=False):
 
 	cdef int *c, nc, i, j, k, n, fn, ne, cne, fne, *edges, *cur_edges, *e
 	
@@ -796,6 +796,9 @@ def has_forbidden_graphs(g, graph_block forbidden_gb, must_have_highest=False):
 			c_induced_subgraph(edges, cur_edges, ne, &cne, &c[j * fn], fn)
 			
 			if cne < forbidden_gb.graphs[i].ne:
+				continue
+				
+			if induced and cne > forbidden_gb.graphs[i].ne:
 				continue
 			
 			if c_is_subgraph(fn, cur_edges, cne, forbidden_gb.graphs[i].edges, forbidden_gb.graphs[i].ne):

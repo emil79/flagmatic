@@ -41,9 +41,13 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 
 	check_forbidden_edge_numbers = len(forbidden_edge_numbers) > 0
 	check_forbidden_graphs = len(forbidden_graphs) > 0
+	check_forbidden_induced_graphs = len(forbidden_induced_graphs) > 0
 
 	if check_forbidden_graphs:
 		fg_block = make_graph_block(forbidden_graphs, 0)
+
+	if check_forbidden_induced_graphs:
+		fgi_block = make_graph_block(forbidden_induced_graphs, 0)
 
 	s = tg[0]
 
@@ -81,6 +85,10 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 
 				if check_forbidden_graphs:
 					if has_forbidden_graphs(ng, fg_block, must_have_highest=True):
+						continue
+
+				if check_forbidden_induced_graphs:
+					if has_forbidden_graphs(ng, fgi_block, must_have_highest=True, induced=True):
 						continue
 
 				mng = minimal_isomorph(ng, tg)
