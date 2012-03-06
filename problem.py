@@ -57,7 +57,10 @@ class flagmatic_problem(object):
 		self._n = n
 
 		sys.stdout.write("Generating graphs...\n")
-		self._graphs = generate_graphs(n, forbidden_edge_numbers=self.forbidden_edge_numbers)
+		self._graphs = generate_graphs(n,
+			forbidden_edge_numbers=self.forbidden_edge_numbers,
+			forbidden_graphs=self.forbidden_graphs,
+			forbidden_induced_graphs=self.forbidden_induced_graphs)
 		self._graph_block = make_graph_block(self._graphs, n)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
@@ -71,14 +74,20 @@ class flagmatic_problem(object):
 	
 		for s in range(n % 2, n - 1, 2):
 			
-			these_types = generate_graphs(s, forbidden_edge_numbers=self.forbidden_edge_numbers)
+			these_types = generate_graphs(s,
+				forbidden_edge_numbers=self.forbidden_edge_numbers,
+				forbidden_graphs=self.forbidden_graphs,
+				forbidden_induced_graphs=self.forbidden_induced_graphs)
 			sys.stdout.write("Generated %d types of order %d, " % (
 				len(these_types), s))
 
 			m = (n + s) / 2
 			these_flags = []
 			for tg in these_types:
-				these_flags.append(generate_flags(m, tg, forbidden_edge_numbers=self.forbidden_edge_numbers))
+				these_flags.append(generate_flags(m, tg,
+					forbidden_edge_numbers=self.forbidden_edge_numbers,
+					forbidden_graphs=self.forbidden_graphs,
+					forbidden_induced_graphs=self.forbidden_induced_graphs))
 			sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
 						
 			self._types.extend(these_types)
@@ -106,10 +115,10 @@ class flagmatic_problem(object):
 			B = flag_basis(self._types[ti], self._flags[ti])
 			self._flag_bases[ti] = B
 
- 	def calculate_flag_products(self):
+ 	def calculate_product_densities(self):
  	
-		self._flag_products = []
- 		sys.stdout.write("Averaging flag products...\n")
+		self._product_densities = {}
+ 		sys.stdout.write("Calculating product densities...\n")
 
  		for ti in range(len(self._types)):
 
@@ -129,15 +138,14 @@ class flagmatic_problem(object):
  			flags_block = make_graph_block(self._flags[ti], m)
 			DL = flag_products(self._graph_block, make_graph_block([tg], s), flags_block, None)
 		
-			nfp = []
 			for gi in range(len(self._graphs)):
 				D = DL[gi]
 				ND = B * D * B.T
 				if is_subdivided:
 					ND.subdivide(inv_rows, inv_rows)
-				nfp.append(ND)
-			self._flag_products.append(nfp)
-		
+				self._product_densities[(gi, ti)] = sparse_symm_matrix_to_compact_repr(ND)
+
+
 	def write_sdp_input_file(self):
 	
 		num_graphs = len(self._graphs)
@@ -181,7 +189,8 @@ class flagmatic_problem(object):
 		
 			for i in range(num_graphs):
 				for j in range(num_types):
-					for key, value in self._flag_products[j][i].dict().iteritems():
+					D = sparse_symm_matrix_from_compact_repr(self._product_densities[(i, j)])
+					for key, value in D.dict().iteritems():
 						row, col = key
 						if row < col: # only print upper triangle
 							continue
@@ -258,6 +267,7 @@ class flagmatic_problem(object):
 				self._sdp_Q_matrices[ti][j, k] = numbers[4]
 				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
+
 	def find_sharps(self):
 	
 		num_types = len(self._types)
@@ -266,16 +276,16 @@ class flagmatic_problem(object):
 		
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
-			for j in range(num_flags):
-				for k in range(j, num_flags):
-					value = self._sdp_Q_matrices[ti][j, k]
-					if j != k:
-						value *= 2
-					for gi in range(num_graphs):
-						key = (j, k)
-						d = self._flag_products[ti][gi].dict()
-						if key in d:
-							fbounds[gi] += d[key] * value
+			for gi in range(num_graphs):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(num_flags):
+					for k in range(j, num_flags):
+						value = self._sdp_Q_matrices[ti][j, k]
+						if j != k:
+							value *= 2
+						d = D[j, k]
+						if d != 0:
+							fbounds[gi] += d * value
 
 		tolerance = 0.00001
 		bound = max(fbounds)
@@ -289,10 +299,11 @@ class flagmatic_problem(object):
 
 def test_sdp(n, show_output=False):
 	P = flagmatic_problem()
-	P.forbidden_edge_numbers={4:3}
+	#P.forbidden_edge_numbers={4:3}
+	P.forbidden_graphs=[(5,((1,2,3),(1,2,4),(1,2,5),(3,4,5)))]
 	P.n = n
 	P.set_inv_anti_inv_bases()
-	P.calculate_flag_products()
+	P.calculate_product_densities()
 	P.write_sdp_input_file()
 	P.run_csdp(show_output=show_output)
 	return P

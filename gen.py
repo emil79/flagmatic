@@ -27,17 +27,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import itertools
-
 def degrees(g):
 
 	n = g[0]
 	edges = g[1]
 	return [len([e for e in edges if x in e]) for x in range(1, n + 1)]
 
-def generate_flags(n, tg, forbidden_edge_numbers={}):
+
+def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
+
+	# TODO: implement forbidden_induced_graphs - currently ignored.
+	# TODO: turn some forbidden graphs into forbidden edge numbers.
 
 	check_forbidden_edge_numbers = len(forbidden_edge_numbers) > 0
+	check_forbidden_graphs = len(forbidden_graphs) > 0
+
+	if check_forbidden_graphs:
+		fg_block = make_graph_block(forbidden_graphs, 0)
 
 	s = tg[0]
 
@@ -52,9 +58,10 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 	
 	new_graphs = [set() for i in range(max_e + 1)]
 	
-	smaller_graphs = generate_flags(n - 1, tg, forbidden_edge_numbers=forbidden_edge_numbers)
+	smaller_graphs = generate_flags(n - 1, tg, forbidden_edge_numbers=forbidden_edge_numbers,
+		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 	
-	possible_nbrs = [p for p in itertools.combinations(range(1, n), 2)]
+	possible_nbrs = [p for p in Combinations(range(1, n), 2)]
 
 	for sg in smaller_graphs:
 	
@@ -64,7 +71,7 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 			
 		for ne in range(maxd, max_ne + 1):
 		
-			for nb in itertools.combinations(possible_nbrs, ne):
+			for nb in Combinations(possible_nbrs, ne):
 			
 				ng = (n, sg[1] + tuple([(v[0], v[1], n) for v in nb]))
 
@@ -72,15 +79,21 @@ def generate_flags(n, tg, forbidden_edge_numbers={}):
 					if has_forbidden_edge_numbers(ng, forbidden_edge_numbers, must_have_highest=True):
 						continue
 
+				if check_forbidden_graphs:
+					if has_forbidden_graphs(ng, fg_block, must_have_highest=True):
+						continue
+
 				mng = minimal_isomorph(ng, tg)
 				new_graphs[pe + ne].add(mng)
 
 	return [g for graphs in new_graphs for g in graphs]
 
-def generate_graphs(n, forbidden_edge_numbers={}):
+
+def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
 	
 	tg = (0, ())
-	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers)
+	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers,
+		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
 
 def flag_orbits(tg, flags):
@@ -213,7 +226,7 @@ def slow_minimal_isomorph (g):
 	n = g[0]
 	min_edges = g[1]
 	
-	for p in itertools.permutations(range(1, n + 1), n):
+	for p in Permutations(range(1, n + 1)):
 		
 		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(2)]))
 			for e in g[1]]))
@@ -222,3 +235,34 @@ def slow_minimal_isomorph (g):
 			min_edges = edges
 			
 	return (n, min_edges)
+
+
+def sparse_symm_matrix_to_compact_repr(M):
+
+	ed = {}
+	for key, value in M.dict().iteritems():
+		x, y = key
+		if x <= y:
+			ed[key] = repr(value)
+
+	d = {
+		"n" : M.nrows(),
+		"blocks" : M.subdivisions()[0],
+		"entries" : ed
+	}
+
+	return repr(d)
+	
+
+def sparse_symm_matrix_from_compact_repr(ds):
+
+	d = eval(ds)
+	n = d["n"]
+	M = matrix(QQ, n, n, sparse=True)
+	for key, value in d["entries"].iteritems():
+		x, y = key
+		M[x, y] = sage_eval(value)
+		M[y, x] = M[x, y]
+	M.subdivide(d["blocks"], d["blocks"])
+	return M
+	

@@ -164,6 +164,49 @@ def get_combinations (n, s):
 	return [[p[(i * s) + j] for j in range(s)] for i in range(np)]
 
 
+# Combinations that always contain maximum element
+previous_combinations_plus = {}
+
+cdef int *generate_combinations_plus(int n, int s, int *number_of):
+
+	cdef int *p, fac, i, j
+
+	# see if we've already generated it!
+	key = (n, s)
+	if key in previous_combinations_plus.iterkeys():
+	
+		cib = <combinatorial_info_block>previous_combinations_plus[key]
+		fac = cib.np
+		p = cib.p
+
+	else:
+
+		perms = Combinations(range(1, n), s - 1).list()
+		fac = len(perms)
+		p = <int *> malloc (sizeof(int) * s * fac)
+		for i in range(fac):
+			for j in range(s - 1):
+				p[(i * s) + j] = <int> perms[i][j]
+			p[(i * s) + s - 1] = n
+
+		cib = combinatorial_info_block()
+		cib.np = fac
+		cib.p = p
+		previous_combinations_plus[key] = cib
+	
+	if number_of:
+		number_of[0] = fac
+
+	return p
+
+
+def get_combinations_plus (n, s):
+
+	cdef int *p, np, i, j
+	p = generate_combinations_plus(n, s, &np)
+	return [[p[(i * s) + j] for j in range(s)] for i in range(np)]
+
+
 previous_pair_combinations = {}
 
 cdef int *generate_pair_combinations(int n, int s, int m1, int m2, int *number_of):
@@ -474,6 +517,44 @@ cdef void c_minimal_isomorph (int n, int *edges, int m, int t):
 	return
 
 
+cdef int c_is_subgraph (int n, int *edges, int ne, int *edges_sub, int ne_sub):
+
+	cdef int i, j, k, l, *p, np, *new_edges, got_all, got_edge, got
+
+	new_edges = <int *> malloc (sizeof(int) * 3 * ne)
+	
+	p = generate_permutations(n, &np)
+
+	for i in range(np):
+	
+		for j in range(3 * ne):
+			new_edges[j] = p[n * i + edges[j] - 1]
+
+		got_all = 1
+		for j in range(ne_sub):
+			got_edge = 0
+			for k in range(ne):
+				got = 0
+				for l in range(3):
+					if (edges_sub[3 * j] == new_edges[(3 * k) + l] or 
+						edges_sub[(3 * j) + 1] == new_edges[(3 * k) + l] or
+						edges_sub[(3 * j) + 2] == new_edges[(3 * k) + l]):
+						got += 1
+				if got == 3:
+					got_edge = 1
+					break
+			if got_edge == 0:
+				got_all = 0
+				break
+	
+		if got_all:
+			free(new_edges)
+			return 1
+
+	free(new_edges)
+	return 0
+
+
 #
 # TODO: Make this function accept more than one type on s vertices.
 #
@@ -681,3 +762,48 @@ def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=Fals
 	free(edges)
 	return False
 
+
+def has_forbidden_graphs(g, graph_block forbidden_gb, must_have_highest=False):
+
+	cdef int *c, nc, i, j, k, n, fn, ne, cne, fne, *edges, *cur_edges, *e
+	
+	n = g[0]
+	ne = len(g[1])
+	edges = <int *> malloc (sizeof(int) * 3 * ne)
+	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
+	
+	for i in range(ne):
+		e = &edges[3 * i]
+		e[0] = g[1][i][0]
+		e[1] = g[1][i][1]
+		e[2] = g[1][i][2]
+
+	for i in range(forbidden_gb.len):
+
+		fn = forbidden_gb.graphs[i].n
+		fne = forbidden_gb.graphs[i].ne
+		
+		if fn > n:
+			continue # vacuous condition
+
+		if must_have_highest:
+			c = generate_combinations_plus(n, fn, &nc)
+		else:
+			c = generate_combinations(n, fn, &nc)
+
+		for j in range(nc):
+		
+			c_induced_subgraph(edges, cur_edges, ne, &cne, &c[j * fn], fn)
+			
+			if cne < forbidden_gb.graphs[i].ne:
+				continue
+			
+			if c_is_subgraph(fn, cur_edges, cne, forbidden_gb.graphs[i].edges, forbidden_gb.graphs[i].ne):
+				free(edges)
+				free(cur_edges)
+				return True
+
+	free(edges)
+	free(cur_edges)
+	return False
+	
