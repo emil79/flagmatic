@@ -42,8 +42,6 @@ class flagmatic_problem(object):
 	forbidden_graphs = []
 	forbidden_induced_graphs = []
 
-	_flag_products = []
-
 	def __init__(self):
 		self._n = 0
 		self._graphs = []
@@ -68,7 +66,6 @@ class flagmatic_problem(object):
 			self._graph_densities.append(len(g[1]) / binomial(n, 3))
 	
 		sys.stdout.write("Generating types and flags...\n")
-		self._flag_products = []
 		self._types = []
 		self._flags = []
 	
@@ -87,19 +84,9 @@ class flagmatic_problem(object):
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
 
-
- 	def calculate_flag_products(self):
- 	
-		self._flag_products = []
- 		sys.stdout.write("Averaging flag products...\n")
- 		for ti in range(len(self._types)):
- 			tg = self._types[ti]
- 			s = tg[0]
- 			m = (self._n + s) / 2
- 			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti + 1, s, m))
- 			flags_block = make_graph_block(self._flags[ti], m)
-			self._flag_products.append(flag_products(self._graph_block,
-				make_graph_block([tg], s), flags_block, None))
+		self._flag_bases = []
+		for ti in range(len(self._types)):
+			self._flag_bases.append(identity_matrix(QQ, len(self._flags[ti]), sparse=True))
 
 	@property
 	def graphs(self):
@@ -113,58 +100,60 @@ class flagmatic_problem(object):
 	def flags(self):
 		return self._flags
 	
-	def change_flag_basis(self):
-	
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-		self._new_flag_products = []
-		self._new_flag_basis = []
-		
-		for ti in range(num_types):
-		
+	def set_inv_anti_inv_bases(self):
+
+		for ti in range(len(self._types)):
 			B = flag_basis(self._types[ti], self._flags[ti])
-			self._new_flag_basis.append(B)
-		
+			self._flag_bases[ti] = B
+
+ 	def calculate_flag_products(self):
+ 	
+		self._flag_products = []
+ 		sys.stdout.write("Averaging flag products...\n")
+
+ 		for ti in range(len(self._types)):
+
+			B = self._flag_bases[ti]
 			row_div = B.subdivisions()[0]
 			try:
 				inv_rows = row_div[0]
 				is_subdivided = True
 			except IndexError:
 				is_subdivided = False
+
+ 			tg = self._types[ti]
+ 			s = tg[0]
+ 			m = (self._n + s) / 2
+
+ 			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti + 1, s, m))
+ 			flags_block = make_graph_block(self._flags[ti], m)
+			DL = flag_products(self._graph_block, make_graph_block([tg], s), flags_block, None)
 		
 			nfp = []
-			for gi in range(num_graphs):
-				D = self._flag_products[ti][gi]
+			for gi in range(len(self._graphs)):
+				D = DL[gi]
 				ND = B * D * B.T
 				if is_subdivided:
 					ND.subdivide(inv_rows, inv_rows)
 				nfp.append(ND)
-		
-			self._new_flag_products.append(nfp)
+			self._flag_products.append(nfp)
 		
 	def write_sdp_input_file(self):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
-	
-# 		is_subdivided = [len(self._new_flag_basis[i].subdivisions()[0]) > 0
-# 			for i in range(num_types)]
-# 	
-# 		print is_subdivided
 		
 		inv_block_sizes = []
 		anti_inv_block_sizes = []
 		for i in range(num_types):
-			row_div = self._new_flag_basis[i].subdivisions()[0]
+			row_div = self._flag_bases[i].subdivisions()[0]
 			if len(row_div) > 0:
 				inv_block_sizes.append(row_div[0])
 				anti_inv_block_sizes.append(len(self._flags[i]) - row_div[0])
 			else:
 				inv_block_sizes.append(len(self._flags[i]))
 				anti_inv_block_sizes.append(1)
-	
-		print inv_block_sizes, anti_inv_block_sizes
-	
+
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
 		with open(self._sdp_input_filename, "w") as f:
@@ -192,7 +181,7 @@ class flagmatic_problem(object):
 		
 			for i in range(num_graphs):
 				for j in range(num_types):
-					for key, value in self._new_flag_products[j][i].dict().iteritems():
+					for key, value in self._flag_products[j][i].dict().iteritems():
 						row, col = key
 						if row < col: # only print upper triangle
 							continue
@@ -206,6 +195,20 @@ class flagmatic_problem(object):
 							value.n(digits=64)))
 
 	def run_csdp(self, show_output=False):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		
+		inv_block_sizes = []
+		anti_inv_block_sizes = []
+		for i in range(num_types):
+			row_div = self._flag_bases[i].subdivisions()[0]
+			if len(row_div) > 0:
+				inv_block_sizes.append(row_div[0])
+				anti_inv_block_sizes.append(len(self._flags[i]) - row_div[0])
+			else:
+				inv_block_sizes.append(len(self._flags[i]))
+				anti_inv_block_sizes.append(1)
 	
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 	
@@ -230,7 +233,6 @@ class flagmatic_problem(object):
 		sys.stdout.write("Returncode is %d. Objective value is %s.\n" % (returncode,
 			obj_val))
 		
-		num_types = len(self._types)
 		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[i]), len(self._flags[i]))
 			for i in range(num_types)]
 		
@@ -241,10 +243,18 @@ class flagmatic_problem(object):
 				if numbers[0] != "2":
 					continue
 				ti = int(numbers[1]) - 2
-				if ti < 0 or ti >= num_types:
+				if ti < 0 or ti >= 2 * num_types:
 					continue
 				j = int(numbers[2]) - 1
 				k = int(numbers[3]) - 1
+				if ti % 2:
+					ti = (ti - 1) / 2
+					j += inv_block_sizes[ti]
+					k += inv_block_sizes[ti]
+					if j >= len(self._flags[ti]):
+						continue # Might be 'dummy' block for types with no anti-inv space
+				else:
+					ti /= 2
 				self._sdp_Q_matrices[ti][j, k] = numbers[4]
 				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
@@ -263,7 +273,7 @@ class flagmatic_problem(object):
 						value *= 2
 					for gi in range(num_graphs):
 						key = (j, k)
-						d = self._new_flag_products[ti][gi].dict()
+						d = self._flag_products[ti][gi].dict()
 						if key in d:
 							fbounds[gi] += d[key] * value
 
@@ -281,8 +291,8 @@ def test_sdp(n, show_output=False):
 	P = flagmatic_problem()
 	P.forbidden_edge_numbers={4:3}
 	P.n = n
+	P.set_inv_anti_inv_bases()
 	P.calculate_flag_products()
-	P.change_flag_basis()
 	P.write_sdp_input_file()
 	P.run_csdp(show_output=show_output)
 	return P
