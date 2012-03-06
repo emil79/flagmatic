@@ -245,6 +245,11 @@ class flagmatic_problem(object):
 		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[i]), len(self._flags[i]))
 			for i in range(num_types)]
 		
+		for ti in range(len(self._types)):
+			B = self._flag_bases[ti]
+			row_div = B.subdivisions()[0]
+			self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
+		
 		with open(self._sdp_output_filename, "r") as f:
 			
 			for line in f:
