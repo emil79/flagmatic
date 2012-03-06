@@ -37,6 +37,8 @@ class flagmatic_construction(object):
 	def induced_subgraphs(self, n):
 		return ([], [])
 
+	def zero_eigenvectors(self, tg, flags):
+		return None
 	
 class blowup_construction(flagmatic_construction):
 
@@ -80,5 +82,31 @@ class blowup_construction(flagmatic_construction):
 				density, density))
 	
 		return min_sharp_graphs
+	
+	
+	def zero_eigenvectors(self, tg, flags):
+	
+		cn = self._graph[0]
+		M = matrix(QQ, 0, len(flags))
+		
+		for tv in Tuples(range(1, cn + 1), tg[0]):
+	
+			row = [asymptotic_flag_density_fixed(self._graph, tg,
+					flags[i], tv) for i in range(len(flags))]
+
+			if all(x == 0 for x in row):
+				continue
+				
+			M = M.stack(matrix(QQ, row))
+					
+			if M.rank() < M.nrows():
+				M = M[:-1,:]
+					
+		return M
+		
+		
+	
+		
+	
 	
 	

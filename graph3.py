@@ -309,6 +309,7 @@ def induced_subgraph (g, S):
 	return delete_improper_edges(ig)
 
 
+
 # Deprecated: use minimal_isomorph instead
 
 def slow_minimal_isomorph (g):
@@ -325,6 +326,48 @@ def slow_minimal_isomorph (g):
 			min_edges = edges
 			
 	return (n, min_edges)
+
+
+def minimal_typed_isomorph (g, t):
+	
+	s = t[0]
+	n = g[0]
+	min_edges = g[1]
+	
+	for p in Permutations(range(s + 1, n + 1), n - s):
+		
+		pt = tuple(range(1, s + 1)) + tuple(p)
+		edges = tuple(sorted([tuple(sorted([pt[e[i] - 1] for i in range(3)]))
+			for e in g[1]]))
+		
+		if edges < min_edges:
+			min_edges = edges
+			
+	return (n, min_edges)
+
+
+def asymptotic_flag_density_fixed (g, t, f, tv):
+
+	s = t[0]
+	m = f[0]
+	n = g[0]
+	count = 0
+	total = 0
+
+	# TODO: rewrite to use UnorderedTuple
+	
+	for pf in Tuples(range(1, n + 1), m - s):
+		
+		p = tv + pf
+		
+		total += 1
+		it = induced_subgraph(g, p[:s])
+		if it == t:
+			ig = induced_subgraph(g, p)
+			if f == minimal_typed_isomorph(ig, t):
+				count += 1
+	
+	return Integer(count) / total
 
 
 def sparse_symm_matrix_to_compact_repr(M):
