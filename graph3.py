@@ -27,6 +27,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+def graph_to_string (g):
+	s = "%d:" % g[0]
+	for e in g[1]:
+		s += "%d%d%d" % e
+	return s
+
+# Note: allows degenerate edges
+def string_to_graph (s):
+	if s[1] != ":":
+		return None
+	n = int(s[0])
+	if n < 0 or n > 9:
+		return None
+	e = len(s) - 2
+	if e == 0:
+		return (n, ())
+	if e % 3 != 0:
+		return None
+	m = e / 3
+	edges = []
+	for i in range(0, m):
+		x = int(s[(3 * i) + 2]) # N.B. +2 because of n: header
+		if x < 1 or x > n:
+			return None
+		y = int(s[(3 * i) + 3])
+		if y < 1 or y > n:
+			return None
+		z = int(s[(3 * i) + 4])
+		if z < 1 or z > n:
+			return None
+		edges.append((x, y, z))
+		
+	return (n, tuple(edges))
+
+
 def degrees(g):
 
 	n = g[0]
@@ -215,16 +250,63 @@ def slow_flag_products (g, s, m, typs, flags):
 	return pair_densities
 
 
+# def induced_subgraph (g, S):
+# 
+# 	good_edges = [e for e in g[1] if all(x in S for x in e)]
+# 	p = [0 for i in range(g[0] + 1)]
+# 	for i in range(len(S)):
+# 		p[S[i]] = i + 1
+# 
+# 	edges = sorted([tuple(sorted([p[x] for x in e])) for e in good_edges])
+# 
+# 	return (len(S), tuple(edges))
+
+def split_vertex (g, x):
+
+	n = g[0]
+	new_edges = []
+	for e in g[1]:
+		le = list(e)
+		if le.count(x) == 1:
+			nle = [y for y in le if y != x]
+			new_edges.append(tuple(nle + [n + 1]))
+		elif le.count(x) == 2:
+			nle = [y for y in le if y != x]
+			new_edges.append(tuple(nle + [x, n + 1]))
+			new_edges.append(tuple(nle + [n + 1, n + 1]))
+		elif le.count(x) == 3:
+			new_edges.append((x, x, n + 1))
+			new_edges.append((x, n + 1, n + 1))
+			new_edges.append((n + 1, n + 1, n + 1))
+	return (n + 1, g[1] + tuple(new_edges))
+
+def delete_improper_edges (g):
+	edges = [e for e in g[1] if len(frozenset(e)) == 3]
+	return (g[0], tuple(edges))
+
+# Allows repeated vertices...
+
 def induced_subgraph (g, S):
 
-	good_edges = [e for e in g[1] if all(x in S for x in e)]
+	vertices = []
+	for x in S:
+		if not x in vertices:
+			vertices.append(x)
+		else:
+			g = split_vertex(g, x)
+			vertices.append(g[0])
+	vertex_set = frozenset(vertices)
+	good_edges = tuple(e for e in g[1] if frozenset(e) <= vertex_set)
 	p = [0 for i in range(g[0] + 1)]
-	for i in range(len(S)):
-		p[S[i]] = i + 1
+	for i in range(len(vertices)):
+		x = vertices[i]
+		p[x] = i + 1
+	edges = tuple(sorted([tuple(sorted([p[x] for x in e]))
+		for e in good_edges]))
 
-	edges = sorted([tuple(sorted([p[x] for x in e])) for e in good_edges])
+	ig = (len(vertex_set), edges)
 
-	return (len(S), tuple(edges))
+	return delete_improper_edges(ig)
 
 
 # Deprecated: use minimal_isomorph instead
@@ -236,7 +318,7 @@ def slow_minimal_isomorph (g):
 	
 	for p in Permutations(range(1, n + 1)):
 		
-		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(2)]))
+		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(3)]))
 			for e in g[1]]))
 		
 		if edges < min_edges:
