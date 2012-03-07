@@ -109,22 +109,63 @@ class flagmatic_problem(object):
 	def flags(self):
 		return self._flags
 
+	def set_inv_anti_inv_bases(self):
+
+		for ti in range(len(self._types)):
+			B = flag_basis(self._types[ti], self._flags[ti])
+			self._flag_bases[ti] = B
+
 	@property
 	def construction(self):
 		return self._construction
 
 	@n.setter
 	def construction(self, c):
+
 		self._construction = c
 		self._sharp_graphs = c.induced_subgraphs(self._n)
-		self._zero_eigenvectors = [c.zero_eigenvectors(self._types[ti], self._flags[ti],
-			self._flag_bases[ti]) for ti in range(len(self._types))]
-	
-	def set_inv_anti_inv_bases(self):
-
+		self._zero_eigenvectors = []
+		
 		for ti in range(len(self._types)):
-			B = flag_basis(self._types[ti], self._flags[ti])
-			self._flag_bases[ti] = B
+		
+			row_div = self._flag_bases[ti].subdivisions()[0]
+			div_sizes = row_div + [len(self._flags)]
+			for i in range(1, len(div_sizes)):
+				div_sizes[i] -= div_sizes[i - 1]
+	
+			M = []
+			for i in range(len(div_sizes)):
+				M.append(c.zero_eigenvectors(self._types[ti], self._flags[ti],
+					self._flag_bases[ti].subdivision(i,0)))
+				
+			self._zero_eigenvectors.append(block_diagonal_matrix(M))
+
+
+	def set_new_bases(self):
+
+		#self._new_bases = []
+	
+		for ti in range(len(self._types)):
+	
+			col_div = self._zero_eigenvectors[ti].subdivisions()[1]
+			num_M = len(col_div) + 1
+			div_sizes = col_div + [self._zero_eigenvectors[ti].ncols()]
+			for i in range(1, len(div_sizes)):
+				div_sizes[i] -= div_sizes[i - 1]
+
+			M = [self._zero_eigenvectors[ti].subdivision(i,i) for i in range(num_M)]
+	
+			for i in range(num_M):
+				nzev = M[i].nrows()
+				if nzev == 0:
+					M[i] = identity_matrix(QQ, div_sizes[i])
+				else:
+					M[i] = M[i].stack(M[i].right_kernel().basis_matrix())
+					M[i], mu = M[i].gram_schmidt()
+					M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
+
+			#self._new_bases.append(block_diagonal_matrix(M))
+			self._flag_bases[ti] = block_diagonal_matrix(M) * self._flag_bases[ti]
 
  	def calculate_product_densities(self):
  	
@@ -168,9 +209,9 @@ class flagmatic_problem(object):
 			row_div = self._flag_bases[i].subdivisions()[0]
 			if len(row_div) > 0:
 				inv_block_sizes.append(row_div[0])
-				anti_inv_block_sizes.append(len(self._flags[i]) - row_div[0])
+				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
 			else:
-				inv_block_sizes.append(len(self._flags[i]))
+				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)
 
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
@@ -225,9 +266,9 @@ class flagmatic_problem(object):
 			row_div = self._flag_bases[i].subdivisions()[0]
 			if len(row_div) > 0:
 				inv_block_sizes.append(row_div[0])
-				anti_inv_block_sizes.append(len(self._flags[i]) - row_div[0])
+				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
 			else:
-				inv_block_sizes.append(len(self._flags[i]))
+				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)
 	
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
@@ -253,7 +294,7 @@ class flagmatic_problem(object):
 		sys.stdout.write("Returncode is %d. Objective value is %s.\n" % (returncode,
 			obj_val))
 		
-		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[i]), len(self._flags[i]))
+		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
 			for i in range(num_types)]
 		
 		for ti in range(len(self._types)):
@@ -276,7 +317,7 @@ class flagmatic_problem(object):
 					ti = (ti - 1) / 2
 					j += inv_block_sizes[ti]
 					k += inv_block_sizes[ti]
-					if j >= len(self._flags[ti]):
+					if j >= self._flag_bases[ti].nrows():
 						continue # Might be 'dummy' block for types with no anti-inv space
 				else:
 					ti /= 2
@@ -294,8 +335,8 @@ class flagmatic_problem(object):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
 				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
-				for j in range(num_flags):
-					for k in range(j, num_flags):
+				for j in range(D.nrows()):
+					for k in range(j, D.nrows()):
 						value = self._sdp_Q_matrices[ti][j, k]
 						if j != k:
 							value *= 2
@@ -339,6 +380,11 @@ def test_sdp(n, show_output=False):
 	
 	P.n = n
 	P.set_inv_anti_inv_bases()
+
+	P.construction = blowup_construction(string_to_graph("3:123"))
+	
+	P.set_new_bases()
+	
 	P.calculate_product_densities()
 	P.write_sdp_input_file()
 	P.run_csdp(show_output=show_output)
