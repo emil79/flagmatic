@@ -81,32 +81,47 @@ class blowup_construction(flagmatic_construction):
 			sys.stdout.write("%s has density %s (%g).\n" % (graph_to_string(g),
 				density, density))
 	
-		return min_sharp_graphs
+		return min_sharp_graphs.keys()
 	
+
+
+	# TODO: sanity checks: make sure flag_bases are square, and row and column
+	# subdivisions are the same.	
+
+	def zero_eigenvectors(self, tg, flags, flag_basis=None):
 	
-	def zero_eigenvectors(self, tg, flags):
+		if flag_basis == None:
+			flag_basis = identity_matrix(QQ, len(flags))
+	
+		row_div = flag_basis.subdivisions()[0]
+		div_sizes = row_div + [len(flags)]
+		for i in range(1, len(div_sizes)):
+			div_sizes[i] -= div_sizes[i - 1]
+		print div_sizes
 	
 		cn = self._graph[0]
-		M = matrix(QQ, 0, len(flags))
+		M = [matrix(QQ, 0, div_sizes[i], sparse=True) for i in range(len(div_sizes))]
 		
 		for tv in Tuples(range(1, cn + 1), tg[0]):
 	
-			row = [asymptotic_flag_density_fixed(self._graph, tg,
-					flags[i], tv) for i in range(len(flags))]
+			row = matrix(QQ, [asymptotic_flag_density_fixed(self._graph, tg,
+					flags[i], tv) for i in range(len(flags))])
+			row.subdivide([], row_div)
 
-			if all(x == 0 for x in row):
-				continue
+			for i in range(len(div_sizes)):
+			
+				row_section = row.subdivision(0, i)
 				
-			M = M.stack(matrix(QQ, row))
+				if all(x == 0 for x in row_section):
+					continue
+			
+				M[i] = M[i].stack(matrix(QQ, row_section))
 					
-			if M.rank() < M.nrows():
-				M = M[:-1,:]
-					
-		return M
+				if M[i].rank() < M[i].nrows():
+					M[i] = M[i][:-1,:]
 		
+		for i in range(len(div_sizes)):
+			M[i] = M[i].echelon_form()
 		
-	
-		
-	
-	
+		return block_diagonal_matrix(M)
 	

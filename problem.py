@@ -108,6 +108,17 @@ class flagmatic_problem(object):
 	@property
 	def flags(self):
 		return self._flags
+
+	@property
+	def construction(self):
+		return self._construction
+
+	@n.setter
+	def construction(self, c):
+		self._construction = c
+		self._sharp_graphs = c.induced_subgraphs(self._n)
+		self._zero_eigenvectors = [c.zero_eigenvectors(self._types[ti], self._flags[ti],
+			self._flag_bases[ti]) for ti in range(len(self._types))]
 	
 	def set_inv_anti_inv_bases(self):
 
@@ -303,15 +314,28 @@ class flagmatic_problem(object):
 		
 
 def test_sdp(n, show_output=False):
+	
 	P = flagmatic_problem()
+	
+	P.forbidden_graphs=[string_to_graph("5:123124345")]
+	
+	# K4-
 	#P.forbidden_edge_numbers={4:3}
 	
-	P.forbidden_graphs=[(5,((1,2,3),(1,2,4),(1,2,5),(3,4,5)))]
+	# F32
+	#P.forbidden_graphs=[(5,((1,2,3),(1,2,4),(1,2,5),(3,4,5)))]
 	
 	#P.forbidden_induced_graphs=[(4,((1,2,3),(1,2,4),(1,3,4)))]
 	
+	# K4, 4.1
 	#P.forbidden_edge_numbers={4:4}
 	#P.forbidden_induced_graphs=[(4,((1,2,3),))]
+
+	# K.5, induced 5.8
+	#P.forbidden_edge_numbers={5:10}
+	#h1 = string_to_graph("5:134234125135235145245345")
+	#h2 = string_to_graph("5:124134234125135235145245")
+	#P.forbidden_induced_graphs=[h1,h2]
 	
 	P.n = n
 	P.set_inv_anti_inv_bases()
