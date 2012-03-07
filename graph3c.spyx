@@ -382,6 +382,7 @@ cdef void minimize_edges(int *edges, int m):
 			
 		round += 1
 
+# TODO: make handle degenerate edges
 
 def minimal_isomorph (g, tg):
 

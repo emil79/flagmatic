@@ -28,13 +28,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 def graph_to_string (g):
+	"""
+	Returns a string representation of a 3-graph g in Flagmatic notation.
+	g can have degenerate edges.
+	
+	EXAMPLES::
+
+		sage: g = string_to_graph("4:123124")
+		sage: g
+		(4, ((1, 2, 3), (1, 2, 4)))
+	
+	"""
 	s = "%d:" % g[0]
 	for e in g[1]:
 		s += "%d%d%d" % e
 	return s
 
-# Note: allows degenerate edges
+
+# TODO: Sanity checking, e.g. that edges do not contain vertices
+# that do not belong to the graph, e.g. (4, (1, 5, 6))
+
 def string_to_graph (s):
+	"""
+	Converts a string representation of a 3-graph s in Flagmatic notation 
+	into a 3-graph g. g can have degenerate edges.
+
+	EXAMPLES:
+
+		sage: g = (4,((1,2,3),(1,2,4)))
+		sage: graph_to_string(g)
+		'4:123124'
+		sage: g = (4,((1,1,1),(1,2,2)))
+		sage: graph_to_string(g)
+		'4:111122'
+
+	"""
 	if s[1] != ":":
 		return None
 	n = int(s[0])
@@ -62,17 +90,49 @@ def string_to_graph (s):
 	return (n, tuple(edges))
 
 
-def degrees(g):
+# TODO: Take into account degenerate edges?
 
+def degrees(g):
+	"""
+	Returns a list consisting of the degrees of the vertices of g. Not intended for
+	degenerate graphs.
+	
+	EXAMPLES:
+	
+	sage: g = (5,((1,2,3),(1,2,4),(1,3,4)))
+	sage: degrees(g)
+	[3, 2, 2, 2, 0]
+	
+	"""
 	n = g[0]
 	edges = g[1]
 	return [len([e for e in edges if x in e]) for x in range(1, n + 1)]
 
 
-def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
+# TODO: implement a forbidden_induced_edge_numbers.
+# TODO: turn some forbidden graphs into forbidden edge numbers.
 
-	# TODO: implement forbidden_induced_graphs - currently ignored.
-	# TODO: turn some forbidden graphs into forbidden edge numbers.
+
+def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
+	"""
+	For an integer n, and a type tg, returns a list of all tg-flags on n
+	vertices, that satisfy certain constraints.
+	
+	forbidden_edge_numbers should be a dictionary whose keys and values are integers,
+	where an item (k, v) specifies that k-sets are to span fewer than v edges.
+		
+	forbidden_graphs should be a list of graphs that are forbidden as subgraphs.
+	
+	forbidden_induced_subgraphs should be a list of graphs that are forbidden as
+	_induced_ subgraphs.
+	
+	EXAMPLES:
+	
+		sage: tg = (1,())
+		sage: generate_flags(4, tg, forbidden_edge_numbers={4:2})
+		[(4, ()), (4, ((2, 3, 4),)), (4, ((1, 2, 3),))]
+	
+	"""
 
 	check_forbidden_edge_numbers = len(forbidden_edge_numbers) > 0
 	check_forbidden_graphs = len(forbidden_graphs) > 0
@@ -133,7 +193,24 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 
 
 def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
+	"""
+	For an integer n, return a list of all 3-graphs on n vertices that satisfy certain
+	constraints.
 	
+	forbidden_edge_numbers should be a dictionary whose keys and values are integers,
+	where an item (k, v) specifies that k-sets are to span fewer than v edges.
+		
+	forbidden_graphs should be a list of graphs that are forbidden as subgraphs.
+	
+	forbidden_induced_subgraphs should be a list of graphs that are forbidden as
+	_induced_ subgraphs.
+	
+	EXAMPLES:
+	
+		sage: generate_graphs(4, forbidden_edge_numbers={4:3})
+		[(4, ()), (4, ((1, 2, 3),)), (4, ((1, 2, 3), (1, 2, 4)))]
+	
+	"""	
 	tg = (0, ())
 	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers,
 		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
