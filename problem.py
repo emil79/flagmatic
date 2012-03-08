@@ -66,7 +66,7 @@ class flagmatic_problem(object):
 	
 		self._graph_densities = []
 		for g in self._graphs:
-			self._graph_densities.append(len(g[1]) / binomial(n, 3))
+			self._graph_densities.append(edge_density(g))
 	
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
@@ -109,6 +109,17 @@ class flagmatic_problem(object):
 	def flags(self):
 		return self._flags
 
+	@property
+	def density_graph(self):
+		return self._graph_density
+
+	@density_graph.setter
+	def density_graph(self, dg):
+		self._density_graph = dg
+		self._graph_densities = []
+		for g in self._graphs:
+			self._graph_densities.append(subgraph_density(g, dg))
+
 	def set_inv_anti_inv_bases(self):
 
 		for ti in range(len(self._types)):
@@ -143,8 +154,6 @@ class flagmatic_problem(object):
 
 	def set_new_bases(self):
 
-		#self._new_bases = []
-	
 		for ti in range(len(self._types)):
 	
 			col_div = self._zero_eigenvectors[ti].subdivisions()[1]
@@ -164,8 +173,8 @@ class flagmatic_problem(object):
 					M[i], mu = M[i].gram_schmidt()
 					M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
 
-			#self._new_bases.append(block_diagonal_matrix(M))
 			self._flag_bases[ti] = block_diagonal_matrix(M) * self._flag_bases[ti]
+
 
  	def calculate_product_densities(self):
  	
@@ -325,7 +334,7 @@ class flagmatic_problem(object):
 				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
 
-	def find_sharps(self):
+	def find_sharps(self, tolerance = 0.00001):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -344,7 +353,6 @@ class flagmatic_problem(object):
 						if d != 0:
 							fbounds[gi] += d * value
 
-		tolerance = 0.00001
 		bound = max(fbounds)
 		sharp_indices = [gi for gi in range(num_graphs)
 			if abs(fbounds[gi] - bound) < tolerance]

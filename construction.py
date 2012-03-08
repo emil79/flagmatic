@@ -71,7 +71,7 @@ class blowup_construction(flagmatic_construction):
 		min_sharp_graphs = {}
 		
 		for ig, N in sharp_graphs.iteritems():
-			mig = slow_minimal_isomorph(ig)
+			mig = degenerate_minimal_isomorph(ig)
 			try:
 				min_sharp_graphs[mig] += N
 			except KeyError:

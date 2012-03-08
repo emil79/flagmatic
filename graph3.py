@@ -109,6 +109,31 @@ def degrees(g):
 	return [len([e for e in edges if x in e]) for x in range(1, n + 1)]
 
 
+def edge_density(g):
+	"""
+	Returns the edge density. If g has n vertices, it returns the number
+	of edges divided by binomial(n, 3).
+	"""
+	return len(g[1]) / binomial(g[0], 3)
+
+
+def subgraph_density(g, h):
+	"""
+	Returns the H-density of G. That is, if G has n vertices, and H has k
+	vertices, it returns the number of k-sets of vertices of G that induce
+	graphs isomorphic to H, divided by binomial(n, k).
+	"""
+	
+	found, total = 0, 0
+	
+	for hv in Combinations(range(1, g[0] + 1), h[0]):
+		if h == minimal_isomorph(induced_subgraph(g, hv), (0,())):
+			found += 1
+		total += 1
+
+	return Integer(found) / total
+	
+
 # TODO: implement a forbidden_induced_edge_numbers.
 # TODO: turn some forbidden graphs into forbidden edge numbers.
 
@@ -217,7 +242,11 @@ def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidd
 
 
 def flag_orbits(tg, flags):
-
+	"""
+	flags should be a list of flags of the type tg. Returns a list of tuples.
+	Each tuple contains the indices of the flags that are in the same orbit
+	under the action of relabelling the vertices of tg.
+	"""
 	s = tg[0]
 	min_flags = []
 
@@ -237,12 +266,18 @@ def flag_orbits(tg, flags):
 		orbs.append(tuple([i for i in range(len(min_flags)) if min_flags[i] == mfg]))
 
 	return sorted(orbs)
-	
+
 
 from sage.modules.misc import gram_schmidt
 
 def flag_basis(tg, flags, orthogonalize=True):
-
+	"""
+	flags should be a list of flags of the type tg. Returns a basis for the flags
+	that is a block matrix of two blocks. Uses flag orbits to create invariant-
+	anti-invariant decomposition. If orthogonalize=True, perform Gram-Schmidt
+	orthogonalization.
+	"""
+	
 	orbs = flag_orbits(tg, flags)
 	
 	Inv = matrix(QQ, len(orbs), len(flags), sparse=True)
@@ -264,7 +299,7 @@ def flag_basis(tg, flags, orthogonalize=True):
 			AntiInv[row, j] = -1
 			row += 1
 
-	sys.stdout.write("Inv-AntiInv: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
+	sys.stdout.write("Invariant-AntiInvariant: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
 		len(flags)))
 	
 	if orthogonalize:
@@ -387,25 +422,9 @@ def induced_subgraph (g, S):
 
 
 
-# Deprecated: use minimal_isomorph instead
+# TODO: this function remains, as it handles degenerate graphs.
 
-def slow_minimal_isomorph (g):
-	
-	n = g[0]
-	min_edges = g[1]
-	
-	for p in Permutations(range(1, n + 1)):
-		
-		edges = tuple(sorted([tuple(sorted([p[e[i] - 1] for i in range(3)]))
-			for e in g[1]]))
-		
-		if edges < min_edges:
-			min_edges = edges
-			
-	return (n, min_edges)
-
-
-def minimal_typed_isomorph (g, t):
+def degenerate_minimal_isomorph (g, t=(0,())):
 	
 	s = t[0]
 	n = g[0]
@@ -441,7 +460,7 @@ def asymptotic_flag_density_fixed (g, t, f, tv):
 		it = induced_subgraph(g, p[:s])
 		if it == t:
 			ig = induced_subgraph(g, p)
-			if f == minimal_typed_isomorph(ig, t):
+			if f == degenerate_minimal_isomorph(ig, t):
 				count += 1
 	
 	return Integer(count) / total
