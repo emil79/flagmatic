@@ -50,7 +50,7 @@ class blowup_construction(flagmatic_construction):
 		
 	def induced_subgraphs(self, n):
 
-		cn = self._graph[0]
+		cn = self._graph.n
 		total = 0
 		sharp_graphs = {}
 		
@@ -61,28 +61,21 @@ class blowup_construction(flagmatic_construction):
 			for i in range(1, cn + 1):
 				factor /= factorial(P.count(i))
 		
-			ig = induced_subgraph(self._graph, P)
+			ig = self._graph.induced_subgraph(P)
+			ig.make_minimal_isomorph()
+			
 			try:
-				sharp_graphs[ig] += factor
+				sharp_graphs[str(ig)] += factor
 			except KeyError:
-				sharp_graphs[ig] = factor
+				sharp_graphs[str(ig)] = factor
 			total += factor
 		
-		min_sharp_graphs = {}
-		
-		for ig, N in sharp_graphs.iteritems():
-			mig = degenerate_minimal_isomorph(ig)
-			try:
-				min_sharp_graphs[mig] += N
-			except KeyError:
-				min_sharp_graphs[mig] = N
-	
-		for g in sorted(min_sharp_graphs.keys(), key = lambda G : len(G[1])):
-			density = min_sharp_graphs[g] / Integer(total)
-			sys.stdout.write("%s has density %s (%g).\n" % (graph_to_string(g),
+		for gs in sharp_graphs.keys(): #sorted(sharp_graphs.keys(), key = s : len(s)):
+			density = sharp_graphs[gs] / Integer(total)
+			sys.stdout.write("%s has density %s (%g).\n" % (gs,
 				density, density))
 	
-		return min_sharp_graphs.keys()
+		return sharp_graphs.keys()
 	
 
 

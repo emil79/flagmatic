@@ -61,12 +61,12 @@ class flagmatic_problem(object):
 			forbidden_edge_numbers=self.forbidden_edge_numbers,
 			forbidden_graphs=self.forbidden_graphs,
 			forbidden_induced_graphs=self.forbidden_induced_graphs)
-		self._graph_block = make_graph_block(self._graphs, n)
+		#self._graph_block = make_graph_block(self._graphs, n)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
 		self._graph_densities = []
 		for g in self._graphs:
-			self._graph_densities.append(edge_density(g))
+			self._graph_densities.append(g.edge_density())
 	
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
@@ -118,7 +118,7 @@ class flagmatic_problem(object):
 		self._density_graph = dg
 		self._graph_densities = []
 		for g in self._graphs:
-			self._graph_densities.append(subgraph_density(g, dg))
+			self._graph_densities.append(g.subgraph_density(dg))
 
 	def set_inv_anti_inv_bases(self):
 
@@ -366,7 +366,7 @@ def test_sdp(n, show_output=False):
 	
 	P = flagmatic_problem()
 	
-	P.forbidden_graphs=[string_to_graph("5:123124345")]
+	P.forbidden_graphs=[flagmatic_flag("5:123124345")]
 	
 	# K4-
 	#P.forbidden_edge_numbers={4:3}
@@ -389,11 +389,11 @@ def test_sdp(n, show_output=False):
 	P.n = n
 	P.set_inv_anti_inv_bases()
 
-	P.construction = blowup_construction(string_to_graph("3:123"))
+	P.construction = blowup_construction(flagmatic_flag("3:123"))
 	
-	P.set_new_bases()
+	#P.set_new_bases()
 	
-	P.calculate_product_densities()
-	P.write_sdp_input_file()
-	P.run_csdp(show_output=show_output)
+	#P.calculate_product_densities()
+	#P.write_sdp_input_file()
+	#P.run_csdp(show_output=show_output)
 	return P

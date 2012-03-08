@@ -159,62 +159,58 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 	
 	"""
 
-	check_forbidden_edge_numbers = len(forbidden_edge_numbers) > 0
-	check_forbidden_graphs = len(forbidden_graphs) > 0
-	check_forbidden_induced_graphs = len(forbidden_induced_graphs) > 0
-
-	if check_forbidden_graphs:
-		fg_block = make_graph_block(forbidden_graphs, 0)
-
-	if check_forbidden_induced_graphs:
-		fgi_block = make_graph_block(forbidden_induced_graphs, 0)
-
-	s = tg[0]
+	s = tg.n
 
 	if n < s:
 		return []
 
 	if n == s:
-		return [tg]
+		ntg = tg.copy()
+		ntg.type = tg
+		return [ntg]
 
 	max_ne = (n - 1) * (n - 2) / 2
 	max_e = n * max_ne / 3
 	
-	new_graphs = [set() for i in range(max_e + 1)]
+	new_graphs = []
+	hashes = set()
 	
 	smaller_graphs = generate_flags(n - 1, tg, forbidden_edge_numbers=forbidden_edge_numbers,
 		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 	
-	possible_nbrs = [p for p in Combinations(range(1, n), 2)]
+	possible_nbrs = Combinations(range(1, n), 2)
 
 	for sg in smaller_graphs:
 	
-		pe = len(sg[1])
-		ds = degrees(sg)
-		maxd = max(ds[s:] + [0])
+		pe = sg.ne
+		ds = sg.degrees()
+		maxd = max(ds[s:] + (0,))
 			
 		for ne in range(maxd, max_ne + 1):
 		
 			for nb in Combinations(possible_nbrs, ne):
 			
-				ng = (n, sg[1] + tuple([(v[0], v[1], n) for v in nb]))
+				ng = sg.copy()
+				ng.n = n
+				for v in nb:
+					ng.add_edge((v[0], v[1], n))
 
-				if check_forbidden_edge_numbers:
-					if has_forbidden_edge_numbers(ng, forbidden_edge_numbers, must_have_highest=True):
-						continue
+				if ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
+					continue
 
-				if check_forbidden_graphs:
-					if has_forbidden_graphs(ng, fg_block, must_have_highest=True):
-						continue
+				if ng.has_forbidden_graphs(forbidden_graphs, must_have_highest=True):
+					continue
 
-				if check_forbidden_induced_graphs:
-					if has_forbidden_graphs(ng, fgi_block, must_have_highest=True, induced=True):
-						continue
+				if ng.has_forbidden_graphs(forbidden_induced_graphs, must_have_highest=True, induced=True):
+					continue
 
-				mng = minimal_isomorph(ng, tg)
-				new_graphs[pe + ne].add(mng)
+				ng.make_minimal_isomorph()
+				ng_hash = hash(ng)
+				if not ng_hash in hashes:
+					new_graphs.append(ng)
+					hashes.add(ng_hash)
 
-	return [g for graphs in new_graphs for g in graphs]
+	return new_graphs
 
 
 def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
@@ -235,8 +231,8 @@ def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidd
 		sage: generate_graphs(4, forbidden_edge_numbers={4:3})
 		[(4, ()), (4, ((1, 2, 3),)), (4, ((1, 2, 3), (1, 2, 4)))]
 	
-	"""	
-	tg = (0, ())
+	"""
+	tg = flagmatic_flag()
 	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers,
 		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
@@ -247,23 +243,27 @@ def flag_orbits(tg, flags):
 	Each tuple contains the indices of the flags that are in the same orbit
 	under the action of relabelling the vertices of tg.
 	"""
-	s = tg[0]
+	s = tg.n
 	min_flags = []
 
 	for fg in flags:
-		mfg = fg
+		mfgs = str(fg)
 		for perm in Permutations(range(1, s + 1)):
-			permplus = perm + range(s + 1, fg[0] + 1)
-			ntg = (tg[0], tuple(sorted([tuple(sorted([perm[e[i] - 1] for i in range(3)])) for e in tg[1]])))
-			nfg = (fg[0], tuple(sorted([tuple(sorted([permplus[e[i] - 1] for i in range(3)])) for e in fg[1]])))
-			mnfg = minimal_isomorph(nfg, ntg)
-			if mnfg < mfg:
-				mfg = mnfg
-		min_flags.append(mfg)
+			permplus = perm + range(s + 1, fg.n + 1)
+			ntg = tg.copy()
+			ntg.relabel(perm)
+			nfg = fg.copy()
+			nfg.relabel(permplus)
+			nfg.type = ntg
+			nfg.make_minimal_isomorph()
+			nfgs = str(nfg)
+			if nfgs < mfgs:
+				mfgs = nfgs
+		min_flags.append(mfgs)
 
 	orbs = []
-	for mfg in set(min_flags):
-		orbs.append(tuple([i for i in range(len(min_flags)) if min_flags[i] == mfg]))
+	for mfgs in set(min_flags):
+		orbs.append(tuple([i for i in range(len(min_flags)) if min_flags[i] == mfgs]))
 
 	return sorted(orbs)
 

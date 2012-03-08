@@ -49,7 +49,7 @@ cdef class flagmatic_flag:
 	cdef int _n
 	cdef readonly int ne
 	cdef int _edges[MAX_NUMBER_OF_EDGES * 3]
-	cdef readonly flagmatic_flag type
+	cdef public flagmatic_flag type
 
 
 	def __init__(self, string_rep=None, tg=None):
@@ -144,6 +144,97 @@ cdef class flagmatic_flag:
 	def __repr__(self):
 		return self.__str__()
 
+
+	# TODO: do this the Cythonic way (__richcmp__ ?)
+	
+	def is_equal(self, flagmatic_flag other):
+	
+		cdef int i
+
+		if self._n != other._n:
+			return False
+
+		if self.ne != other.ne:
+			return False
+
+		#if not self.type.is_equal(other.type):
+		#	return False
+		
+		for i in range(3 * self.ne):
+			if self._edges[i] != other._edges[i]:
+				return False
+	
+		return True
+
+
+	# TODO: work out how to make sets of these work
+	
+	def __hash__(self):
+	
+		if self.type is None:
+			return hash(self.__str__())
+		else:
+			return hash(self.__str__() + self.type.__str__())
+		
+
+	def copy(self):
+	
+		return flagmatic_flag(self.__str__(), tg=self.type)
+
+
+	def degrees(self):
+
+		cdef int i
+		deg_list = [0 for i in range(self._n)]
+		for i in range(3 * self.ne):
+			deg_list[self._edges[i] - 1] += 1
+		return tuple(deg_list)
+
+	
+	def edge_density(self):
+		"""
+		Returns the edge density, i.e. the number of edges divided by binomial(n, 3),
+		where n is the number of vertices.
+		"""
+		return self.ne / binomial(self._n, 3)
+
+
+	def subgraph_density(self, h):
+		"""
+		Returns the H-density. That is, the number of k-sets of vertices that induce
+		graphs isomorphic to H, divided by binomial(n, k).
+		"""
+		
+		found, total = 0, 0
+		minh = h.copy()
+		minh.make_minimal_isomorph()
+		
+		for hv in Combinations(range(1, self._n + 1), h._n):
+			ig = self.induced_subgraph(hv)
+			ig.make_minimal_isomorph()
+			if minh == ig:
+				found += 1
+			total += 1
+	
+		return Integer(found) / total
+
+
+	def relabel(self, verts):
+
+		cdef int i
+	
+		if len(verts) != self._n:
+			raise ValueError
+	
+		for i in range(len(verts)):
+			if verts[i] < 1 or verts[i] > self._n:
+				raise ValueError
+	
+		for i in range(3 * self.ne):
+			self._edges[i] = verts[self._edges[i] - 1]
+
+		self.minimize_edges()
+
 	
 	def minimize_edges(self):
 	
@@ -158,7 +249,7 @@ cdef class flagmatic_flag:
 		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
 		winning_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
 		
-		if self.type:
+		if self.type is None:
 			t = 0
 		else:
 			t = self.type._n
@@ -217,6 +308,7 @@ cdef class flagmatic_flag:
 		cdef int nm = 0, i, j, *e, got, te[3]
 		cdef flagmatic_flag ig = flagmatic_flag()
 		ig.n = num_verts
+		ig.type = None
 		
 		for i in range(self.ne):
 			e = &self._edges[3 * i]
@@ -309,7 +401,7 @@ cdef class flagmatic_flag:
 						for l in range(k - 1):
 							if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
 								got += 1
-						if n == e[0] or n == e[1] or n == e[2]:
+						if self._n == e[0] or self._n == e[1] or self._n == e[2]:
 								got += 1
 						if got == 3:
 							num_e += 1
