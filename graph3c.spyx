@@ -143,7 +143,237 @@ cdef class flagmatic_flag:
  	
 	def __repr__(self):
 		return self.__str__()
+
 	
+	def minimize_edges(self):
+	
+		raw_minimize_edges(self._edges, self.ne)
+
+
+	def make_minimal_isomorph(self):
+
+		cdef int i, t, *new_edges, *winning_edges, *e
+		cdef int *p, np, is_lower
+		
+		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+		winning_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+		
+		if self.type:
+			t = 0
+		else:
+			t = self.type._n
+		
+		p = generate_permutations_fixing(self._n, t, &np)
+	
+		for i in range(np):
+		
+			for j in range(3 * self.ne):
+				new_edges[j] = p[self._n * i + self._edges[j] - 1]
+		
+			raw_minimize_edges(new_edges, self.ne)
+	
+			if i == 0:
+				for j in range(3 * self.ne):
+					winning_edges[j] = new_edges[j]
+				continue
+	
+			is_lower = 1
+	
+			for j in range(3 * self.ne):
+				if new_edges[j] > winning_edges[j]:
+					is_lower = 0
+					break
+				elif new_edges[j] < winning_edges[j]:
+					break
+			
+			if is_lower: # We have a new winner
+				for j in range(3 * self.ne):
+					winning_edges[j] = new_edges[j]
+		
+		for i in range(3 * self.ne):
+			self._edges[i] = winning_edges[i]
+		
+		free(new_edges)
+		free(winning_edges)
+
+
+	def induced_subgraph(self, verts):
+	
+		cdef int i, *c_verts, num_verts
+		cdef flagmatic_flag ig
+		
+		num_verts = len(verts)
+		c_verts = <int *> malloc(num_verts * sizeof(int))
+		
+		for i in range(num_verts):
+			c_verts[i] = <int ?> verts[i]
+		
+		ig = self.c_induced_subgraph(c_verts, num_verts)
+		return ig
+
+
+	cdef flagmatic_flag c_induced_subgraph(self, int *verts, int num_verts):
+
+		cdef int nm = 0, i, j, *e, got, te[3]
+		cdef flagmatic_flag ig = flagmatic_flag()
+		ig.n = num_verts
+		
+		for i in range(self.ne):
+			e = &self._edges[3 * i]
+			got = 0
+			for j in range(num_verts):
+				if e[0] == verts[j]:
+					got += 1
+					te[0] = j + 1
+				elif e[1] == verts[j]:
+					got += 1
+					te[1] = j + 1
+				elif e[2] == verts[j]:
+					got += 1
+					te[2] = j + 1
+			if got == 3:
+				e = &ig._edges[3 * nm]
+				e[0] = te[0]
+				e[1] = te[1]
+				e[2] = te[2]
+				nm += 1
+		ig.ne = nm
+		ig.minimize_edges()
+
+		return ig
+	
+
+	cdef int c_has_subgraph (self, flagmatic_flag h):
+	
+		cdef int i, j, k, l, *p, np, *new_edges, got_all, got_edge, got
+	
+		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+		
+		p = generate_permutations(self._n, &np)
+	
+		for i in range(np):
+		
+			for j in range(3 * self.ne):
+				new_edges[j] = p[self._n * i + self._edges[j] - 1]
+	
+			got_all = 1
+			for j in range(h.ne):
+				got_edge = 0
+				for k in range(self.ne):
+					got = 0
+					for l in range(3):
+						if (h._edges[3 * j] == new_edges[(3 * k) + l] or 
+							h._edges[(3 * j) + 1] == new_edges[(3 * k) + l] or
+							h._edges[(3 * j) + 2] == new_edges[(3 * k) + l]):
+							got += 1
+					if got == 3:
+						got_edge = 1
+						break
+				if got_edge == 0:
+					got_all = 0
+					break
+		
+			if got_all:
+				free(new_edges)
+				return 1
+	
+		free(new_edges)
+		return 0
+
+	
+	def has_forbidden_edge_numbers(self, forbidden_edge_numbers, must_have_highest=False):
+	
+		cdef int *c, nc, i, j, k, l, fe, *edges, *e, got, *comb, num_e
+	
+		for pk, pfe in forbidden_edge_numbers.iteritems():
+	
+			k = <int ?> pk
+			fe = <int ?> pfe
+			
+			if k > self._n:
+				continue # vacuous condition
+	
+			if fe < 1:
+				raise ValueError
+			
+			if must_have_highest:
+			
+				c = generate_combinations(self._n - 1, k - 1, &nc)
+	
+				for i in range(nc):
+					comb = &c[(k - 1) * i]
+					num_e = 0
+					for j in range(self.ne):
+						got = 0
+						e = &self._edges[3 * j]
+						for l in range(k - 1):
+							if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+								got += 1
+						if n == e[0] or n == e[1] or n == e[2]:
+								got += 1
+						if got == 3:
+							num_e += 1
+							if num_e == fe:
+								return True
+	
+			else:
+	
+				c = generate_combinations(self._n, k, &nc)
+	
+				for i in range(nc):
+					comb = &c[k * i]
+					num_e = 0
+					for j in range(self.ne):
+						got = 0
+						e = &self._edges[3 * j]
+						for l in range(k):
+							if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+								got += 1
+						if got == 3:
+							num_e += 1
+							if num_e == fe:
+								return True
+	
+		return False
+
+
+	def has_forbidden_graphs(self, graphs, must_have_highest=False, induced=False):
+	
+		cdef int *c, nc, i, j, k, cne, *cur_edges, *e
+		cdef flagmatic_flag h, ig
+		
+		cur_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+		
+		for i in range(len(graphs)):
+	
+			h = <flagmatic_flag ?> graphs[i]
+	
+			if h._n > self._n:
+				continue # vacuous condition
+	
+			if must_have_highest:
+				c = generate_combinations_plus(self._n, h._n, &nc)
+			else:
+				c = generate_combinations(self._n, h._n, &nc)
+	
+			for j in range(nc):
+			
+				ig = self.c_induced_subgraph(&c[j * h._n], h._n)
+			
+				if ig.ne < h.ne:
+					continue
+					
+				if induced and ig.ne > h.ne:
+					continue
+				
+				if ig.c_has_subgraph(h):
+					free(cur_edges)
+					return True
+	
+		free(cur_edges)
+		return False
+
+
 
 ctypedef struct raw_graph:
 	int n, ne
@@ -444,7 +674,7 @@ def get_equal_pair_combinations (n, s, m):
 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
 
 
-cdef void minimize_edges(int *edges, int m):
+cdef void raw_minimize_edges(int *edges, int m):
 
 	cdef int i, *e
 
@@ -517,7 +747,7 @@ def minimal_isomorph (g, tg):
 		for j in range(3 * m):
 			new_edges[j] = p[n * i + edges[j] - 1]
 	
-		minimize_edges(new_edges, m)
+		raw_minimize_edges(new_edges, m)
 
 		if i == 0:
 			for j in range(3 * m):
@@ -572,7 +802,7 @@ cdef void c_induced_subgraph (int *edges, int *new_edges, int m, int *new_m, int
 			e[2] = te[2]
 			nm += 1
 
-	minimize_edges(new_edges, nm)	
+	raw_minimize_edges(new_edges, nm)	
 	new_m[0] = nm
 
 	return
@@ -593,7 +823,7 @@ cdef void c_minimal_isomorph (int n, int *edges, int m, int t):
 		for j in range(3 * m):
 			new_edges[j] = p[n * i + edges[j] - 1]
 	
-		minimize_edges(new_edges, m)
+		raw_minimize_edges(new_edges, m)
 
 		if i == 0:
 			for j in range(3 * m):
