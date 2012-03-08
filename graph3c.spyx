@@ -41,6 +41,57 @@ from libc.string cimport memset
 
 DEF MAX_NUMBER_OF_EDGES = 35
 
+cdef class flagmatic_flag:
+
+	cdef readonly int n, ne, s
+	cdef int _edges[MAX_NUMBER_OF_EDGES * 3]
+	cdef flagmatic_flag type
+
+	def __init__(self, s=None):
+	
+		if s:
+			self.init_from_string(s)
+
+	@property
+	def edges(self):
+		cdef int i
+		edge_list = []
+		for i in range(0, 3 * self.ne, 3):
+			edge_list.append((self._edges[i], self._edges[i + 1], self._edges[i + 2]))
+		return (self.n, tuple(edge_list))
+
+	def __getitem__(self, index):
+		cdef int i = index
+		if i < self.ne:
+			return (self._edges[3 * i], self._edges[3 * i + 1], self._edges[3 * i + 2])
+		else:
+			raise IndexError
+
+	def init_from_string(self, s):
+
+		cdef int i, n, ne, x
+
+		if s[1] != ":":
+			raise ValueError
+
+		n = int(s[0])
+		if n < 0 or n > 7:
+			raise ValueError
+		self.n = n
+		
+		ne = len(s) - 2
+		if ne % 3 != 0:
+			raise ValueError
+		ne /= 3
+		self.ne = ne
+		
+		for i in range(0, 3 * ne):
+			x = int(s[i + 2]) # N.B. +2 because of n: header
+			if x < 1 or x > n:
+				raise ValueError
+			self._edges[i] = x
+
+
 ctypedef struct raw_graph:
 	int n, ne
 	int edges[MAX_NUMBER_OF_EDGES * 3]
