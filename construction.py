@@ -52,7 +52,8 @@ class blowup_construction(flagmatic_construction):
 
 		cn = self._graph.n
 		total = 0
-		sharp_graphs = {}
+		sharp_graph_counts = {}
+		sharp_graphs = []
 		
 		for P in UnorderedTuples(range(1, cn + 1), n):
 		
@@ -64,18 +65,21 @@ class blowup_construction(flagmatic_construction):
 			ig = self._graph.degenerate_induced_subgraph(P)
 			ig.make_minimal_isomorph()
 			
-			try:
-				sharp_graphs[str(ig)] += factor
-			except KeyError:
-				sharp_graphs[str(ig)] = factor
+			ghash = hash(ig)
+			if ghash in sharp_graph_counts:
+				sharp_graph_counts[ghash] += factor
+			else:
+				sharp_graphs.append(ig)
+				sharp_graph_counts[ghash] = factor
+
 			total += factor
 		
-		for gs in sharp_graphs.keys(): #sorted(sharp_graphs.keys(), key = s : len(s)):
-			density = sharp_graphs[gs] / Integer(total)
+		for gs in sorted(sharp_graphs, key = lambda g : g.ne):
+			density = sharp_graph_counts[hash(gs)] / Integer(total)
 			sys.stdout.write("%s has density %s (%g).\n" % (gs,
 				density, density))
 	
-		return sharp_graphs.keys()
+		return sharp_graphs
 	
 
 
