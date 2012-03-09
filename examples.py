@@ -109,4 +109,50 @@ def flagmatic_example(prob):
 		P.write_sdp_input_file()
 		P.run_csdp()
 
+	elif prob == "max42":
+
+		P = flagmatic_problem()
+		P.n = 5
+		P.set_inv_anti_inv_bases()
+		P.density_graph = flagmatic_flag("4:123124")
+		#C = random_geometric_construction()
+		C = None
+		#P.construction = C
+		#P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+
+	elif prob == "cod6":
+	
+		P = axioms_problem()
+		C = None
+		P.forbidden_edge_numbers={4:3}
+		P.n = 6
+		tg = flagmatic_flag("2:")
+		f1 = flagmatic_flag("3:123", tg)
+		f2 = flagmatic_flag("2:", tg)
+		P.add_axiom(tg, [f1, f2], [1, Rational("-264/1000")])
+		P.set_inv_anti_inv_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+
+	elif prob == "codr":
+	
+		P = axioms_problem()
+		C = None
+		P.forbidden_edge_numbers={4:3}
+		P.forbidden_graphs = [flagmatic_flag("6:612623634645651")]
+		P.n = 6
+		tg = flagmatic_flag("2:")
+		f1 = flagmatic_flag("3:123", tg)
+		f2 = flagmatic_flag("2:", tg)
+		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
+		P.set_inv_anti_inv_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+
+
 	return P,C

@@ -391,3 +391,88 @@ class flagmatic_problem(object):
 		sys.stdout.write("The following %d graphs are sharp:\n" % len(sharp_indices))
 		for gi in sharp_indices:
 			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
+
+
+
+class axioms_problem(flagmatic_problem):
+
+	
+	def __init__(self):
+	
+		flagmatic_problem.__init__(self)
+		self._quantum_graphs = []
+
+
+	def clear_axioms(self):
+		
+		self._quantum_graphs = []
+
+
+	def add_axiom(self, tg, flags, flag_coeffs):
+
+
+		m = self.n - max([f.n for f in flags]) + tg.n
+
+		axiom_flags = generate_flags(m, tg,
+			forbidden_edge_numbers=self.forbidden_edge_numbers,
+			forbidden_graphs=self.forbidden_graphs,
+			forbidden_induced_graphs=self.forbidden_induced_graphs)
+		
+		num_densities = len(axiom_flags)
+		sys.stdout.write("Added %d quantum graphs.\n" % num_densities)
+		
+		num_graphs = len(self._graphs)
+		quantum_graphs = [[Integer(0) for i in range(num_graphs)] for j in range(num_densities)]
+		
+		axiom_flags_block = make_graph_block(axiom_flags, m)
+		graph_block = make_graph_block(self._graphs, self.n)
+
+		for i in range(len(flags)):
+			flags_block = make_graph_block([flags[i]], flags[i].n)
+			DL = flag_products(graph_block, tg, flags_block, axiom_flags_block)
+			for j in range(num_graphs):
+				M = DL[j]
+				for k in range(num_densities):
+					quantum_graphs[k][j] += M[0, k] * flag_coeffs[i]
+		
+		self._quantum_graphs.extend(quantum_graphs)		
+		
+
+	
+	def write_sdp_input_file(self):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._quantum_graphs)
+		
+		if num_densities < 1:
+			raise NotImplementedError("at least one axiom must be provided.")
+		
+		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
+	
+		with open(self._sdp_input_filename, "w") as f:
+	
+			f.write("%d\n" % (num_graphs + 1,))
+			f.write("%d\n" % (2 * num_types + 3,))
+			
+			f.write("1 ")
+			self.write_block_sizes(f)
+			f.write("-%d -%d\n" % (num_graphs, num_densities))
+			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
+			f.write("0 1 1 1 -1.0\n")
+	
+			for i in range(num_graphs):
+				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
+				# TODO: omit for sharp graphs
+				f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
+	
+			for i in range(num_graphs):
+				for j in range(num_densities):
+					d = self._quantum_graphs[j][i]
+					if d != 0:
+						f.write("%d %d %d %d %s\n" % (i + 1, 2 * num_types + 3, j + 1, j + 1, d.n(digits=64)))
+			
+			for j in range(num_densities):
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, 2 * num_types + 3, j + 1, j + 1))
+		
+			self.write_blocks(f)
