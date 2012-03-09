@@ -376,21 +376,21 @@ def test_sdp(n, show_output=False):
 	#P.forbidden_graphs=[flagmatic_flag("5:123124125345")]
 	
 	# K4, 4.1
-	P.forbidden_edge_numbers={4:4}
-	P.forbidden_induced_graphs=[flagmatic_flag("4:123")]
+	#P.forbidden_edge_numbers={4:4}
+	#P.forbidden_induced_graphs=[flagmatic_flag("4:123")]
 
 	# K.5, induced 5.8
-	#P.forbidden_edge_numbers={5:10}
-	#h1 = string_to_graph("5:134234125135235145245345")
-	#h2 = string_to_graph("5:124134234125135235145245")
-	#P.forbidden_induced_graphs=[h1,h2]
+	P.forbidden_edge_numbers={5:10}
+	h1 = flagmatic_flag("5:134234125135235145245345")
+	h2 = flagmatic_flag("5:124134234125135235145245")
+	P.forbidden_induced_graphs=[h1,h2]
 	
 	P.n = n
 	P.set_inv_anti_inv_bases()
 
 	#P.construction = blowup_construction(flagmatic_flag("3:123"))
-	P.construction = blowup_construction(flagmatic_flag("3:112223331123"))
-	
+	#P.construction = blowup_construction(flagmatic_flag("3:112223331123"))
+	P.construction = blowup_construction(flagmatic_flag("2:112122"))
 	
 	P.set_new_bases()
 	

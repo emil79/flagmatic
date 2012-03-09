@@ -27,111 +27,87 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-def graph_to_string (g):
-	"""
-	Returns a string representation of a 3-graph g in Flagmatic notation.
-	g can have degenerate edges.
-	
-	EXAMPLES::
+# def graph_to_string (g):
+# 	"""
+# 	Returns a string representation of a 3-graph g in Flagmatic notation.
+# 	g can have degenerate edges.
+# 	
+# 	EXAMPLES::
+# 
+# 		sage: g = string_to_graph("4:123124")
+# 		sage: g
+# 		(4, ((1, 2, 3), (1, 2, 4)))
+# 	
+# 	"""
+# 	s = "%d:" % g[0]
+# 	for e in g[1]:
+# 		s += "%d%d%d" % e
+# 	return s
+# 
+# 
+# # TODO: Sanity checking, e.g. that edges do not contain vertices
+# # that do not belong to the graph, e.g. (4, (1, 5, 6))
+# 
+# def string_to_graph (s):
+# 	"""
+# 	Converts a string representation of a 3-graph s in Flagmatic notation 
+# 	into a 3-graph g. g can have degenerate edges.
+# 
+# 	EXAMPLES:
+# 
+# 		sage: g = (4,((1,2,3),(1,2,4)))
+# 		sage: graph_to_string(g)
+# 		'4:123124'
+# 		sage: g = (4,((1,1,1),(1,2,2)))
+# 		sage: graph_to_string(g)
+# 		'4:111122'
+# 
+# 	"""
+# 	if s[1] != ":":
+# 		return None
+# 	n = int(s[0])
+# 	if n < 0 or n > 9:
+# 		return None
+# 	e = len(s) - 2
+# 	if e == 0:
+# 		return (n, ())
+# 	if e % 3 != 0:
+# 		return None
+# 	m = e / 3
+# 	edges = []
+# 	for i in range(0, m):
+# 		x = int(s[(3 * i) + 2]) # N.B. +2 because of n: header
+# 		if x < 1 or x > n:
+# 			return None
+# 		y = int(s[(3 * i) + 3])
+# 		if y < 1 or y > n:
+# 			return None
+# 		z = int(s[(3 * i) + 4])
+# 		if z < 1 or z > n:
+# 			return None
+# 		edges.append((x, y, z))
+# 		
+# 	return (n, tuple(edges))
+# 
+# 
+# # TODO: Take into account degenerate edges?
+# 
+# def degrees(g):
+# 	"""
+# 	Returns a list consisting of the degrees of the vertices of g. Not intended for
+# 	degenerate graphs.
+# 	
+# 	EXAMPLES:
+# 	
+# 	sage: g = (5,((1,2,3),(1,2,4),(1,3,4)))
+# 	sage: degrees(g)
+# 	[3, 2, 2, 2, 0]
+# 	
+# 	"""
+# 	n = g[0]
+# 	edges = g[1]
+# 	return [len([e for e in edges if x in e]) for x in range(1, n + 1)]
 
-		sage: g = string_to_graph("4:123124")
-		sage: g
-		(4, ((1, 2, 3), (1, 2, 4)))
-	
-	"""
-	s = "%d:" % g[0]
-	for e in g[1]:
-		s += "%d%d%d" % e
-	return s
-
-
-# TODO: Sanity checking, e.g. that edges do not contain vertices
-# that do not belong to the graph, e.g. (4, (1, 5, 6))
-
-def string_to_graph (s):
-	"""
-	Converts a string representation of a 3-graph s in Flagmatic notation 
-	into a 3-graph g. g can have degenerate edges.
-
-	EXAMPLES:
-
-		sage: g = (4,((1,2,3),(1,2,4)))
-		sage: graph_to_string(g)
-		'4:123124'
-		sage: g = (4,((1,1,1),(1,2,2)))
-		sage: graph_to_string(g)
-		'4:111122'
-
-	"""
-	if s[1] != ":":
-		return None
-	n = int(s[0])
-	if n < 0 or n > 9:
-		return None
-	e = len(s) - 2
-	if e == 0:
-		return (n, ())
-	if e % 3 != 0:
-		return None
-	m = e / 3
-	edges = []
-	for i in range(0, m):
-		x = int(s[(3 * i) + 2]) # N.B. +2 because of n: header
-		if x < 1 or x > n:
-			return None
-		y = int(s[(3 * i) + 3])
-		if y < 1 or y > n:
-			return None
-		z = int(s[(3 * i) + 4])
-		if z < 1 or z > n:
-			return None
-		edges.append((x, y, z))
-		
-	return (n, tuple(edges))
-
-
-# TODO: Take into account degenerate edges?
-
-def degrees(g):
-	"""
-	Returns a list consisting of the degrees of the vertices of g. Not intended for
-	degenerate graphs.
-	
-	EXAMPLES:
-	
-	sage: g = (5,((1,2,3),(1,2,4),(1,3,4)))
-	sage: degrees(g)
-	[3, 2, 2, 2, 0]
-	
-	"""
-	n = g[0]
-	edges = g[1]
-	return [len([e for e in edges if x in e]) for x in range(1, n + 1)]
-
-
-def edge_density(g):
-	"""
-	Returns the edge density. If g has n vertices, it returns the number
-	of edges divided by binomial(n, 3).
-	"""
-	return len(g[1]) / binomial(g[0], 3)
-
-
-def subgraph_density(g, h):
-	"""
-	Returns the H-density of G. That is, if G has n vertices, and H has k
-	vertices, it returns the number of k-sets of vertices of G that induce
-	graphs isomorphic to H, divided by binomial(n, k).
-	"""
-	
-	found, total = 0, 0
-	
-	for hv in Combinations(range(1, g[0] + 1), h[0]):
-		if h == minimal_isomorph(induced_subgraph(g, hv), (0,())):
-			found += 1
-		total += 1
-
-	return Integer(found) / total
 	
 
 # TODO: implement a forbidden_induced_edge_numbers.
