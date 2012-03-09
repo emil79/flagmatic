@@ -280,7 +280,7 @@ def flag_basis(tg, flags, orthogonalize=True):
 			AntiInv[row, j] = -1
 			row += 1
 
-	sys.stdout.write("Invariant-AntiInvariant: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
+	sys.stdout.write("Invariant-anti-invariant split: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
 		len(flags)))
 	
 	if orthogonalize:
