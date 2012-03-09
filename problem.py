@@ -208,7 +208,7 @@ class flagmatic_problem(object):
 				self._product_densities[(gi, ti)] = sparse_symm_matrix_to_compact_repr(ND)
 
 
-	def write_sdp_input_file(self):
+	def write_block_sizes(self, f):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -224,17 +224,60 @@ class flagmatic_problem(object):
 				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)
 
+		for i in range(num_types):
+			f.write("%d " % inv_block_sizes[i])
+			f.write("%d " % anti_inv_block_sizes[i])
+
+	
+	def write_blocks(self, f):
+
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		
+		inv_block_sizes = []
+		anti_inv_block_sizes = []
+		for i in range(num_types):
+			row_div = self._flag_bases[i].subdivisions()[0]
+			if len(row_div) > 0:
+				inv_block_sizes.append(row_div[0])
+				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
+			else:
+				inv_block_sizes.append(self._flag_bases[i].nrows())
+				anti_inv_block_sizes.append(1)
+
+		for i in range(num_graphs):
+			for j in range(num_types):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(i, j)])
+				for key, value in D.dict().iteritems():
+					row, col = key
+					if row < col: # only print upper triangle
+						continue
+					if row < inv_block_sizes[j]:
+						block = 2 * j + 2
+					else:
+						block = 2 * j + 3
+						row -= inv_block_sizes[j]
+						col -= inv_block_sizes[j]
+					f.write("%d %d %d %d %s\n" % (i + 1, block, row + 1, col + 1,
+						value.n(digits=64)))
+
+
+	def write_sdp_input_file(self):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
 		with open(self._sdp_input_filename, "w") as f:
 	
 			f.write("%d\n" % (num_graphs + 1,))
 			f.write("%d\n" % (2 * num_types + 3,))
+			
 			f.write("1 ")
-			for i in range(num_types):
-				f.write("%d " % inv_block_sizes[i])
-				f.write("%d " % anti_inv_block_sizes[i])
+			self.write_block_sizes(f)
 			f.write("-%d -1\n" % num_graphs)
+			
 			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
 			f.write("0 1 1 1 -1.0\n")
 	
@@ -249,21 +292,8 @@ class flagmatic_problem(object):
 			
 			f.write("%d %d 1 1 1.0\n" % (num_graphs + 1, 2 * num_types + 3))
 		
-			for i in range(num_graphs):
-				for j in range(num_types):
-					D = sparse_symm_matrix_from_compact_repr(self._product_densities[(i, j)])
-					for key, value in D.dict().iteritems():
-						row, col = key
-						if row < col: # only print upper triangle
-							continue
-						if row < inv_block_sizes[j]:
-							block = 2 * j + 2
-						else:
-							block = 2 * j + 3
-							row -= inv_block_sizes[j]
-							col -= inv_block_sizes[j]
-						f.write("%d %d %d %d %s\n" % (i + 1, block, row + 1, col + 1,
-							value.n(digits=64)))
+			self.write_blocks(f)
+		
 
 	def run_csdp(self, show_output=False):
 	
@@ -375,26 +405,35 @@ def test_sdp(n, show_output=False):
 	# F32
 	#P.forbidden_graphs=[flagmatic_flag("5:123124125345")]
 	
+	
 	# K4, 4.1
 	#P.forbidden_edge_numbers={4:4}
 	#P.forbidden_induced_graphs=[flagmatic_flag("4:123")]
 
 	# K.5, induced 5.8
-	P.forbidden_edge_numbers={5:10}
-	h1 = flagmatic_flag("5:134234125135235145245345")
-	h2 = flagmatic_flag("5:124134234125135235145245")
-	P.forbidden_induced_graphs=[h1,h2]
+	#P.forbidden_edge_numbers={5:10}
+	#h1 = flagmatic_flag("5:134234125135235145245345")
+	#h2 = flagmatic_flag("5:124134234125135235145245")
+	#P.forbidden_induced_graphs=[h1,h2]
+	
+	# 38
+	P.forbidden_graphs=[flagmatic_flag("5:123124125345"),flagmatic_flag("5:123124125134135145")]
 	
 	P.n = n
 	P.set_inv_anti_inv_bases()
 
+	C = blowup_construction(flagmatic_flag("4:123124134234"))
+	#P.construction = C
+	
+	#C = blowup_construction(flagmatic_flag("6:123234345451512136246356256146"))
+
 	#P.construction = blowup_construction(flagmatic_flag("3:123"))
 	#P.construction = blowup_construction(flagmatic_flag("3:112223331123"))
-	P.construction = blowup_construction(flagmatic_flag("2:112122"))
+	#P.construction = blowup_construction(flagmatic_flag("2:112122"))
 	
-	P.set_new_bases()
+	#P.set_new_bases()
 	
-	P.calculate_product_densities()
-	P.write_sdp_input_file()
-	P.run_csdp(show_output=show_output)
-	return P
+	#P.calculate_product_densities()
+	#P.write_sdp_input_file()
+	#P.run_csdp(show_output=show_output)
+	return P,C

@@ -80,7 +80,6 @@ class blowup_construction(flagmatic_construction):
 				density, density))
 	
 		return sharp_graphs
-	
 
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):
@@ -88,22 +87,16 @@ class blowup_construction(flagmatic_construction):
 		if flag_basis == None:
 			flag_basis = identity_matrix(QQ, len(flags))
 	
-		num_cols = flag_basis.nrows()
-		cn = self._graph.n
-		M = matrix(QQ, 0, num_cols, sparse=True)
-		
-		for tv in Tuples(range(1, cn + 1), tg.n):
+		rows = set()
+		for tv in Tuples(range(1, self._graph.n + 1), tg.n):
+			rows.add(tuple(self._graph.degenerate_flag_density(tg, flags, tv)))
 	
-			row = matrix(QQ, [self._graph.degenerate_flag_density(tg,
-					flags[i], tv) for i in range(len(flags))]) * flag_basis.T
-			
-			# Quick check to see if it is the zero vector!
-			if row.is_zero():
-				continue
-			
-			# See if adding row increases the rank
-			M = M.stack(matrix(QQ, row))
-			if M.rank() < M.nrows():
-				M = M[:-1,:]
+		M = matrix(QQ, list(rows), sparse=True) * flag_basis.T
 		
-		return M.echelon_form()
+		if M.rank() == 0:
+			return matrix(QQ, 0, flag_basis.nrows(), sparse=True)
+		
+		M = M.echelon_form()
+		M = M[:M.rank(),:]
+
+		return M

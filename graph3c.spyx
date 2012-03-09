@@ -586,30 +586,43 @@ cdef class flagmatic_flag:
 		return ng
 
 	
-	def degenerate_flag_density(self, tg, flag, type_verts):
-	
+	def degenerate_flag_density(self, tg, flags, type_verts):
+		"""
+		Note that flags must be minimal isomorphs.
+		"""
 		s = tg.n
-		m = flag.n
-		mfg = flag.copy()
-		mfg.make_minimal_isomorph()
-		
-		count, total = 0, 0
+		m = flags[0].n   # TODO: Check all flags are the same size, and are minimal isomorphs
+
+		count = [0 for i in range(len(flags))]
+		total = 0
+
+		it = self.degenerate_induced_subgraph(type_verts)
+		if not tg.is_equal(it):
+			return count
 	
-		# TODO: rewrite to use UnorderedTuple
+		# TODO: Work out why UnorderedTuple is slower!
 		
+# 		for pf in UnorderedTuples(range(1, self._n + 1), m - s):
+ 			
+# 			factor = factorial(m - s)
+# 			for i in range(1, self._n + 1):
+# 				factor /= factorial(pf.count(i))
+	
 		for pf in Tuples(range(1, self.n + 1), m - s):
+			factor = 1
 			
 			p = list(type_verts) + pf			
-			total += 1
-			it = self.degenerate_induced_subgraph(p[:s])
-			if tg.is_equal(it):
-				ig = self.degenerate_induced_subgraph(p)
-				ig.type = tg
-				ig.make_minimal_isomorph()
-				if mfg.is_equal(ig):
-					count += 1
+			ig = self.degenerate_induced_subgraph(p)
+			ig.type = tg
+			ig.make_minimal_isomorph()
+			for i in range(len(flags)):
+				if ig.is_equal(flags[i]):
+					count[i] += factor
+					break
+
+			total += factor
 		
-		return Integer(count) / total
+		return [Integer(count[i]) / total for i in range(len(flags))]
 
 
 cdef void raw_minimize_edges(int *edges, int m):
