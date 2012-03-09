@@ -61,7 +61,7 @@ class blowup_construction(flagmatic_construction):
 			for i in range(1, cn + 1):
 				factor /= factorial(P.count(i))
 		
-			ig = self._graph.induced_subgraph(P)
+			ig = self._graph.degenerate_induced_subgraph(P)
 			ig.make_minimal_isomorph()
 			
 			try:
@@ -85,12 +85,12 @@ class blowup_construction(flagmatic_construction):
 			flag_basis = identity_matrix(QQ, len(flags))
 	
 		num_cols = flag_basis.nrows()
-		cn = self._graph[0]
+		cn = self._graph.n
 		M = matrix(QQ, 0, num_cols, sparse=True)
 		
-		for tv in Tuples(range(1, cn + 1), tg[0]):
+		for tv in Tuples(range(1, cn + 1), tg.n):
 	
-			row = matrix(QQ, [asymptotic_flag_density_fixed(self._graph, tg,
+			row = matrix(QQ, [self._graph.degenerate_flag_density(tg,
 					flags[i], tv) for i in range(len(flags))]) * flag_basis.T
 			
 			# Quick check to see if it is the zero vector!

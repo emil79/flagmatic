@@ -39,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from libc.stdlib cimport malloc, calloc, free
 from libc.string cimport memset
 
-DEF MAX_NUMBER_OF_EDGES = 35
+DEF MAX_NUMBER_OF_EDGES = (35 + 42 + 7)
 
 
 # TODO: check that flag contains type
@@ -47,10 +47,13 @@ DEF MAX_NUMBER_OF_EDGES = 35
 cdef class flagmatic_flag:
 
 	cdef int _n
+	cdef readonly bint is_degenerate
 	cdef readonly int ne
 	cdef int _edges[MAX_NUMBER_OF_EDGES * 3]
 	cdef public flagmatic_flag type
 
+
+	# TODO: Check that the flag contains the type's edges, and does not have fewer vertices.
 
 	def __init__(self, string_rep=None, tg=None):
 	
@@ -70,27 +73,43 @@ cdef class flagmatic_flag:
 				edge_list.append((self._edges[i], self._edges[i + 1], self._edges[i + 2]))
 			return tuple(edge_list)
 
-
 	property n:
 
 		def __get__(self):
 			return self._n
 	
 		def __set__(self, value):
-			if value < self._n or value > 7:
-				raise ValueError
+
+			# We need to allow more than 7 for vertex splitting degenerate
+			# graphs. The edge limit is enforced, however.
+			# if value < self._n or value > 7:
+			# 	raise ValueError
+
 			self._n = value
 
 
 	def add_edge(self, edge):
 	
-		cdef int i, x
-		for i in range(3):
-			x = <int?> edge[i]
-			if x < 1 or x > self._n:
-				raise ValueError
-			self._edges[3 * self.ne + i] = x
+		cdef int x, y, z
+		
+		if self.ne == MAX_NUMBER_OF_EDGES:
+			raise NotImplementedError("Too many edges.")
+		
+		x = <int?> edge[0]
+		y = <int?> edge[1]
+		z = <int?> edge[2]
+		if x < 1 or y < 1 or z < 1:
+			raise ValueError
+		if x > self._n or y > self._n or z > self._n:
+			raise ValueError
+
+		self._edges[3 * self.ne] = x
+		self._edges[3 * self.ne + 1] = y
+		self._edges[3 * self.ne + 2] = z
 		self.ne += 1
+
+		if x == y or x == z or y == z:
+			self.is_degenerate = True
 		
 
 	def __getitem__(self, name):
@@ -118,19 +137,16 @@ cdef class flagmatic_flag:
 		if n < 0 or n > 7:
 			raise ValueError
 		self._n = n
+		self.ne = 0
 		
 		ne = len(s) - 2
 		if ne % 3 != 0:
 			raise ValueError
 		ne /= 3
-		self.ne = ne
-		
-		for i in range(3 * ne):
-			x = int(s[i + 2]) # N.B. +2 because of n: header
-			if x < 1 or x > n:
-				raise ValueError
-			self._edges[i] = x
-
+			
+		for i in range(ne):	 # N.B. +2 because of n: header
+			self.add_edge((int(s[i * 3 + 2]), int(s[i * 3 + 3]), int(s[i * 3 + 4])))
+	
 
 	def __str__(self):
 
@@ -157,8 +173,15 @@ cdef class flagmatic_flag:
 		if self.ne != other.ne:
 			return False
 
-		#if not self.type.is_equal(other.type):
-		#	return False
+		if self.type is None:
+			if not other.type is None:
+				return False
+		else:
+			if other.type is None:
+				return False
+			else:
+				if not self.type.is_equal(other.type):
+					return False
 		
 		for i in range(3 * self.ne):
 			if self._edges[i] != other._edges[i]:
@@ -182,6 +205,8 @@ cdef class flagmatic_flag:
 		return flagmatic_flag(self.__str__(), tg=self.type)
 
 
+	# TODO: possibly something different with degenerate graphs?
+
 	def degrees(self):
 
 		cdef int i
@@ -190,12 +215,17 @@ cdef class flagmatic_flag:
 			deg_list[self._edges[i] - 1] += 1
 		return tuple(deg_list)
 
+
+	# TODO: possibly something different with degenerate graphs?
 	
 	def edge_density(self):
 		"""
 		Returns the edge density, i.e. the number of edges divided by binomial(n, 3),
 		where n is the number of vertices.
 		"""
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
+		
 		return self.ne / binomial(self._n, 3)
 
 
@@ -204,6 +234,9 @@ cdef class flagmatic_flag:
 		Returns the H-density. That is, the number of k-sets of vertices that induce
 		graphs isomorphic to H, divided by binomial(n, k).
 		"""
+		
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
 		
 		found, total = 0, 0
 		minh = h.copy()
@@ -290,6 +323,9 @@ cdef class flagmatic_flag:
 
 	def induced_subgraph(self, verts):
 	
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
+	
 		cdef int i, *c_verts, num_verts
 		cdef flagmatic_flag ig
 		
@@ -307,6 +343,10 @@ cdef class flagmatic_flag:
 
 		cdef int nm = 0, i, j, *e, got, te[3]
 		cdef flagmatic_flag ig = flagmatic_flag()
+
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
+
 		ig.n = num_verts
 		ig.type = None
 		
@@ -338,6 +378,9 @@ cdef class flagmatic_flag:
 	cdef int c_has_subgraph (self, flagmatic_flag h):
 	
 		cdef int i, j, k, l, *p, np, *new_edges, got_all, got_edge, got
+	
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
 	
 		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
 		
@@ -376,6 +419,9 @@ cdef class flagmatic_flag:
 	def has_forbidden_edge_numbers(self, forbidden_edge_numbers, must_have_highest=False):
 	
 		cdef int *c, nc, i, j, k, l, fe, *edges, *e, got, *comb, num_e
+	
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
 	
 		for pk, pfe in forbidden_edge_numbers.iteritems():
 	
@@ -434,6 +480,9 @@ cdef class flagmatic_flag:
 		cdef int *c, nc, i, j, k, cne, *cur_edges, *e
 		cdef flagmatic_flag h, ig
 		
+		if self.is_degenerate:
+			raise NotImplementedError("degenerate graphs are not supported.")
+		
 		cur_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
 		
 		for i in range(len(graphs)):
@@ -466,36 +515,112 @@ cdef class flagmatic_flag:
 		return False
 
 
+	def split_vertex (self, x):
+		"""
+		Returns the graph obtained by cloning vertex x. Especially useful for
+		degenerate graphs. 
+		"""
 
-ctypedef struct raw_graph:
-	int n, ne
-	int edges[MAX_NUMBER_OF_EDGES * 3]
+		if x < 1 or x > self._n:
+			raise ValueError
+	
+		ng = self.copy()
+		ng.n += 1
+		nv = self._n + 1
+		
+		for e in self.edges:
+		
+			le = list(e)
+			if le.count(x) == 1:
+				nle = [y for y in le if y != x]
+				ng.add_edge(nle + [nv])
+			elif le.count(x) == 2:
+				nle = [y for y in le if y != x]
+				ng.add_edge(nle + [x, nv])
+				ng.add_edge(nle + [nv, nv])
+			elif le.count(x) == 3:
+				ng.add_edge((x, x, nv))
+				ng.add_edge((x, nv, nv))
+				ng.add_edge((nv, nv, nv))
+		
+		return ng
+
+
+	def degenerate_induced_subgraph(self, verts):
+		
+		cg = self.copy()
+		vertices = []
+		for x in verts:
+			if not x in vertices:
+				vertices.append(x)
+			else:
+				cg = cg.split_vertex(x)
+				vertices.append(cg.n)
+		
+		ng = flagmatic_flag()
+		ng.n = len(vertices)
+		
+		for e in cg.edges:
+			if e[0] in vertices and e[1] in vertices and e[2] in vertices:
+				x = vertices.index(e[0]) + 1
+				y = vertices.index(e[1]) + 1
+				z = vertices.index(e[2]) + 1
+				if x != y and x != z and y != z:
+					ng.add_edge((x, y, z))
+
+		ng.minimize_edges()
+		return ng
+
+	
+	def degenerate_flag_density(self, tg, flag, type_verts):
+	
+		s = tg.n
+		m = flag.n
+		mfg = flag.copy()
+		mfg.make_minimal_isomorph()
+		
+		count, total = 0, 0
+	
+		# TODO: rewrite to use UnorderedTuple
+		
+		for pf in Tuples(range(1, self.n + 1), m - s):
+			
+			p = list(type_verts) + pf			
+			total += 1
+			it = self.degenerate_induced_subgraph(p[:s])
+			if tg.is_equal(it):
+				ig = self.degenerate_induced_subgraph(p)
+				ig.type = tg
+				ig.make_minimal_isomorph()
+				if mfg.is_equal(ig):
+					count += 1
+		
+		return Integer(count) / total
+		
 
 cdef class graph_block:
 	cdef int n, len
-	cdef raw_graph *graphs
+	cdef void **graphs
+
 
 def make_graph_block(graphs, n):
 
-	cdef int i, j, ne, *e
-	gb = graph_block()
+	cdef graph_block gb = graph_block()
 	gb.n = n
 	gb.len = len(graphs)
+	gb.graphs = <void **> malloc(gb.len * sizeof(void *))
+	for i in range(gb.len):
+		gb.graphs[i] = <void *> graphs[i]
+	return gb
 
-	gb.graphs = <raw_graph *> calloc (gb.len, sizeof(raw_graph))
+	
+def print_graph_block(graph_block gb):
+
+	cdef flagmatic_flag g
 	
 	for i in range(gb.len):
-		g = graphs[i]
-		ne = len(g[1])
-		gb.graphs[i].n = g[0]
-		gb.graphs[i].ne = ne
-		for j in range(ne):
-			e = &(gb.graphs[i].edges[3 * j])
-			e[0] = g[1][j][0]
-			e[1] = g[1][j][1]
-			e[2] = g[1][j][2]
-	
-	return gb
+		g = <flagmatic_flag ?> gb.graphs[i]
+		print str(g)
 
 
 cdef class combinatorial_info_block:
@@ -982,27 +1107,29 @@ cdef int c_is_subgraph (int n, int *edges, int ne, int *edges_sub, int ne_sub):
 	return 0
 
 
+
 #
 # TODO: Make this function accept more than one type on s vertices.
 #
 
-def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_block flags2):
+def flag_products (graph_block gb, flagmatic_flag tg, graph_block flags1, graph_block flags2):
 
 	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
 	cdef int n, s, m1, m2, ne, i, j, k, gi
 	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
 	cdef int f1index, f2index, *grb, equal_flags_mode
-		
+	cdef flagmatic_flag g, t, f1, f2
+	
 	results = []
 	
 	sig_on()
 	
 	n = gb.n
-	s = tb.n
+	s = tg.n
 	m1 = flags1.n
 
-	if flags2:
+	if not flags2 is None:
 
 		equal_flags_mode = 0
 		m2 = flags2.n
@@ -1024,10 +1151,12 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 
 		sig_on()
 	
+		g = <flagmatic_flag> gb.graphs[gi]
+	
 		memset(grb, 0, flags1.len * flags2.len * sizeof(int))
 	
-		ne = gb.graphs[gi].ne
-		edges = gb.graphs[gi].edges
+		ne = g.ne
+		edges = g._edges
 
 		has_type = 0
 		has_f1 = 0
@@ -1041,13 +1170,11 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 				for j in range(s):
 					pf1[j] = pp[j]
 					pf2[j] = pp[j]
-			
+						
 				has_type = 0
-				c_induced_subgraph(edges, cur_edges, ne, &cnte, pf1, s)
-				
-				if cnte == tb.graphs[0].ne:
-					if all(cur_edges[j] == tb.graphs[0].edges[j] for j in range(cnte * 3)):
-						has_type = 1
+				t = g.c_induced_subgraph(pf1, s)
+				if tg.is_equal(t):
+					has_type = 1
 	
 			if has_type == 0:
 				continue
@@ -1059,15 +1186,15 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 				for j in range(m1 - s):
 					pf1[s + j] = pp[s + j]
 	
-				c_induced_subgraph(edges, cur_edges, ne, &cnf1e, pf1, m1)
-				c_minimal_isomorph(n, cur_edges, cnf1e, s)
-				
+				f1 = g.c_induced_subgraph(pf1, m1)
+				f1.type = tg
+				f1.make_minimal_isomorph()
+
 				for j in range(flags1.len):
-					if flags1.graphs[j].ne == cnf1e:
-						if all(cur_edges[k] == flags1.graphs[j].edges[k] for k in range(cnf1e * 3)):
-							has_f1 = 1
-							f1index = j
-							break
+					if f1.is_equal(<flagmatic_flag> flags1.graphs[j]):
+						has_f1 = 1
+						f1index = j
+						break
 	
 			if has_f1 == 0:
 				continue
@@ -1075,15 +1202,15 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 			for j in range(m2 - s):
 				pf2[s + j] = pp[m1 + j]
 	
-			c_induced_subgraph(edges, cur_edges, ne, &cnf2e, pf2, m2)
-			c_minimal_isomorph(n, cur_edges, cnf2e, s)
+			f2 = g.c_induced_subgraph(pf2, m2)
+			f2.type = tg
+			f2.make_minimal_isomorph()
 			
 			for j in range(flags2.len):
-				if flags2.graphs[j].ne == cnf2e:
-					if all(cur_edges[k] == flags2.graphs[j].edges[k] for k in range(cnf2e * 3)):
-						f2index = j
-						grb[(f1index * flags1.len) + f2index] += 1
-						break
+				if f2.is_equal(<flagmatic_flag> flags2.graphs[j]):
+					f2index = j
+					grb[(f1index * flags1.len) + f2index] += 1
+					break
 
 		sig_off()
 
@@ -1121,119 +1248,119 @@ def flag_products (graph_block gb, graph_block tb, graph_block flags1, graph_blo
 	return results
 
 
-def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
+# def has_forbidden_edge_numbers(g, forbidden_edge_numbers, must_have_highest=False):
+# 
+# 	cdef int *c, nc, i, j, k, l, n, fe, *edges, *e, got, *comb, num_e, mhh
+# 
+# 	n = g[0]
+# 	m = len(g[1])
+# 	edges = <int *> malloc (sizeof(int) * 3 * m)
+# 	
+# 	for i in range(m):
+# 		e = &edges[3 * i]
+# 		e[0] = g[1][i][0]
+# 		e[1] = g[1][i][1]
+# 		e[2] = g[1][i][2]
+# 
+# 	for pk, pfe in forbidden_edge_numbers.iteritems():
+# 
+# 		k = <int> pk
+# 		fe = <int> pfe
+# 		
+# 		if k > n:
+# 			continue # vacuous condition
+# 
+# 		if fe < 1:
+# 			raise ValueError
+# 		
+# 		if must_have_highest:
+# 		
+# 			c = generate_combinations(n - 1, k - 1, &nc)
+# 
+# 			for i in range(nc):
+# 				comb = &c[(k - 1) * i]
+# 				num_e = 0
+# 				for j in range(m):
+# 					got = 0
+# 					e = &edges[3 * j]
+# 					for l in range(k - 1):
+# 						if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+# 							got += 1
+# 					if n == e[0] or n == e[1] or n == e[2]:
+# 							got += 1
+# 					if got == 3:
+# 						num_e += 1
+# 						if num_e == fe:
+# 							free(edges)
+# 							return True
+# 
+# 		else:
+# 
+# 			c = generate_combinations(n, k, &nc)
+# 
+# 			for i in range(nc):
+# 				comb = &c[k * i]
+# 				num_e = 0
+# 				for j in range(m):
+# 					got = 0
+# 					e = &edges[3 * j]
+# 					for l in range(k):
+# 						if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+# 							got += 1
+# 					if got == 3:
+# 						num_e += 1
+# 						if num_e == fe:
+# 							free(edges)
+# 							return True
+# 
+# 	free(edges)
+# 	return False
 
-	cdef int *c, nc, i, j, k, l, n, fe, *edges, *e, got, *comb, num_e, mhh
 
-	n = g[0]
-	m = len(g[1])
-	edges = <int *> malloc (sizeof(int) * 3 * m)
-	
-	for i in range(m):
-		e = &edges[3 * i]
-		e[0] = g[1][i][0]
-		e[1] = g[1][i][1]
-		e[2] = g[1][i][2]
-
-	for pk, pfe in forbidden_edge_numbers.iteritems():
-
-		k = <int> pk
-		fe = <int> pfe
-		
-		if k > n:
-			continue # vacuous condition
-
-		if fe < 1:
-			raise ValueError
-		
-		if must_have_highest:
-		
-			c = generate_combinations(n - 1, k - 1, &nc)
-
-			for i in range(nc):
-				comb = &c[(k - 1) * i]
-				num_e = 0
-				for j in range(m):
-					got = 0
-					e = &edges[3 * j]
-					for l in range(k - 1):
-						if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
-							got += 1
-					if n == e[0] or n == e[1] or n == e[2]:
-							got += 1
-					if got == 3:
-						num_e += 1
-						if num_e == fe:
-							free(edges)
-							return True
-
-		else:
-
-			c = generate_combinations(n, k, &nc)
-
-			for i in range(nc):
-				comb = &c[k * i]
-				num_e = 0
-				for j in range(m):
-					got = 0
-					e = &edges[3 * j]
-					for l in range(k):
-						if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
-							got += 1
-					if got == 3:
-						num_e += 1
-						if num_e == fe:
-							free(edges)
-							return True
-
-	free(edges)
-	return False
-
-
-def has_forbidden_graphs(g, graph_block forbidden_gb, must_have_highest=False, induced=False):
-
-	cdef int *c, nc, i, j, k, n, fn, ne, cne, fne, *edges, *cur_edges, *e
-	
-	n = g[0]
-	ne = len(g[1])
-	edges = <int *> malloc (sizeof(int) * 3 * ne)
-	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
-	
-	for i in range(ne):
-		e = &edges[3 * i]
-		e[0] = g[1][i][0]
-		e[1] = g[1][i][1]
-		e[2] = g[1][i][2]
-
-	for i in range(forbidden_gb.len):
-
-		fn = forbidden_gb.graphs[i].n
-		fne = forbidden_gb.graphs[i].ne
-		
-		if fn > n:
-			continue # vacuous condition
-
-		if must_have_highest:
-			c = generate_combinations_plus(n, fn, &nc)
-		else:
-			c = generate_combinations(n, fn, &nc)
-
-		for j in range(nc):
-		
-			c_induced_subgraph(edges, cur_edges, ne, &cne, &c[j * fn], fn)
-			
-			if cne < forbidden_gb.graphs[i].ne:
-				continue
-				
-			if induced and cne > forbidden_gb.graphs[i].ne:
-				continue
-			
-			if c_is_subgraph(fn, cur_edges, cne, forbidden_gb.graphs[i].edges, forbidden_gb.graphs[i].ne):
-				free(edges)
-				free(cur_edges)
-				return True
-
-	free(edges)
-	free(cur_edges)
-	return False
+# def has_forbidden_graphs(g, graph_block forbidden_gb, must_have_highest=False, induced=False):
+# 
+# 	cdef int *c, nc, i, j, k, n, fn, ne, cne, fne, *edges, *cur_edges, *e
+# 	
+# 	n = g[0]
+# 	ne = len(g[1])
+# 	edges = <int *> malloc (sizeof(int) * 3 * ne)
+# 	cur_edges = <int *> malloc (sizeof(int) * 3 * ne)
+# 	
+# 	for i in range(ne):
+# 		e = &edges[3 * i]
+# 		e[0] = g[1][i][0]
+# 		e[1] = g[1][i][1]
+# 		e[2] = g[1][i][2]
+# 
+# 	for i in range(forbidden_gb.len):
+# 
+# 		fn = forbidden_gb.graphs[i].n
+# 		fne = forbidden_gb.graphs[i].ne
+# 		
+# 		if fn > n:
+# 			continue # vacuous condition
+# 
+# 		if must_have_highest:
+# 			c = generate_combinations_plus(n, fn, &nc)
+# 		else:
+# 			c = generate_combinations(n, fn, &nc)
+# 
+# 		for j in range(nc):
+# 		
+# 			c_induced_subgraph(edges, cur_edges, ne, &cne, &c[j * fn], fn)
+# 			
+# 			if cne < forbidden_gb.graphs[i].ne:
+# 				continue
+# 				
+# 			if induced and cne > forbidden_gb.graphs[i].ne:
+# 				continue
+# 			
+# 			if c_is_subgraph(fn, cur_edges, cne, forbidden_gb.graphs[i].edges, forbidden_gb.graphs[i].ne):
+# 				free(edges)
+# 				free(cur_edges)
+# 				return True
+# 
+# 	free(edges)
+# 	free(cur_edges)
+# 	return False
 	

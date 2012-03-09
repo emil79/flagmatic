@@ -159,15 +159,21 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 	
 	"""
 
-	s = tg.n
+	if tg is None:
+		s = 0
+	else:
+		s = tg.n
 
 	if n < s:
 		return []
 
 	if n == s:
-		ntg = tg.copy()
-		ntg.type = tg
-		return [ntg]
+		if tg is None:
+			return [flagmatic_flag()]
+		else:
+			ntg = tg.copy()
+			ntg.type = tg
+			return [ntg]
 
 	max_ne = (n - 1) * (n - 2) / 2
 	max_e = n * max_ne / 3
@@ -232,8 +238,7 @@ def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidd
 		[(4, ()), (4, ((1, 2, 3),)), (4, ((1, 2, 3), (1, 2, 4)))]
 	
 	"""
-	tg = flagmatic_flag()
-	return generate_flags(n, tg, forbidden_edge_numbers=forbidden_edge_numbers,
+	return generate_flags(n, None, forbidden_edge_numbers=forbidden_edge_numbers,
 		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
 

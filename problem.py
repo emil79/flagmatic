@@ -61,7 +61,6 @@ class flagmatic_problem(object):
 			forbidden_edge_numbers=self.forbidden_edge_numbers,
 			forbidden_graphs=self.forbidden_graphs,
 			forbidden_induced_graphs=self.forbidden_induced_graphs)
-		#self._graph_block = make_graph_block(self._graphs, n)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
 		self._graph_densities = []
@@ -178,6 +177,8 @@ class flagmatic_problem(object):
 
  	def calculate_product_densities(self):
  	
+ 		graph_block = make_graph_block(self._graphs, self.n)
+		
 		self._product_densities = {}
  		sys.stdout.write("Calculating product densities...\n")
 
@@ -192,12 +193,12 @@ class flagmatic_problem(object):
 				is_subdivided = False
 
  			tg = self._types[ti]
- 			s = tg[0]
+ 			s = tg.n
  			m = (self._n + s) / 2
 
  			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti + 1, s, m))
  			flags_block = make_graph_block(self._flags[ti], m)
-			DL = flag_products(self._graph_block, make_graph_block([tg], s), flags_block, None)
+			DL = flag_products(graph_block, tg, flags_block, None)
 		
 			for gi in range(len(self._graphs)):
 				D = DL[gi]
@@ -366,19 +367,17 @@ def test_sdp(n, show_output=False):
 	
 	P = flagmatic_problem()
 	
-	P.forbidden_graphs=[flagmatic_flag("5:123124345")]
+	#P.forbidden_graphs=[flagmatic_flag("5:123124345")]
 	
 	# K4-
 	#P.forbidden_edge_numbers={4:3}
 	
 	# F32
-	#P.forbidden_graphs=[(5,((1,2,3),(1,2,4),(1,2,5),(3,4,5)))]
-	
-	#P.forbidden_induced_graphs=[(4,((1,2,3),(1,2,4),(1,3,4)))]
+	#P.forbidden_graphs=[flagmatic_flag("5:123124125345")]
 	
 	# K4, 4.1
-	#P.forbidden_edge_numbers={4:4}
-	#P.forbidden_induced_graphs=[(4,((1,2,3),))]
+	P.forbidden_edge_numbers={4:4}
+	P.forbidden_induced_graphs=[flagmatic_flag("4:123")]
 
 	# K.5, induced 5.8
 	#P.forbidden_edge_numbers={5:10}
@@ -389,11 +388,13 @@ def test_sdp(n, show_output=False):
 	P.n = n
 	P.set_inv_anti_inv_bases()
 
-	P.construction = blowup_construction(flagmatic_flag("3:123"))
+	#P.construction = blowup_construction(flagmatic_flag("3:123"))
+	P.construction = blowup_construction(flagmatic_flag("3:112223331123"))
 	
-	#P.set_new_bases()
 	
-	#P.calculate_product_densities()
-	#P.write_sdp_input_file()
-	#P.run_csdp(show_output=show_output)
+	P.set_new_bases()
+	
+	P.calculate_product_densities()
+	P.write_sdp_input_file()
+	P.run_csdp(show_output=show_output)
 	return P
