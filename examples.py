@@ -164,7 +164,6 @@ def example(prob):
 	elif prob == "codr":
 	
 		P = AxiomsProblem()
-		C = None
 		P.forbidden_edge_numbers={4:3}
 		P.forbidden_graphs = [Flag("6:612623634645651")]
 		P.n = 6
@@ -173,6 +172,9 @@ def example(prob):
 		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
 		P.set_inv_anti_inv_bases()
+		C = RandomTournamentConstruction()
+		P.construction = C
+		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
