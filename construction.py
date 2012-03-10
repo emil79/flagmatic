@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-class flagmatic_construction(object):
+class Construction(object):
 
 	def __init__(self):
 		pass
@@ -41,7 +41,7 @@ class flagmatic_construction(object):
 		return None
 
 
-class blowup_construction(flagmatic_construction):
+class BlowupConstruction(Construction):
 
 	def __init__(self, g, vertex_transitive=False):
 

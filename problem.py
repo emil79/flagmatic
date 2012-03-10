@@ -36,7 +36,7 @@ import sys
 
 cdsp_cmd = "csdp"
 
-class flagmatic_problem(object):
+class Problem(object):
 
 	forbidden_edge_numbers = {}
 	forbidden_graphs = []
@@ -302,20 +302,9 @@ class flagmatic_problem(object):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
-		
-		inv_block_sizes = []
-		anti_inv_block_sizes = []
-		for i in range(num_types):
-			row_div = self._flag_bases[i].subdivisions()[0]
-			if len(row_div) > 0:
-				inv_block_sizes.append(row_div[0])
-				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
-			else:
-				inv_block_sizes.append(self._flag_bases[i].nrows())
-				anti_inv_block_sizes.append(1)
-	
+
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
-	
+
 		cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
 		obj_val = None
@@ -344,28 +333,46 @@ class flagmatic_problem(object):
 			B = self._flag_bases[ti]
 			row_div = B.subdivisions()[0]
 			self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
-		
+
 		with open(self._sdp_output_filename, "r") as f:
-			
-			for line in f:
-				numbers = line.split()
-				if numbers[0] != "2":
-					continue
-				ti = int(numbers[1]) - 2
-				if ti < 0 or ti >= 2 * num_types:
-					continue
-				j = int(numbers[2]) - 1
-				k = int(numbers[3]) - 1
-				if ti % 2:
-					ti = (ti - 1) / 2
-					j += inv_block_sizes[ti]
-					k += inv_block_sizes[ti]
-					if j >= self._flag_bases[ti].nrows():
-						continue # Might be 'dummy' block for types with no anti-inv space
-				else:
-					ti /= 2
-				self._sdp_Q_matrices[ti][j, k] = numbers[4]
-				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
+			self.process_sdp_output_file(f)
+
+
+	def process_sdp_output_file(self, f):
+
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		
+		inv_block_sizes = []
+		anti_inv_block_sizes = []
+		for i in range(num_types):
+			row_div = self._flag_bases[i].subdivisions()[0]
+			if len(row_div) > 0:
+				inv_block_sizes.append(row_div[0])
+				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
+			else:
+				inv_block_sizes.append(self._flag_bases[i].nrows())
+				anti_inv_block_sizes.append(1)	
+		
+		for line in f:
+			numbers = line.split()
+			if numbers[0] != "2":
+				continue
+			ti = int(numbers[1]) - 2
+			if ti < 0 or ti >= 2 * num_types:
+				continue
+			j = int(numbers[2]) - 1
+			k = int(numbers[3]) - 1
+			if ti % 2:
+				ti = (ti - 1) / 2
+				j += inv_block_sizes[ti]
+				k += inv_block_sizes[ti]
+				if j >= self._flag_bases[ti].nrows():
+					continue # Might be 'dummy' block for types with no anti-inv space
+			else:
+				ti /= 2
+			self._sdp_Q_matrices[ti][j, k] = numbers[4]
+			self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
 
 	def find_sharps(self, tolerance = 0.00001):
@@ -397,12 +404,12 @@ class flagmatic_problem(object):
 
 
 
-class axioms_problem(flagmatic_problem):
+class AxiomsProblem(Problem):
 
 	
 	def __init__(self):
 	
-		flagmatic_problem.__init__(self)
+		Problem.__init__(self)
 		self._quantum_graphs = []
 
 
@@ -443,18 +450,63 @@ class axioms_problem(flagmatic_problem):
 	
 	def add_codegree_axiom(self, value):
 	
-		tg = flagmatic_flag("2:")
-		f1 = flagmatic_flag("3:123", tg)
-		f2 = flagmatic_flag("2:", tg)
+		tg = Flag("2:")
+		f1 = Flag("3:123", tg)
+		f2 = Flag("2:", tg)
 		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
 
 
 	def add_degree_axiom(self, value):
 	
-		tg = flagmatic_flag("1:")
-		f1 = flagmatic_flag("3:123", tg)
-		f2 = flagmatic_flag("1:", tg)
+		tg = Flag("1:")
+		f1 = Flag("3:123", tg)
+		f2 = Flag("1:", tg)
 		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+
+
+	def process_sdp_output_file(self, f):
+
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._quantum_graphs)
+		
+		inv_block_sizes = []
+		anti_inv_block_sizes = []
+		for i in range(num_types):
+			row_div = self._flag_bases[i].subdivisions()[0]
+			if len(row_div) > 0:
+				inv_block_sizes.append(row_div[0])
+				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
+			else:
+				inv_block_sizes.append(self._flag_bases[i].nrows())
+				anti_inv_block_sizes.append(1)	
+		
+		self._quantum_graphs_fcoeffs = [0.0 for i in range(num_densities)]
+		
+		for line in f:
+			numbers = line.split()
+			if numbers[0] != "2":
+				continue
+			ti = int(numbers[1]) - 2
+			if ti == 2 * num_types + 1:
+				j = int(numbers[2]) - 1
+				self._quantum_graphs_fcoeffs[j] = RDF(numbers[4])
+				continue
+			if ti < 0 or ti >= 2 * num_types:
+				continue
+			j = int(numbers[2]) - 1
+			k = int(numbers[3]) - 1
+			if ti % 2:
+				ti = (ti - 1) / 2
+				j += inv_block_sizes[ti]
+				k += inv_block_sizes[ti]
+				if j >= self._flag_bases[ti].nrows():
+					continue # Might be 'dummy' block for types with no anti-inv space
+			else:
+				ti /= 2
+			self._sdp_Q_matrices[ti][j, k] = numbers[4]
+			self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
+
 
 	
 	def write_sdp_input_file(self):
@@ -542,3 +594,37 @@ class axioms_problem(flagmatic_problem):
 				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, 2 * num_types + 5, j + 1, j + 1))
 	
 			self.write_blocks(f)
+	
+			
+	def find_sharps(self, tolerance = 0.00001):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		num_densities = len(self._quantum_graphs)
+		
+		fbounds = [0.0 for i in range(num_graphs)]
+
+		for i in range(num_graphs):
+			for j in range(num_densities):
+				fbounds[i] += self._quantum_graphs_fcoeffs[j] * self._quantum_graphs[j][i]
+				
+		for ti in range(num_types):
+			num_flags = len(self._flags[ti])
+			for gi in range(num_graphs):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(D.nrows()):
+					for k in range(j, D.nrows()):
+						value = self._sdp_Q_matrices[ti][j, k]
+						if j != k:
+							value *= 2
+						d = D[j, k]
+						if d != 0:
+							fbounds[gi] += d * value
+
+		bound = max(fbounds)
+		sharp_indices = [gi for gi in range(num_graphs)
+			if abs(fbounds[gi] - bound) < tolerance]
+		
+		sys.stdout.write("The following %d graphs are sharp:\n" % len(sharp_indices))
+		for gi in sharp_indices:
+			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))

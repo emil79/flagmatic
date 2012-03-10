@@ -145,7 +145,7 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 
 	if n == s:
 		if tg is None:
-			return [flagmatic_flag()]
+			return [Flag()]
 		else:
 			ntg = tg.copy()
 			ntg.type = tg

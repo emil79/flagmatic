@@ -27,15 +27,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-def flagmatic_example(prob):
+def example(prob):
 	
 	if prob == "ff83":
 	
-		P = flagmatic_problem()
-		P.forbidden_graphs=[flagmatic_flag("5:123124345")]
+		P = Problem()
+		P.forbidden_graphs=[Flag("5:123124345")]
 		P.n = 6
 		P.set_inv_anti_inv_bases()
-		C = blowup_construction(flagmatic_flag("3:123"))
+		C = BlowupConstruction(Flag("3:123"))
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -44,7 +44,7 @@ def flagmatic_example(prob):
 	
 	elif prob == "k4-":
 
-		P = flagmatic_problem()
+		P = Problem()
 		P.forbidden_edge_numbers={4:3}
 		P.n = 6
 		P.set_inv_anti_inv_bases()
@@ -55,11 +55,11 @@ def flagmatic_example(prob):
 
 	elif prob == "f32":
 
-		P = flagmatic_problem()
-		P.forbidden_graphs=[flagmatic_flag("5:123124125345")]
+		P = Problem()
+		P.forbidden_graphs=[Flag("5:123124125345")]
 		P.n = 6
 		P.set_inv_anti_inv_bases()
-		C = blowup_construction(flagmatic_flag("3:122123133"))
+		C = BlowupConstruction(Flag("3:122123133"))
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -68,12 +68,12 @@ def flagmatic_example(prob):
 
 	elif prob == "razb":
 	
-		P = flagmatic_problem()
+		P = Problem()
 		P.forbidden_edge_numbers={4:4}
-		P.forbidden_induced_graphs=[flagmatic_flag("4:123")]
+		P.forbidden_induced_graphs=[Flag("4:123")]
 		P.n = 6
 		P.set_inv_anti_inv_bases()
-		C = blowup_construction(flagmatic_flag("3:112223331123"))
+		C = BlowupConstruction(Flag("3:112223331123"))
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -82,14 +82,14 @@ def flagmatic_example(prob):
 	
 	elif prob == "k5weak":
 	
-		P = flagmatic_problem()
+		P = Problem()
 		P.forbidden_edge_numbers={5:10}
-		h1 = flagmatic_flag("5:134234125135235145245345")
-		h2 = flagmatic_flag("5:124134234125135235145245")
+		h1 = Flag("5:134234125135235145245345")
+		h2 = Flag("5:124134234125135235145245")
 		P.forbidden_induced_graphs=[h1,h2]
 		P.n = 6
 		P.set_inv_anti_inv_bases()
-		C = blowup_construction(flagmatic_flag("2:112122"))
+		C = BlowupConstruction(Flag("2:112122"))
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -98,11 +98,11 @@ def flagmatic_example(prob):
 	
 	elif prob == "38":
 
-		P = flagmatic_problem()
-		P.forbidden_graphs=[flagmatic_flag("5:123124125345"),flagmatic_flag("5:123124125134135145")]
+		P = Problem()
+		P.forbidden_graphs=[Flag("5:123124125345"),Flag("5:123124125134135145")]
 		P.n = 6
 		P.set_inv_anti_inv_bases()
-		C = blowup_construction(flagmatic_flag("4:123124134234"))
+		C = BlowupConstruction(Flag("4:123124134234"))
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -111,10 +111,10 @@ def flagmatic_example(prob):
 
 	elif prob == "max42":
 
-		P = flagmatic_problem()
+		P = Problem()
 		P.n = 5
 		P.set_inv_anti_inv_bases()
-		P.density_graph = flagmatic_flag("4:123124")
+		P.density_graph = Flag("4:123124")
 		#C = random_geometric_construction()
 		C = None
 		#P.construction = C
@@ -122,10 +122,24 @@ def flagmatic_example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
+	
+	
+	elif prob == "k4-f32":
+
+		P = Problem()
+		P.forbidden_edge_numbers={4:3}
+		P.forbidden_graphs=[Flag("5:123124125345")]
+		P.n = 7
+		P.set_inv_anti_inv_bases()
+		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
+		P.construction = C
+		P.set_new_bases()
+		P.calculate_product_densities()
+		
 
 	elif prob == "cod":
 	
-		P = axioms_problem()
+		P = AxiomsProblem()
 		C = None
 		P.forbidden_edge_numbers={4:3}
 		P.n = 6
@@ -134,13 +148,13 @@ def flagmatic_example(prob):
 
 	elif prob == "cod6":
 	
-		P = axioms_problem()
+		P = AxiomsProblem()
 		C = None
 		P.forbidden_edge_numbers={4:3}
 		P.n = 6
-		tg = flagmatic_flag("2:")
-		f1 = flagmatic_flag("3:123", tg)
-		f2 = flagmatic_flag("2:", tg)
+		tg = Flag("2:")
+		f1 = Flag("3:123", tg)
+		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-264/1000")])
 		P.set_inv_anti_inv_bases()
 		P.calculate_product_densities()
@@ -149,14 +163,14 @@ def flagmatic_example(prob):
 
 	elif prob == "codr":
 	
-		P = axioms_problem()
+		P = AxiomsProblem()
 		C = None
 		P.forbidden_edge_numbers={4:3}
-		P.forbidden_graphs = [flagmatic_flag("6:612623634645651")]
+		P.forbidden_graphs = [Flag("6:612623634645651")]
 		P.n = 6
-		tg = flagmatic_flag("2:")
-		f1 = flagmatic_flag("3:123", tg)
-		f2 = flagmatic_flag("2:", tg)
+		tg = Flag("2:")
+		f1 = Flag("3:123", tg)
+		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
 		P.set_inv_anti_inv_bases()
 		P.calculate_product_densities()
@@ -167,14 +181,14 @@ def flagmatic_example(prob):
 	elif prob == "marchant":
 	
 		P = axioms_problem()
-		P.forbidden_graphs = [flagmatic_flag("5:123124125345")]
+		P.forbidden_graphs = [Flag("5:123124125345")]
 		P.n = 6
-		tg = flagmatic_flag("2:")
-		f1 = flagmatic_flag("3:123", tg)
-		f2 = flagmatic_flag("2:", tg)
+		tg = Flag("2:")
+		f1 = Flag("3:123", tg)
+		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-1/3")])
 		P.set_inv_anti_inv_bases()
-		C = blowup_construction(flagmatic_flag("3:112223331"))
+		C = BlowupConstruction(Flag("3:112223331"))
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()

@@ -44,13 +44,13 @@ DEF MAX_NUMBER_OF_EDGES = (35 + 42 + 7)
 
 # TODO: check that flag contains type
 
-cdef class flagmatic_flag:
+cdef class Flag:
 
 	cdef int _n
 	cdef readonly bint is_degenerate
 	cdef readonly int ne
 	cdef int _edges[MAX_NUMBER_OF_EDGES * 3]
-	cdef public flagmatic_flag type
+	cdef public Flag type
 
 
 	# TODO: Check that the flag contains the type's edges, and does not have fewer vertices.
@@ -58,7 +58,7 @@ cdef class flagmatic_flag:
 	def __init__(self, string_rep=None, tg=None):
 	
 		if tg:
-			self.type = <flagmatic_flag?> tg
+			self.type = <Flag?> tg
 	
 		if string_rep:
 			self.init_from_string(string_rep)
@@ -166,7 +166,7 @@ cdef class flagmatic_flag:
 
 	# TODO: do this the Cythonic way (__richcmp__ ?)
 	
-	def is_equal(self, flagmatic_flag other):
+	def is_equal(self, Flag other):
 	
 		cdef int i
 
@@ -208,7 +208,7 @@ cdef class flagmatic_flag:
 	def copy(self):
 	
 		cdef int i
-		ng = flagmatic_flag()
+		ng = Flag()
 		ng.n = self._n
 		ng.ne = self.ne
 		ng.type = self.type
@@ -341,7 +341,7 @@ cdef class flagmatic_flag:
 			raise NotImplementedError("degenerate graphs are not supported.")
 	
 		cdef int i, *c_verts, num_verts
-		cdef flagmatic_flag ig
+		cdef Flag ig
 		
 		num_verts = len(verts)
 		c_verts = <int *> malloc(num_verts * sizeof(int))
@@ -353,10 +353,10 @@ cdef class flagmatic_flag:
 		return ig
 
 
-	cdef flagmatic_flag c_induced_subgraph(self, int *verts, int num_verts):
+	cdef Flag c_induced_subgraph(self, int *verts, int num_verts):
 
 		cdef int nm = 0, i, j, *e, got, te[3]
-		cdef flagmatic_flag ig = flagmatic_flag()
+		cdef Flag ig = Flag()
 
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -389,7 +389,7 @@ cdef class flagmatic_flag:
 		return ig
 	
 
-	cdef int c_has_subgraph (self, flagmatic_flag h):
+	cdef int c_has_subgraph (self, Flag h):
 	
 		cdef int i, j, k, l, *p, np, *new_edges, got_all, got_edge, got
 	
@@ -492,7 +492,7 @@ cdef class flagmatic_flag:
 	def has_forbidden_graphs(self, graphs, must_have_highest=False, induced=False):
 	
 		cdef int *c, nc, i, j, k, cne, *cur_edges, *e
-		cdef flagmatic_flag h, ig
+		cdef Flag h, ig
 		
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -501,7 +501,7 @@ cdef class flagmatic_flag:
 		
 		for i in range(len(graphs)):
 	
-			h = <flagmatic_flag ?> graphs[i]
+			h = <Flag ?> graphs[i]
 	
 			if h._n > self._n:
 				continue # vacuous condition
@@ -571,7 +571,7 @@ cdef class flagmatic_flag:
 				cg = cg.split_vertex(x)
 				vertices.append(cg.n)
 		
-		ng = flagmatic_flag()
+		ng = Flag()
 		ng.n = len(vertices)
 		
 		for e in cg.edges:
@@ -959,21 +959,21 @@ def make_graph_block(graphs, n):
 def print_graph_block(graph_block gb):
 
 	for i in range(gb.len):
-		g = <flagmatic_flag ?> gb.graphs[i]
+		g = <Flag ?> gb.graphs[i]
 		print str(g)
 
 #
 # TODO: Make this function accept more than one type on s vertices.
 #
 
-def flag_products (graph_block gb, flagmatic_flag tg, graph_block flags1, graph_block flags2):
+def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flags2):
 
 	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
 	cdef int n, s, m1, m2, ne, i, j, k, gi
 	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
 	cdef int f1index, f2index, *grb, equal_flags_mode
-	cdef flagmatic_flag g, t, f1, f2
+	cdef Flag g, t, f1, f2
 	
 	results = []
 	
@@ -1005,7 +1005,7 @@ def flag_products (graph_block gb, flagmatic_flag tg, graph_block flags1, graph_
 
 		sig_on()
 	
-		g = <flagmatic_flag> gb.graphs[gi]
+		g = <Flag> gb.graphs[gi]
 	
 		memset(grb, 0, flags1.len * flags2.len * sizeof(int))
 	
@@ -1045,7 +1045,7 @@ def flag_products (graph_block gb, flagmatic_flag tg, graph_block flags1, graph_
 				f1.make_minimal_isomorph()
 
 				for j in range(flags1.len):
-					if f1.is_equal(<flagmatic_flag> flags1.graphs[j]):
+					if f1.is_equal(<Flag> flags1.graphs[j]):
 						has_f1 = 1
 						f1index = j
 						break
@@ -1061,7 +1061,7 @@ def flag_products (graph_block gb, flagmatic_flag tg, graph_block flags1, graph_
 			f2.make_minimal_isomorph()
 			
 			for j in range(flags2.len):
-				if f2.is_equal(<flagmatic_flag> flags2.graphs[j]):
+				if f2.is_equal(<Flag> flags2.graphs[j]):
 					f2index = j
 					grb[(f1index * flags1.len) + f2index] += 1
 					break
