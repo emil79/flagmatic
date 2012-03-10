@@ -1,6 +1,7 @@
 attach("graph3c.spyx")
 attach("graph3.py")
 attach("problem.py")
+attach("axioms_problem.py")
 attach("construction.py")
 attach("random_tournament_construction.py")
 attach("examples.py")
