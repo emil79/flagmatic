@@ -129,7 +129,7 @@ def flagmatic_example(prob):
 		C = None
 		P.forbidden_edge_numbers={4:3}
 		P.n = 6
-		P.set_inv_anti_inv_bases()
+		#P.set_inv_anti_inv_bases()
 		P.calculate_product_densities()
 
 	elif prob == "cod6":
