@@ -123,6 +123,15 @@ def flagmatic_example(prob):
 		P.write_sdp_input_file()
 		P.run_csdp()
 
+	elif prob == "cod":
+	
+		P = axioms_problem()
+		C = None
+		P.forbidden_edge_numbers={4:3}
+		P.n = 6
+		P.set_inv_anti_inv_bases()
+		P.calculate_product_densities()
+
 	elif prob == "cod6":
 	
 		P = axioms_problem()
@@ -150,6 +159,24 @@ def flagmatic_example(prob):
 		f2 = flagmatic_flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
 		P.set_inv_anti_inv_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+
+
+	elif prob == "marchant":
+	
+		P = axioms_problem()
+		P.forbidden_graphs = [flagmatic_flag("5:123124125345")]
+		P.n = 6
+		tg = flagmatic_flag("2:")
+		f1 = flagmatic_flag("3:123", tg)
+		f2 = flagmatic_flag("2:", tg)
+		P.add_axiom(tg, [f1, f2], [1, Rational("-1/3")])
+		P.set_inv_anti_inv_bases()
+		C = blowup_construction(flagmatic_flag("3:112223331"))
+		P.construction = C
+		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()

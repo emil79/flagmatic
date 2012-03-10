@@ -436,7 +436,22 @@ class axioms_problem(flagmatic_problem):
 					quantum_graphs[k][j] += M[0, k] * flag_coeffs[i]
 		
 		self._quantum_graphs.extend(quantum_graphs)		
-		
+	
+	
+	def add_codegree_axiom(self, value):
+	
+		tg = flagmatic_flag("2:")
+		f1 = flagmatic_flag("3:123", tg)
+		f2 = flagmatic_flag("2:", tg)
+		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+
+
+	def add_degree_axiom(self, value):
+	
+		tg = flagmatic_flag("1:")
+		f1 = flagmatic_flag("3:123", tg)
+		f2 = flagmatic_flag("1:", tg)
+		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
 
 	
 	def write_sdp_input_file(self):
