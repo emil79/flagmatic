@@ -471,10 +471,29 @@ class Problem(object):
 		
 		T = matrix(QQ, num_sharps, 1, sparse=True)
 		for si in range(num_sharps):
-			T[si, 0] = self._target_bound
+			gi = self._sharp_graphs[si]
+			T[si, 0] = self._target_bound - self._graph_densities[gi]
 		
+		col_norms = {}
+		for i in range(num_triples):
+			n = sum(x**2 for x in R.column(i))
+			if n != 0:
+				col_norms[i] = n
+
+		cols_to_use = sorted(col_norms.keys(), key = lambda i : col_norms[i])[:num_sharps]		
 		
+		#print col_norms
+
 		print R.nrows()
 		print R.rank()
-		return R,T
+
+		
+		PR = matrix(QQ, [R.column(i) for i in cols_to_use]).T
+		print PR
+
+		print PR.rank()
+		
+		PR.augment(T)
+		
+		return R,T, PR
 		
