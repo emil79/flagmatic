@@ -40,13 +40,29 @@ class Construction(object):
 	def zero_eigenvectors(self, tg, flags):
 		return None
 
+	def edge_density(self):
+		return 0
+		
+	def subgraph_density(self, h):
+		return 0
+
 
 class BlowupConstruction(Construction):
 
-	def __init__(self, g, vertex_transitive=False):
-
+	def __init__(self, g):
+	
 		self._graph = g
-		self._vertex_transitive = vertex_transitive
+	
+	
+	def edge_density(self):
+	
+		return self._graph.degenerate_edge_density()
+	
+		
+	def subgraph_density(self, h):
+	
+		return self._graph.degenerate_subgraph_density(h)		
+		
 		
 	def induced_subgraphs(self, n):
 

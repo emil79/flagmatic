@@ -41,6 +41,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
+		P.find_sharps()
 	
 	elif prob == "k4-":
 

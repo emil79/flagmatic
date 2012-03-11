@@ -108,9 +108,11 @@ class Problem(object):
 	def flags(self):
 		return self._flags
 
+	# TODO: default self._density_graph to Flag("3:123")
+	
 	@property
 	def density_graph(self):
-		return self._graph_density
+		return self._density_graph
 
 	@density_graph.setter
 	def density_graph(self, dg):
@@ -133,6 +135,12 @@ class Problem(object):
 	def construction(self, c):
 
 		self._construction = c
+		if hasattr(self, "_density_graph"):
+			self._target_bound = c.subgraph_density(self._density_graph)
+		else:
+			self._target_bound = c.edge_density()
+			
+		
 		self._sharp_graphs = c.induced_subgraphs(self._n)
 		self._zero_eigenvectors = []
 		
@@ -424,10 +432,49 @@ class Problem(object):
 							fbounds[gi] += d * value
 
 		bound = max(fbounds)
-		sharp_indices = [gi for gi in range(num_graphs)
+		self._sharp_graphs = [gi for gi in range(num_graphs)
 			if abs(fbounds[gi] - bound) < tolerance]
 		
-		sys.stdout.write("The following %d graphs are sharp:\n" % len(sharp_indices))
-		for gi in sharp_indices:
+		sys.stdout.write("The following %d graphs are sharp:\n" % len(self._sharp_graphs))
+		for gi in self._sharp_graphs:
 			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
 
+
+	def make_exact(self):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		num_sharps = len(self._sharp_graphs)
+		
+		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
+	
+		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
+			for k in range(j, q_sizes[ti])]
+	
+		num_triples = len(triples)
+		triples.sort()
+		triple_to_index = dict((triples[i], i) for i in range(num_triples))
+
+		R = matrix(QQ, num_sharps, num_triples, sparse=True)
+
+		for si in range(num_sharps):
+			gi = self._sharp_graphs[si]
+			for ti in range(num_types):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(q_sizes[ti]):
+					for k in range(j, q_sizes[ti]):
+						trip = (ti, j, k)
+						value = D[j, k]
+						if j != j:
+							value *= 2
+						R[si, triple_to_index[trip]] = value
+		
+		T = matrix(QQ, num_sharps, 1, sparse=True)
+		for si in range(num_sharps):
+			T[si, 0] = self._target_bound
+		
+		
+		print R.nrows()
+		print R.rank()
+		return R,T
+		

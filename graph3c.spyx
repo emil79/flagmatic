@@ -585,6 +585,32 @@ cdef class Flag:
 		ng.minimize_edges()
 		return ng
 
+
+	def degenerate_edge_density(self):
+
+		h = Flag("3:123")
+		return self.degenerate_subgraph_density(h)
+		
+
+	def degenerate_subgraph_density(self, h):
+		"""
+		Returns the H-density. That is, the number of k-sets of vertices that induce
+		graphs isomorphic to H, divided by binomial(n, k).
+		"""
+				
+		found, total = 0, 0
+		minh = h.copy()
+		minh.make_minimal_isomorph()
+		
+		for hv in Tuples(range(1, self.n + 1), h.n):
+			ig = self.degenerate_induced_subgraph(hv)
+			ig.make_minimal_isomorph()
+			if minh.is_equal(ig):
+				found += 1
+			total += 1
+	
+		return Integer(found) / total
+		
 	
 	def degenerate_flag_density(self, tg, flags, type_verts):
 		"""
