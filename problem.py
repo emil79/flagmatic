@@ -559,4 +559,16 @@ class Problem(object):
 			self._exact_Q_matrices[ti][j, k] = X[i, 0]
 			self._exact_Q_matrices[ti][k, j] = X[i, 0]
 			print "%s : %s : %s" % (RX[i,0], X[i,0], RDF(X[i,0]))
-				
+
+	
+	# TODO: Make sure this always does it numerically (numpy).
+	
+	def compare_eigenvalues(self):
+	
+		for ti in range(len(self._types)):
+			sys.stdout.write("Type %d:\n" % ti)
+			original_eigvals = sorted(self._sdp_Q_matrices[ti].eigenvalues())
+			new_eigvals = sorted(self._exact_Q_matrices[ti].eigenvalues())
+			for i in range(len(original_eigvals)):
+				sys.stdout.write("%s : %s\n" % (original_eigvals[i], RDF(new_eigvals[i])))
+

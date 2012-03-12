@@ -68,6 +68,9 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
+		P.find_sharps()
+		P.make_exact()
+		P.check_exact_bound()
 
 	elif prob == "razb":
 	
@@ -82,6 +85,10 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
+		P.find_sharps()
+		P.make_exact()
+		P.check_exact_bound()
+
 	
 	elif prob == "k5weak":
 	
@@ -98,7 +105,10 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-	
+		P.find_sharps()
+		P.make_exact()
+		P.check_exact_bound()
+		
 	elif prob == "38":
 
 		P = Problem()
@@ -111,6 +121,10 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
+		P.find_sharps()
+		P.make_exact()
+		P.check_exact_bound()
+		
 
 	elif prob == "max42":
 
