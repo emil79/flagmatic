@@ -440,13 +440,63 @@ class Problem(object):
 			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
 
 
-	def make_exact(self):
+	def check_exact_bound(self):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		bounds = [self._graph_densities[i] for i in range(num_graphs)]
+		
+		for ti in range(num_types):
+			num_flags = len(self._flags[ti])
+			for gi in range(num_graphs):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(D.nrows()):
+					for k in range(j, D.nrows()):
+						value = self._exact_Q_matrices[ti][j, k]
+						if j != k:
+							value *= 2
+						d = D[j, k]
+						if d != 0:
+							bounds[gi] += d * value
+
+		bound = max(bounds)
+		if bound > self._target_bound:
+			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
+			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
+			for gi in violators:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+
+		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
+		for gi in range(num_graphs):
+			if bounds[gi] == self._target_bound:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+
+		self._bounds = bounds
+
+
+	def make_exact(self, denominator=1024):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_sharps = len(self._sharp_graphs)
-		
+
 		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
+
+		def rationalize (f):
+			return Integer(round(f * denominator)) / denominator
+
+		self._exact_Q_matrices = []
+		for ti in range(num_types):
+			M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
+			row_div = self._flag_bases[ti].subdivisions()[0]
+			M.subdivide(row_div, row_div)
+			for j in range(q_sizes[ti]):
+				for k in range(j, q_sizes[ti]):
+					value = rationalize(self._sdp_Q_matrices[ti][j, k])
+					if value != 0:
+						M[j, k] = value
+						M[k, j] = value
+			self._exact_Q_matrices.append(M)
 	
 		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
 			for k in range(j, q_sizes[ti])]
@@ -465,14 +515,12 @@ class Problem(object):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
 						value = D[j, k]
-						if j != j:
+						if j != k:
 							value *= 2
 						R[si, triple_to_index[trip]] = value
-		
-		T = matrix(QQ, num_sharps, 1, sparse=True)
-		for si in range(num_sharps):
-			gi = self._sharp_graphs[si]
-			T[si, 0] = self._target_bound - self._graph_densities[gi]
+
+		rankR = R.rank()
+		sys.stdout.write("R matrix has %d rows and rank %d.\n" % (R.nrows(), rankR))		
 		
 		col_norms = {}
 		for i in range(num_triples):
@@ -480,20 +528,35 @@ class Problem(object):
 			if n != 0:
 				col_norms[i] = n
 
-		cols_to_use = sorted(col_norms.keys(), key = lambda i : col_norms[i])[:num_sharps]		
+		# Use columns with least non-zero norm
 		
-		#print col_norms
-
-		print R.nrows()
-		print R.rank()
-
+		# TODO: choose other columns if rank is too low.
+		
+		cols_to_use = sorted(col_norms.keys(), key = lambda i : col_norms[i])[-rankR:]		
 		
 		PR = matrix(QQ, [R.column(i) for i in cols_to_use]).T
-		print PR
+		
+		sys.stdout.write("Chosen PR matrix of rank %d.\n" % PR.rank())
+		
+		T = matrix(QQ, num_sharps, 1, sparse=True)
+		
+		for si in range(num_sharps):
+		
+			gi = self._sharp_graphs[si]
+			T[si, 0] = self._target_bound - self._graph_densities[gi]		
+		
+			for i in range(num_triples):
+				if not i in cols_to_use:
+					ti, j, k = triples[i]
+					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
 
-		print PR.rank()
-		
-		PR.augment(T)
-		
-		return R,T, PR
-		
+		X = PR.solve_right(T)
+		RX = matrix(RDF, X.nrows(), 1)
+	
+		for i in range(len(cols_to_use)):
+			ti, j, k = triples[cols_to_use[i]]
+			RX[i, 0] = self._sdp_Q_matrices[ti][j, k]
+			self._exact_Q_matrices[ti][j, k] = X[i, 0]
+			self._exact_Q_matrices[ti][k, j] = X[i, 0]
+			print "%s : %s : %s" % (RX[i,0], X[i,0], RDF(X[i,0]))
+				

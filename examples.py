@@ -42,6 +42,8 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_csdp()
 		P.find_sharps()
+		P.make_exact()
+		P.check_exact_bound()
 	
 	elif prob == "k4-":
 
