@@ -225,6 +225,7 @@ class AxiomsProblem(Problem):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
+		num_densities = len(self._quantum_graphs)
 
 		fbounds = [0.0 for i in range(num_graphs)]
 
@@ -267,11 +268,134 @@ class AxiomsProblem(Problem):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi + 1, self._graphs[gi]))
 
 
+	def make_exact(self, denominator=1024):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		num_sharps = len(self._sharp_graphs)
+		num_densities = len(self._quantum_graphs)
+
+		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
+
+		def rationalize (f):
+			return Integer(round(f * denominator)) / denominator
+
+		self._exact_Q_matrices = []
+		for ti in range(num_types):
+			M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
+			row_div = self._flag_bases[ti].subdivisions()[0]
+			M.subdivide(row_div, row_div)
+			for j in range(q_sizes[ti]):
+				for k in range(j, q_sizes[ti]):
+					value = rationalize(self._sdp_Q_matrices[ti][j, k])
+					if value != 0:
+						M[j, k] = value
+						M[k, j] = value
+			self._exact_Q_matrices.append(M)
+	
+		self._exact_density_coeffs = []
+		for di in range(num_densities):
+			self._exact_density_coeffs.append(rationalize(self._sdp_density_coeffs[di]))
+			
+		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
+			for k in range(j, q_sizes[ti])]
+	
+		num_triples = len(triples)
+		triples.sort()
+		triple_to_index = dict((triples[i], i) for i in range(num_triples))
+
+		R = matrix(QQ, num_sharps, num_triples, sparse=True)
+
+		for si in range(num_sharps):
+			gi = self._sharp_graphs[si]
+			for ti in range(num_types):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(q_sizes[ti]):
+					for k in range(j, q_sizes[ti]):
+						trip = (ti, j, k)
+						value = D[j, k]
+						if j != k:
+							value *= 2
+						R[si, triple_to_index[trip]] = value
+		
+		density_cols_to_use = []
+		DR = matrix(QQ, num_sharps, 0, sparse=True)
+		rankDR = 0
+		for j in range(num_densities):
+			newDR = DR.augment(matrix(QQ, [[self._quantum_graphs[j][gi] for gi in self._sharp_graphs]]).T)
+			if newDR.rank() > rankDR:
+				rankDR += 1
+				DR = newDR
+				density_cols_to_use.append(j)
+		
+		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
+				
+		col_norms = {}
+		for i in range(num_triples):
+			n = sum(x**2 for x in R.column(i))
+			if n != 0:
+				col_norms[i] = n
+
+		# Use columns with greatest non-zero norm - change minus to plus to
+		# use smallest columns (not sure which is best, or maybe middle?)
+		
+		cols_in_order = sorted(col_norms.keys(), key = lambda i : -col_norms[i])
+		cols_to_use = []
+	
+		for j in cols_in_order:
+			newDR = DR.augment(R[:, j : j + 1])
+			if newDR.rank() > rankDR:
+				rankDR += 1
+				DR = newDR
+				cols_to_use.append(j)
+		
+		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
+		
+		T = matrix(QQ, num_sharps, 1, sparse=True)
+		
+		for si in range(num_sharps):
+		
+			gi = self._sharp_graphs[si]
+			T[si, 0] = 0                     # TODO: should be self._target_bound
+			
+			for j in range(num_densities):
+				if not j in density_cols_to_use:
+					T[si, 0] -= self._exact_density_coeffs[j] * self._quantum_graphs[j][gi]
+		
+			for i in range(num_triples):
+				if not i in cols_to_use:
+					ti, j, k = triples[i]
+					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
+
+		X = DR.solve_right(T)
+		RX = matrix(RDF, X.nrows(), 1)
+	
+		for i in range(len(density_cols_to_use)):
+			di = density_cols_to_use[i]
+			RX[i, 0] = self._exact_density_coeffs[di]
+			self._exact_density_coeffs[di] = X[i, 0]
+
+		for i in range(len(density_cols_to_use), X.nrows()):
+			ti, j, k = triples[cols_to_use[i - len(density_cols_to_use)]]
+			RX[i, 0] = self._sdp_Q_matrices[ti][j, k]
+			self._exact_Q_matrices[ti][j, k] = X[i, 0]
+			self._exact_Q_matrices[ti][k, j] = X[i, 0]
+		
+		for i in range(X.nrows()):
+			print "%s : %s" % (RX[i,0], RDF(X[i,0]))
+
+
 	def check_exact_bound(self):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
-		bounds = [self._graph_densities[i] for i in range(num_graphs)]
+		num_densities = len(self._quantum_graphs)
+
+		bounds = [Integer(0) for i in range(num_graphs)]
+
+		for i in range(num_graphs):
+			for j in range(num_densities):
+				bounds[i] += self._exact_density_coeffs[j] * self._quantum_graphs[j][i]
 		
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
@@ -299,90 +423,3 @@ class AxiomsProblem(Problem):
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
 
 		self._bounds = bounds
-
-
-	def make_exact(self, denominator=1024):
-	
-		num_types = len(self._types)
-		num_graphs = len(self._graphs)
-		num_sharps = len(self._sharp_graphs)
-
-		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
-
-		def rationalize (f):
-			return Integer(round(f * denominator)) / denominator
-
-		self._exact_Q_matrices = []
-		for ti in range(num_types):
-			M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
-			row_div = self._flag_bases[ti].subdivisions()[0]
-			M.subdivide(row_div, row_div)
-			for j in range(q_sizes[ti]):
-				for k in range(j, q_sizes[ti]):
-					value = rationalize(self._sdp_Q_matrices[ti][j, k])
-					if value != 0:
-						M[j, k] = value
-						M[k, j] = value
-			self._exact_Q_matrices.append(M)
-	
-		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
-			for k in range(j, q_sizes[ti])]
-	
-		num_triples = len(triples)
-		triples.sort()
-		triple_to_index = dict((triples[i], i) for i in range(num_triples))
-
-		R = matrix(QQ, num_sharps, num_triples, sparse=True)
-
-		for si in range(num_sharps):
-			gi = self._sharp_graphs[si]
-			for ti in range(num_types):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
-				for j in range(q_sizes[ti]):
-					for k in range(j, q_sizes[ti]):
-						trip = (ti, j, k)
-						value = D[j, k]
-						if j != k:
-							value *= 2
-						R[si, triple_to_index[trip]] = value
-
-		rankR = R.rank()
-		sys.stdout.write("R matrix has %d rows and rank %d.\n" % (R.nrows(), rankR))		
-		
-		col_norms = {}
-		for i in range(num_triples):
-			n = sum(x**2 for x in R.column(i))
-			if n != 0:
-				col_norms[i] = n
-
-		# Use columns with least non-zero norm
-		
-		# TODO: choose other columns if rank is too low.
-		
-		cols_to_use = sorted(col_norms.keys(), key = lambda i : col_norms[i])[-rankR:]		
-		
-		PR = matrix(QQ, [R.column(i) for i in cols_to_use]).T
-		
-		sys.stdout.write("Chosen PR matrix of rank %d.\n" % PR.rank())
-		
-		T = matrix(QQ, num_sharps, 1, sparse=True)
-		
-		for si in range(num_sharps):
-		
-			gi = self._sharp_graphs[si]
-			T[si, 0] = self._target_bound - self._graph_densities[gi]		
-		
-			for i in range(num_triples):
-				if not i in cols_to_use:
-					ti, j, k = triples[i]
-					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
-
-		X = PR.solve_right(T)
-		RX = matrix(RDF, X.nrows(), 1)
-	
-		for i in range(len(cols_to_use)):
-			ti, j, k = triples[cols_to_use[i]]
-			RX[i, 0] = self._sdp_Q_matrices[ti][j, k]
-			self._exact_Q_matrices[ti][j, k] = X[i, 0]
-			self._exact_Q_matrices[ti][k, j] = X[i, 0]
-			print "%s : %s : %s" % (RX[i,0], X[i,0], RDF(X[i,0]))

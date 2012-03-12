@@ -135,6 +135,9 @@ class Problem(object):
 	@n.setter
 	def construction(self, c):
 
+		# TODO: axioms construction needs density of zero
+		# maybe create a self.density(g) function
+
 		self._construction = c
 		if hasattr(self, "_density_graph"):
 			self._target_bound = c.subgraph_density(self._density_graph)
@@ -470,40 +473,6 @@ class Problem(object):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi + 1, self._graphs[gi]))
 
 
-	def check_exact_bound(self):
-	
-		num_types = len(self._types)
-		num_graphs = len(self._graphs)
-		bounds = [self._graph_densities[i] for i in range(num_graphs)]
-		
-		for ti in range(num_types):
-			num_flags = len(self._flags[ti])
-			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
-				for j in range(D.nrows()):
-					for k in range(j, D.nrows()):
-						value = self._exact_Q_matrices[ti][j, k]
-						if j != k:
-							value *= 2
-						d = D[j, k]
-						if d != 0:
-							bounds[gi] += d * value
-
-		bound = max(bounds)
-		if bound > self._target_bound:
-			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
-			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
-			for gi in violators:
-				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
-
-		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
-		for gi in range(num_graphs):
-			if bounds[gi] == self._target_bound:
-				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
-
-		self._bounds = bounds
-
-
 	def make_exact(self, denominator=1024):
 	
 		num_types = len(self._types)
@@ -558,13 +527,24 @@ class Problem(object):
 			if n != 0:
 				col_norms[i] = n
 
-		# Use columns with least non-zero norm
+		# Use columns with greatest non-zero norm - change minus to plus to
+		# use smallest columns (not sure which is best, or maybe middle?)
 		
-		# TODO: choose other columns if rank is too low.
-		
-		cols_to_use = sorted(col_norms.keys(), key = lambda i : col_norms[i])[-rankR:]		
-		
-		PR = matrix(QQ, [R.column(i) for i in cols_to_use]).T
+		cols_in_order = sorted(col_norms.keys(), key = lambda i : -col_norms[i])
+		cols_to_use = []
+	
+		PR = matrix(QQ, num_sharps, 0, sparse=True)
+		rankPR = 0
+		for j in cols_in_order:
+			newPR = PR.augment(R[:, j : j + 1])
+			if newPR.rank() > rankPR:
+				rankPR += 1
+				PR = newPR
+				cols_to_use.append(j)
+				if rankPR == rankR:
+					break
+		else:
+			raise NotImplementedError("could not find enough columns.")		
 		
 		sys.stdout.write("Chosen PR matrix of rank %d.\n" % PR.rank())
 		
@@ -602,3 +582,36 @@ class Problem(object):
 			for i in range(len(original_eigvals)):
 				sys.stdout.write("%s : %s\n" % (original_eigvals[i], RDF(new_eigvals[i])))
 
+
+	def check_exact_bound(self):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		bounds = [self._graph_densities[i] for i in range(num_graphs)]
+		
+		for ti in range(num_types):
+			num_flags = len(self._flags[ti])
+			for gi in range(num_graphs):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(D.nrows()):
+					for k in range(j, D.nrows()):
+						value = self._exact_Q_matrices[ti][j, k]
+						if j != k:
+							value *= 2
+						d = D[j, k]
+						if d != 0:
+							bounds[gi] += d * value
+
+		bound = max(bounds)
+		if bound > self._target_bound:
+			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
+			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
+			for gi in violators:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+
+		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
+		for gi in range(num_graphs):
+			if bounds[gi] == self._target_bound:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+
+		self._bounds = bounds
