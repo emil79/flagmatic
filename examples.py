@@ -41,7 +41,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-		P.find_sharps()
+		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
 	
@@ -56,6 +56,7 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_csdp()
 
+
 	elif prob == "f32":
 
 		P = Problem()
@@ -64,13 +65,15 @@ def example(prob):
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("3:122123133"))
 		P.construction = C
+		P._force_sharps = True
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-		P.find_sharps()
+		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
+
 
 	elif prob == "razb":
 	
@@ -81,11 +84,12 @@ def example(prob):
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.construction = C
+		P._force_sharps = True
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-		P.find_sharps()
+		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -105,10 +109,46 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-		P.find_sharps()
+		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
 		
+
+	elif prob == "turank4-":
+	
+		P = Problem()
+		P.forbidden_graphs=[Flag("4:123124134234")]
+		P.n = 6
+		P.set_inv_anti_inv_bases()
+		P.density_graph =Flag("4:123124134")
+		C = BlowupConstruction(Flag("3:112223331123"))
+		P.construction = C
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+		
+
+	elif prob == "max59":
+	
+		P = Problem()
+		P.n = 6
+		P.set_inv_anti_inv_bases()
+		P.density_graph = Flag("5:123124125134135145234235245")
+		C = BlowupConstruction(Flag("2:112122"))
+		P.construction = C
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
+
 	elif prob == "38":
 
 		P = Problem()
@@ -121,7 +161,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-		P.find_sharps()
+		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
 		
@@ -205,13 +245,16 @@ def example(prob):
 		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
 		P.set_inv_anti_inv_bases()
+		P._force_sharps = True
 		C = RandomTournamentConstruction()
 		P.construction = C
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
-
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
 
 	elif prob == "marchant":
 	

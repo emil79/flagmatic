@@ -39,6 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from libc.stdlib cimport malloc, calloc, free
 from libc.string cimport memset
 
+from sage.all import binomial, falling_factorial, Tuples, Permutations, Combinations, Integer, QQ, matrix 
+
 DEF MAX_NUMBER_OF_EDGES = (35 + 42 + 7)
 
 
@@ -176,11 +178,11 @@ cdef class Flag:
 		if self.ne != other.ne:
 			return False
 
-		if self.type is None:
-			if not other.type is None:
+		if (self.type is None or self.type.n == 0):
+			if not (other.type is None or other.type.n == 0):
 				return False
 		else:
-			if other.type is None:
+			if (other.type is None or other.type.n == 0):
 				return False
 			else:
 				if not self.type.is_equal(other.type):

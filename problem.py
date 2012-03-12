@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+import numpy
 import os
 import pexpect
 import sys
@@ -137,11 +138,21 @@ class Problem(object):
 		self._construction = c
 		if hasattr(self, "_density_graph"):
 			self._target_bound = c.subgraph_density(self._density_graph)
+			sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
 		else:
 			self._target_bound = c.edge_density()
-			
+			sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
 		
-		self._sharp_graphs = c.induced_subgraphs(self._n)
+		sharp_graphs = c.induced_subgraphs(self._n)
+		self._sharp_graphs = []
+		for sg in sharp_graphs:
+			for gi in range(len(self._graphs)):
+				if sg.is_equal(self._graphs[gi]):
+					self._sharp_graphs.append(gi)
+					break
+			else:
+				sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
+		
 		self._zero_eigenvectors = []
 		
 		for ti in range(len(self._types)):
@@ -275,6 +286,8 @@ class Problem(object):
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 	
+		force_sharps = hasattr(self, "_force_sharps") and self._force_sharps
+	
 		# Multiply SDP solver objective value by -1
 		self._obj_value_factor = -1
 		
@@ -294,7 +307,8 @@ class Problem(object):
 	
 			for i in range(num_graphs):
 				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
-				f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
+				if not (force_sharps and i in self._sharp_graphs):
+					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
 				d = self._graph_densities[i]
@@ -333,6 +347,9 @@ class Problem(object):
 		
 		sys.stdout.write("Returncode is %d. Objective value is %s.\n" % (returncode,
 			obj_val))
+			
+		# TODO: if program is infeasible, a returncode of 1 is given,
+		# and output contains "infeasible"
 		
 		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
 			for i in range(num_types)]
@@ -412,7 +429,7 @@ class Problem(object):
 					" ".join("%s" % e for e in norms)))
 
 
-	def find_sharps(self, tolerance = 0.00001):
+	def check_floating_point_bound(self, tolerance = 0.00001):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -432,12 +449,25 @@ class Problem(object):
 							fbounds[gi] += d * value
 
 		bound = max(fbounds)
-		self._sharp_graphs = [gi for gi in range(num_graphs)
-			if abs(fbounds[gi] - bound) < tolerance]
-		
-		sys.stdout.write("The following %d graphs are sharp:\n" % len(self._sharp_graphs))
-		for gi in self._sharp_graphs:
+		if abs(bound - RDF(self._target_bound)) < tolerance:
+			sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
+		else:
+			sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
+				
+		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
+
+		sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
+		for gi in apparently_sharp_graphs:
 			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
+		
+		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
+		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
+		
+		for gi in extra_sharp_graphs:
+			sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi + 1, self._graphs[gi]))
+
+		for gi in missing_sharp_graphs:
+			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi + 1, self._graphs[gi]))
 
 
 	def check_exact_bound(self):
@@ -567,8 +597,8 @@ class Problem(object):
 	
 		for ti in range(len(self._types)):
 			sys.stdout.write("Type %d:\n" % ti)
-			original_eigvals = sorted(self._sdp_Q_matrices[ti].eigenvalues())
-			new_eigvals = sorted(self._exact_Q_matrices[ti].eigenvalues())
+			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Q_matrices[ti]))
+			new_eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Q_matrices[ti]))
 			for i in range(len(original_eigvals)):
 				sys.stdout.write("%s : %s\n" % (original_eigvals[i], RDF(new_eigvals[i])))
 

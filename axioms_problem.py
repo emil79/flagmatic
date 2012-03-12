@@ -103,7 +103,7 @@ class AxiomsProblem(Problem):
 				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)	
 		
-		self._quantum_graphs_fcoeffs = [0.0 for i in range(num_densities)]
+		self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
 		
 		for line in f:
 			numbers = line.split()
@@ -112,7 +112,7 @@ class AxiomsProblem(Problem):
 			ti = int(numbers[1]) - 2
 			if ti == 2 * num_types + 1:
 				j = int(numbers[2]) - 1
-				self._quantum_graphs_fcoeffs[j] = RDF(numbers[4])
+				self._sdp_density_coeffs[j] = RDF(numbers[4])
 				continue
 			if ti < 0 or ti >= 2 * num_types:
 				continue
@@ -137,6 +137,8 @@ class AxiomsProblem(Problem):
 		num_types = len(self._types)
 		num_densities = len(self._quantum_graphs)
 		
+		force_sharps = hasattr(self, "_force_sharps") and self._force_sharps
+		
 		self._obj_value_factor = 1
 		
 		if num_densities < 1:
@@ -157,8 +159,8 @@ class AxiomsProblem(Problem):
 	
 			for i in range(num_graphs):
 				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
-				# TODO: omit for sharp graphs
-				f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
+				if not (force_sharps and i in self._sharp_graphs):
+					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
 				for j in range(num_densities):
@@ -218,18 +220,18 @@ class AxiomsProblem(Problem):
 			self.write_blocks(f)
 	
 			
-	def find_sharps(self, tolerance = 0.00001):
+
+	def check_floating_point_bound(self, tolerance = 0.00001):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
-		num_densities = len(self._quantum_graphs)
-		
+
 		fbounds = [0.0 for i in range(num_graphs)]
 
 		for i in range(num_graphs):
 			for j in range(num_densities):
-				fbounds[i] += self._quantum_graphs_fcoeffs[j] * self._quantum_graphs[j][i]
-				
+				fbounds[i] += self._sdp_density_coeffs[j] * self._quantum_graphs[j][i]
+		
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
@@ -244,9 +246,143 @@ class AxiomsProblem(Problem):
 							fbounds[gi] += d * value
 
 		bound = max(fbounds)
-		sharp_indices = [gi for gi in range(num_graphs)
-			if abs(fbounds[gi] - bound) < tolerance]
-		
-		sys.stdout.write("The following %d graphs are sharp:\n" % len(sharp_indices))
-		for gi in sharp_indices:
+		if abs(bound - RDF(self._target_bound)) < tolerance:
+			sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
+		else:
+			sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
+				
+		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
+
+		sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
+		for gi in apparently_sharp_graphs:
 			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
+		
+		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
+		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
+		
+		for gi in extra_sharp_graphs:
+			sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi + 1, self._graphs[gi]))
+
+		for gi in missing_sharp_graphs:
+			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi + 1, self._graphs[gi]))
+
+
+	def check_exact_bound(self):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		bounds = [self._graph_densities[i] for i in range(num_graphs)]
+		
+		for ti in range(num_types):
+			num_flags = len(self._flags[ti])
+			for gi in range(num_graphs):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(D.nrows()):
+					for k in range(j, D.nrows()):
+						value = self._exact_Q_matrices[ti][j, k]
+						if j != k:
+							value *= 2
+						d = D[j, k]
+						if d != 0:
+							bounds[gi] += d * value
+
+		bound = max(bounds)
+		if bound > self._target_bound:
+			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
+			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
+			for gi in violators:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+
+		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
+		for gi in range(num_graphs):
+			if bounds[gi] == self._target_bound:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+
+		self._bounds = bounds
+
+
+	def make_exact(self, denominator=1024):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		num_sharps = len(self._sharp_graphs)
+
+		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
+
+		def rationalize (f):
+			return Integer(round(f * denominator)) / denominator
+
+		self._exact_Q_matrices = []
+		for ti in range(num_types):
+			M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
+			row_div = self._flag_bases[ti].subdivisions()[0]
+			M.subdivide(row_div, row_div)
+			for j in range(q_sizes[ti]):
+				for k in range(j, q_sizes[ti]):
+					value = rationalize(self._sdp_Q_matrices[ti][j, k])
+					if value != 0:
+						M[j, k] = value
+						M[k, j] = value
+			self._exact_Q_matrices.append(M)
+	
+		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
+			for k in range(j, q_sizes[ti])]
+	
+		num_triples = len(triples)
+		triples.sort()
+		triple_to_index = dict((triples[i], i) for i in range(num_triples))
+
+		R = matrix(QQ, num_sharps, num_triples, sparse=True)
+
+		for si in range(num_sharps):
+			gi = self._sharp_graphs[si]
+			for ti in range(num_types):
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				for j in range(q_sizes[ti]):
+					for k in range(j, q_sizes[ti]):
+						trip = (ti, j, k)
+						value = D[j, k]
+						if j != k:
+							value *= 2
+						R[si, triple_to_index[trip]] = value
+
+		rankR = R.rank()
+		sys.stdout.write("R matrix has %d rows and rank %d.\n" % (R.nrows(), rankR))		
+		
+		col_norms = {}
+		for i in range(num_triples):
+			n = sum(x**2 for x in R.column(i))
+			if n != 0:
+				col_norms[i] = n
+
+		# Use columns with least non-zero norm
+		
+		# TODO: choose other columns if rank is too low.
+		
+		cols_to_use = sorted(col_norms.keys(), key = lambda i : col_norms[i])[-rankR:]		
+		
+		PR = matrix(QQ, [R.column(i) for i in cols_to_use]).T
+		
+		sys.stdout.write("Chosen PR matrix of rank %d.\n" % PR.rank())
+		
+		T = matrix(QQ, num_sharps, 1, sparse=True)
+		
+		for si in range(num_sharps):
+		
+			gi = self._sharp_graphs[si]
+			T[si, 0] = self._target_bound - self._graph_densities[gi]		
+		
+			for i in range(num_triples):
+				if not i in cols_to_use:
+					ti, j, k = triples[i]
+					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
+
+		X = PR.solve_right(T)
+		RX = matrix(RDF, X.nrows(), 1)
+	
+		for i in range(len(cols_to_use)):
+			ti, j, k = triples[cols_to_use[i]]
+			RX[i, 0] = self._sdp_Q_matrices[ti][j, k]
+			self._exact_Q_matrices[ti][j, k] = X[i, 0]
+			self._exact_Q_matrices[ti][k, j] = X[i, 0]
+			print "%s : %s : %s" % (RX[i,0], X[i,0], RDF(X[i,0]))
