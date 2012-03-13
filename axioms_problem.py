@@ -30,12 +30,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class AxiomsProblem(Problem):
 
+	_quantum_graphs = []
+	_sdp_density_coeffs = []
+	_exact_density_coeffs = []
 	
 	def __init__(self):
-	
 		Problem.__init__(self)
-		self._quantum_graphs = []
+	
 
+	def save_more_json(self, d):
+	
+		d["quantum_graphs"] = [[repr(r) for r in x] for x in self._quantum_graphs]
+		d["sdp_density_coeffs"] = [repr(r) for r in self._sdp_density_coeffs]
+		d["exact_density_coeffs"] = [repr(r) for r in self._exact_density_coeffs]
+
+
+#	@classmethod
+#	def load_json(cls, filename):
+#		return Problem.load_json(
+	
+	
+	@classmethod
+	def load_more_json(cls, d, obj):
+	
+		obj._quantum_graphs = [[sage_eval(s) for s in x] for x in d["quantum_graphs"]]
+		obj._sdp_density_coeffs = [sage_eval(s) for s in d["sdp_density_coeffs"]]
+		obj._exact_density_coeffs = [sage_eval(s) for s in d["exact_density_coeffs"]]
+	
 
 	def clear_axioms(self):
 		
@@ -74,16 +95,16 @@ class AxiomsProblem(Problem):
 	def add_codegree_axiom(self, value):
 	
 		tg = Flag("2:")
-		f1 = Flag("3:123", tg)
-		f2 = Flag("2:", tg)
+		f1 = Flag("3:123(2)")
+		f2 = Flag("2:(2)")
 		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
 
 
 	def add_degree_axiom(self, value):
 	
 		tg = Flag("1:")
-		f1 = Flag("3:123", tg)
-		f2 = Flag("1:", tg)
+		f1 = Flag("3:123(1)")
+		f2 = Flag("1:(1)")
 		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
 
 
@@ -237,7 +258,7 @@ class AxiomsProblem(Problem):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities_dumps[ti][gi])
+				D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._sdp_Q_matrices[ti][j, k]
@@ -310,7 +331,7 @@ class AxiomsProblem(Problem):
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
 			for ti in range(num_types):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities_dumps[ti][gi])
+				D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -401,7 +422,7 @@ class AxiomsProblem(Problem):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities_dumps[ti][gi])
+				D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._exact_Q_matrices[ti][j, k]

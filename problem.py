@@ -64,6 +64,7 @@ class Problem(SageObject):
 	_product_densities_dumps = {}
 	
 	_obj_value_factor = -1
+	_force_sharps = False
 	_sdp_input_filename = None
 	_sdp_output_filename = None
 	
@@ -98,6 +99,7 @@ class Problem(SageObject):
 		d["product_densities_dumps"] = [[base64.b64encode(s) for s in x] for x in self._product_densities_dumps]
 
 		d["obj_value_factor"] = self._obj_value_factor
+		d["force_sharps"] = self._force_sharps
 		if not self._sdp_input_filename is None:
 			d["sdp_input_filename"] = self._sdp_input_filename,
 		if not self._sdp_output_filename is None:
@@ -107,14 +109,20 @@ class Problem(SageObject):
 		d["exact_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._exact_Q_matrices]
 		d["bounds"] = [repr(r) for r in self._bounds]
 		
+		self.save_more_json(d)
+		
 		with open(filename, "wb") as f:
 			json.dump(d, f)
-		
+
+
+	def save_more_json(self, d):
+		pass		
+
 
 	@classmethod
 	def load_json(cls, filename):
 		
-		obj = Problem()
+		obj = cls()
 		
 		with open(filename, "rb") as f:
 			d = json.load(f)
@@ -140,6 +148,7 @@ class Problem(SageObject):
 		obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
 
 		obj._obj_value_factor = d["obj_value_factor"]
+		obj._force_sharps = d["force_sharps"]
 		if "sdp_input_filename" in d:
 			obj._sdp_input_filename = d["sdp_input_filename"]
 		if "sdp_output_filename" in d:
@@ -149,9 +158,15 @@ class Problem(SageObject):
 		obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
 		obj._bounds = [sage_eval(s) for s in d["bounds"]]
 	
+		cls.load_more_json(d, obj)
+	
 		return obj
 
-		
+	@classmethod
+	def load_more_json(cls, d, obj):
+		pass
+
+
 	@property
 	def n(self):
 		return self._n
@@ -389,9 +404,7 @@ class Problem(SageObject):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
-	
-		force_sharps = hasattr(self, "_force_sharps") and self._force_sharps
-	
+		
 		# Multiply SDP solver objective value by -1
 		self._obj_value_factor = -1
 		
@@ -411,7 +424,7 @@ class Problem(SageObject):
 	
 			for i in range(num_graphs):
 				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
-				if not (force_sharps and i in self._sharp_graphs):
+				if not (self._force_sharps and i in self._sharp_graphs):
 					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
