@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-class Construction(object):
+class Construction(sage.structure.sage_object.SageObject):
 
 	def __init__(self):
 		pass

@@ -139,6 +139,8 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 		s = 0
 	else:
 		s = tg.n
+		if tg.t != 0:
+			raise NotImplementedError("type must not contain labelled vertices.")
 
 	if n < s:
 		return []
@@ -148,7 +150,7 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 			return [Flag()]
 		else:
 			ntg = tg.copy()
-			ntg.type = tg
+			ntg.t = s
 			return [ntg]
 
 	max_ne = (n - 1) * (n - 2) / 2
@@ -235,7 +237,6 @@ def flag_orbits(tg, flags):
 			ntg.relabel(perm)
 			nfg = fg.copy()
 			nfg.relabel(permplus)
-			nfg.type = ntg
 			nfg.make_minimal_isomorph()
 			nfgs = str(nfg)
 			if nfgs < mfgs:

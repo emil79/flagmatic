@@ -104,7 +104,7 @@ class RandomTournamentConstruction(Construction):
 
 			ig = Flag()
 			ig.n = n
-			ig.type = tg
+			ig.t = tg.n
 			
 			for s in Combinations(range(1, n + 1), 3):
 				if ((s[0], s[1]) in edges and (s[1], s[2]) in edges and (s[2], s[0]) in edges) or (

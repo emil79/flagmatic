@@ -40,32 +40,33 @@ from libc.stdlib cimport malloc, calloc, free
 from libc.string cimport memset
 
 from sage.all import binomial, falling_factorial, Tuples, Permutations, Combinations, Integer, QQ, matrix 
+from sage.structure.sage_object cimport SageObject
 
 DEF MAX_NUMBER_OF_EDGES = (35 + 42 + 7)
 
 
 # TODO: check that flag contains type
 
-cdef class Flag:
+cdef class Flag (SageObject):
 
 	cdef int _n
+	cdef int _t
 	cdef readonly bint is_degenerate
 	cdef readonly int ne
 	cdef int _edges[MAX_NUMBER_OF_EDGES * 3]
 	cdef public Flag type
 
 
-	# TODO: Check that the flag contains the type's edges, and does not have fewer vertices.
-
-	def __init__(self, string_rep=None, tg=None):
-	
-		if tg:
-			self.type = <Flag?> tg
+	def __init__(self, string_rep=None):
 	
 		if string_rep:
 			self.init_from_string(string_rep)
 
+
 	property edges:
+		"""
+		A tuple containing the edges as tuples.
+		"""
 
 		def __get__(self):
 	
@@ -75,7 +76,11 @@ cdef class Flag:
 				edge_list.append((self._edges[i], self._edges[i + 1], self._edges[i + 2]))
 			return tuple(edge_list)
 
+
 	property n:
+		"""
+		The number of vertices.
+		"""
 
 		def __get__(self):
 			return self._n
@@ -86,6 +91,22 @@ cdef class Flag:
 				raise ValueError
 
 			self._n = value
+
+
+	property t:
+		"""
+		The number of labelled vertices.
+		"""
+
+		def __get__(self):
+			return self._t
+	
+		def __set__(self, value):
+
+			if value > self._n:
+				raise ValueError
+
+			self._t = value
 
 
 	def add_edge(self, edge):
@@ -130,7 +151,7 @@ cdef class Flag:
 	
 	def init_from_string(self, s):
 
-		cdef int i, n, ne, x
+		cdef int i, t, n, ne, x
 
 		if s[1] != ":":
 			print s
@@ -141,7 +162,18 @@ cdef class Flag:
 			raise ValueError
 		self._n = n
 		self.ne = 0
-		
+
+		if s[-1] == ")":
+			if s[-3] != "(":
+				raise ValueError
+			t = int(s[-2])
+			if t > n:
+				raise ValueError
+			s = s[:-3]
+		else:
+			t = 0
+		self._t = t
+
 		ne = len(s) - 2
 		if ne % 3 != 0:
 			raise ValueError
@@ -153,18 +185,34 @@ cdef class Flag:
 
 	# TODO: handle > 9 vertices properly
 
-	def __str__(self):
+	def _repr_(self):
+
 
 		cdef int i
 		string_rep = str(self._n) + ":"
 		for i in range(3 * self.ne):
 			string_rep += str(self._edges[i])
+		if self._t > 0:
+			string_rep += "(" + str(self._t) + ")"
 		return string_rep
+ 	
+	def _latex_(self):
+		return "\\verb|" + self._repr_() + "|"
+ 	
+	def __cmp__(self, other):
+		return self.is_equal(other)
+ 	
+	def __reduce__(self):
+		return (Flag, (self._repr_(),))
+
+
+	# TODO: work out how to make sets of these work
+	
+	def __hash__(self):
+		return hash(self._repr_())
+
 
  	
-	def __repr__(self):
-		return self.__str__()
-
 
 	# TODO: do this the Cythonic way (__richcmp__ ?)
 	
@@ -175,35 +223,19 @@ cdef class Flag:
 		if self._n != other._n:
 			return False
 
+		if self._t != other._t:
+			return False
+
 		if self.ne != other.ne:
 			return False
 
-		if (self.type is None or self.type.n == 0):
-			if not (other.type is None or other.type.n == 0):
-				return False
-		else:
-			if (other.type is None or other.type.n == 0):
-				return False
-			else:
-				if not self.type.is_equal(other.type):
-					return False
-		
 		for i in range(3 * self.ne):
 			if self._edges[i] != other._edges[i]:
 				return False
 	
 		return True
 
-
-	# TODO: work out how to make sets of these work
 	
-	def __hash__(self):
-	
-		if self.type is None:
-			return hash(self.__str__())
-		else:
-			return hash(self.__str__() + self.type.__str__())
-		
 
 	# TODO: maintain vigilance that we have everything...
 
@@ -212,9 +244,10 @@ cdef class Flag:
 		cdef int i
 		ng = Flag()
 		ng.n = self._n
+		ng.t = self._t
 		ng.ne = self.ne
-		ng.type = self.type
 		ng.is_degenerate = self.is_degenerate
+
 		for i in range(3 * self.ne):
 			ng._edges[i] = self._edges[i]
 		
@@ -248,7 +281,7 @@ cdef class Flag:
 	def subgraph_density(self, h):
 		"""
 		Returns the H-density. That is, the number of k-sets of vertices that induce
-		graphs isomorphic to H, divided by binomial(n, k).
+		graphs isomorphic to H, divided by binomial(n, k). Ignores vertex labels.
 		"""
 		
 		if self.is_degenerate:
@@ -256,6 +289,7 @@ cdef class Flag:
 		
 		found, total = 0, 0
 		minh = h.copy()
+		minh.t = 0
 		minh.make_minimal_isomorph()
 		
 		for hv in Combinations(range(1, self.n + 1), h.n):
@@ -292,18 +326,13 @@ cdef class Flag:
 
 	def make_minimal_isomorph(self):
 
-		cdef int i, t, *new_edges, *winning_edges, *e
+		cdef int i, *new_edges, *winning_edges, *e
 		cdef int *p, np, is_lower
 		
 		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
 		winning_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
 		
-		if self.type is None:
-			t = 0
-		else:
-			t = self.type._n
-		
-		p = generate_permutations_fixing(self._n, t, &np)
+		p = generate_permutations_fixing(self._n, self._t, &np)
 	
 		for i in range(np):
 		
@@ -338,6 +367,9 @@ cdef class Flag:
 
 
 	def induced_subgraph(self, verts):
+		"""
+		Returns subgraphs induced by verts. Returned Flag is always unlabelled.
+		"""
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -364,7 +396,7 @@ cdef class Flag:
 			raise NotImplementedError("degenerate graphs are not supported.")
 
 		ig.n = num_verts
-		ig.type = None
+		ig.t = 0
 		
 		for i in range(self.ne):
 			e = &self._edges[3 * i]
@@ -392,6 +424,9 @@ cdef class Flag:
 	
 
 	cdef int c_has_subgraph (self, Flag h):
+		"""
+		Determines if it contains h as a subgraph. Labels are ignored.
+		"""
 	
 		cdef int i, j, k, l, *p, np, *new_edges, got_all, got_edge, got
 	
@@ -575,6 +610,7 @@ cdef class Flag:
 		
 		ng = Flag()
 		ng.n = len(vertices)
+		ng.t = 0
 		
 		for e in cg.edges:
 			if e[0] in vertices and e[1] in vertices and e[2] in vertices:
@@ -602,6 +638,7 @@ cdef class Flag:
 				
 		found, total = 0, 0
 		minh = h.copy()
+		minh.t = 0
 		minh.make_minimal_isomorph()
 		
 		for hv in Tuples(range(1, self.n + 1), h.n):
@@ -616,8 +653,11 @@ cdef class Flag:
 	
 	def degenerate_flag_density(self, tg, flags, type_verts):
 		"""
-		Note that flags must be minimal isomorphs.
+		Note that flags must be minimal isomorphs. tg must not contain any labelled vertices.
 		"""
+		if tg.t != 0:
+			raise NotImplementedError("type should not contain labelled vertices.")
+		
 		s = tg.n
 		m = flags[0].n   # TODO: Check all flags are the same size, and are minimal isomorphs
 
@@ -641,7 +681,7 @@ cdef class Flag:
 			
 			p = list(type_verts) + pf			
 			ig = self.degenerate_induced_subgraph(p)
-			ig.type = tg
+			ig.t = s
 			ig.make_minimal_isomorph()
 			for i in range(len(flags)):
 				if ig.is_equal(flags[i]):
@@ -1069,7 +1109,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 					pf1[s + j] = pp[s + j]
 	
 				f1 = g.c_induced_subgraph(pf1, m1)
-				f1.type = tg
+				f1.t = s
 				f1.make_minimal_isomorph()
 
 				for j in range(flags1.len):
@@ -1085,7 +1125,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 				pf2[s + j] = pp[m1 + j]
 	
 			f2 = g.c_induced_subgraph(pf2, m2)
-			f2.type = tg
+			f2.t = s
 			f2.make_minimal_isomorph()
 			
 			for j in range(flags2.len):
