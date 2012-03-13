@@ -37,7 +37,7 @@ def example(prob):
 		P.n = 6
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("3:123"))
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -65,7 +65,7 @@ def example(prob):
 		P.n = 6
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("3:122123133"))
-		P.construction = C
+		P.use_construction(C)
 		P._force_sharps = True
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -84,7 +84,7 @@ def example(prob):
 		P.n = 6
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("3:112223331123"))
-		P.construction = C
+		P.use_construction(C)
 		P._force_sharps = True
 		P.set_new_bases()
 		P.calculate_product_densities()
@@ -105,7 +105,7 @@ def example(prob):
 		P.n = 6
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("2:112122"))
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -123,7 +123,7 @@ def example(prob):
 		P.set_inv_anti_inv_bases()
 		P.density_graph =Flag("4:123124134")
 		C = BlowupConstruction(Flag("3:112223331123"))
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -140,7 +140,7 @@ def example(prob):
 		P.set_inv_anti_inv_bases()
 		P.density_graph = Flag("5:123124125134135145234235245")
 		C = BlowupConstruction(Flag("2:112122"))
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -157,7 +157,7 @@ def example(prob):
 		P.n = 6
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("4:123124134234"))
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -175,7 +175,7 @@ def example(prob):
 		P.density_graph = Flag("4:123124")
 		#C = random_geometric_construction()
 		C = None
-		#P.construction = C
+		#P.use_construction(C)
 		#P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -190,7 +190,7 @@ def example(prob):
 		P.n = 7
 		P.set_inv_anti_inv_bases()
 		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		
@@ -244,7 +244,7 @@ def example(prob):
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
 		C = RandomTournamentConstruction()
-		P.construction = C
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -262,7 +262,7 @@ def example(prob):
 		P.set_inv_anti_inv_bases()
 		P._force_sharps = True
 		C = BlowupConstruction(Flag("3:112223331"))
-		P.construction = C
+		P.use_construction(C)
 		P._target_bound = 0
 		P.set_new_bases()
 		P.calculate_product_densities()

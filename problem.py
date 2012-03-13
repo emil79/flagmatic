@@ -47,16 +47,111 @@ cdsp_cmd = "csdp"
     
 class Problem(SageObject):
 
+	_n = 0
 	forbidden_edge_numbers = {}
 	forbidden_graphs = []
 	forbidden_induced_graphs = []
+	_graphs = []
+	_graph_densities = []
+	_density_graph = None
+
+	_types = []
+	_flags = []
+	_flag_bases = []
+	_target_bound = None
+	_sharp_graphs = []
+	_zero_eigenvectors = []
+	_product_densities_dumps = {}
+	
+	_obj_value_factor = -1
+	_sdp_input_filename = None
+	_sdp_output_filename = None
+	
+	_sdp_Q_matrices = []
+	_exact_Q_matrices = []
+	_bounds = []
 
 	def __init__(self):
-		self._n = 0
-		self._graphs = []
-		self._types = []
-		self._flags = []		
+		pass
 
+	def save_json(self, filename):
+		
+		d = {}
+		
+		d["n"] = self._n
+		d["forbidden_edge_numbers"] = self.forbidden_edge_numbers
+		d["forbidden_graphs"] = [repr(g) for g in self.forbidden_graphs]
+		d["forbidden_induced_graphs"] = [repr(g) for g in self.forbidden_induced_graphs]
+			
+		d["graphs"] = [repr(g) for g in self._graphs]
+		d["graph_densities"] = [repr(r) for r in self._graph_densities]
+		if not self._density_graph is None:
+			d["density_graph"] = repr(self._density_graph)
+			
+		d["types"] = [repr(g) for g in self._types]
+		d["flags"] = [[repr(g) for g in x] for x in self._flags]
+		d["flag_bases"] = [base64.b64encode(dumps(M)) for M in self._flag_bases]
+		if not self._target_bound is None:
+			d["target_bound"] = repr(self._target_bound)
+		d["sharp_graphs"] = self._sharp_graphs
+		d["zero_eigenvectors"] = [base64.b64encode(dumps(M)) for M in self._zero_eigenvectors]
+		d["product_densities_dumps"] = [[base64.b64encode(s) for s in x] for x in self._product_densities_dumps]
+
+		d["obj_value_factor"] = self._obj_value_factor
+		if not self._sdp_input_filename is None:
+			d["sdp_input_filename"] = self._sdp_input_filename,
+		if not self._sdp_output_filename is None:
+			d["sdp_output_filename"] = self._sdp_output_filename
+			
+		d["sdp_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._sdp_Q_matrices]
+		d["exact_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._exact_Q_matrices]
+		d["bounds"] = [repr(r) for r in self._bounds]
+		
+		with open(filename, "wb") as f:
+			json.dump(d, f)
+		
+
+	@classmethod
+	def load_json(cls, filename):
+		
+		obj = Problem()
+		
+		with open(filename, "rb") as f:
+			d = json.load(f)
+		
+		obj._n = d["n"]
+		obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
+		obj.forbidden_graphs = [Flag(s) for s in d["forbidden_graphs"]]
+		obj.forbidden_induced_graphs = [Flag(s) for s in d["forbidden_induced_graphs"]]
+		
+		obj._graphs = [Flag(s) for s in d["graphs"]]
+		obj._graph_densities = [sage_eval(s) for s in d["graph_densities"]]
+		if "density_graph" in d:
+			obj._density_graph = Flag(d["density_graph"])
+
+		obj._types = [Flag(s) for s in d["types"]]
+		obj._flags = [[Flag(s) for s in x] for x in d["flags"]]
+		obj._flag_bases = [loads(base64.b64decode(s)) for s in d["flag_bases"]]
+		if "target_bound" in d:
+			obj._target_bound = sage_eval(d["target_bound"]) 
+		
+		obj._sharp_graphs = d["sharp_graphs"]
+		obj._zero_eigenvectors = [loads(base64.b64decode(s)) for s in d["zero_eigenvectors"]]
+		obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
+
+		obj._obj_value_factor = d["obj_value_factor"]
+		if "sdp_input_filename" in d:
+			obj._sdp_input_filename = d["sdp_input_filename"]
+		if "sdp_output_filename" in d:
+			obj._sdp_output_filename = d["sdp_output_filename"]
+			
+		obj._sdp_Q_matrices = [loads(base64.b64decode(s)) for s in d["sdp_Q_matrices"]]
+		obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
+		obj._bounds = [sage_eval(s) for s in d["bounds"]]
+	
+		return obj
+
+		
 	@property
 	def n(self):
 		return self._n
@@ -130,29 +225,6 @@ class Problem(SageObject):
 		for g in self._graphs:
 			self._graph_densities.append(g.subgraph_density(dg))
 
-	def save_json(self, filename):
-		
-		f = gzip.open(filename, "wb")
-		d = {
-			"n" : self._n,
-			"graphs" : [repr(g) for g in self._graphs],
-			"types" : [repr(g) for g in self._types],
-			"flags" : [[repr(g) for g in flags] for flags in self._flags],
-			"flag_bases" : [base64.b64encode(dumps(M)) for M in self._flag_bases]
-		}
-		json.dump(d, f)
-		f.close()	
-
-	@classmethod
-	def load_json(cls, filename):
-		obj = Problem()
-		f = gzip.open(filename, "rb")
-		d = json.load(f)
-		self._n = d["n"]
-		self._graphs = d["graphs"]
-		self._types = d["graphs"]
-		#self._flag_bases = [loads(s) for s in d["flag_bases"]]
-
 
 	def set_inv_anti_inv_bases(self):
 
@@ -160,24 +232,18 @@ class Problem(SageObject):
 			B = flag_basis(self._types[ti], self._flags[ti])
 			self._flag_bases[ti] = B
 
-	@property
-	def construction(self):
-		return self._construction
-
-	@n.setter
-	def construction(self, c):
+	def use_construction(self, c):
 
 		# TODO: axioms construction needs density of zero
 		# maybe create a self.density(g) function
 
-		self._construction = c
-		if hasattr(self, "_density_graph"):
-			self._target_bound = c.subgraph_density(self._density_graph)
-			sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
-		else:
+		if self._density_graph is None:
 			self._target_bound = c.edge_density()
 			sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
-		
+		else:
+			self._target_bound = c.subgraph_density(self._density_graph)
+			sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
+			
 		sharp_graphs = c.induced_subgraphs(self._n)
 		self._sharp_graphs = []
 		for sg in sharp_graphs:
@@ -233,7 +299,7 @@ class Problem(SageObject):
  	
  		graph_block = make_graph_block(self._graphs, self.n)
 		
-		self._product_densities_dumps = {}
+		self._product_densities_dumps = []
  		sys.stdout.write("Calculating product densities...\n")
 
  		for ti in range(len(self._types)):
@@ -254,12 +320,15 @@ class Problem(SageObject):
  			flags_block = make_graph_block(self._flags[ti], m)
 			DL = flag_products(graph_block, tg, flags_block, None)
 		
+			this_type_dumps = []
 			for gi in range(len(self._graphs)):
 				D = DL[gi]
 				ND = B * D * B.T
 				if is_subdivided:
 					ND.subdivide(inv_rows, inv_rows)
-				self._product_densities_dumps[(gi, ti)] = dumps(ND)
+				this_type_dumps.append(dumps(ND))
+			
+			self._product_densities_dumps.append(this_type_dumps)
 
 
 	def write_block_sizes(self, f):
@@ -301,7 +370,7 @@ class Problem(SageObject):
 
 		for i in range(num_graphs):
 			for j in range(num_types):
-				D = loads(self._product_densities_dumps[(i, j)])
+				D = loads(self._product_densities_dumps[j][i])
 				for key, value in D.dict().iteritems():
 					row, col = key
 					if row < col: # only print upper triangle
@@ -473,7 +542,7 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = loads(self._product_densities_dumps[(gi, ti)])
+				D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._sdp_Q_matrices[ti][j, k]
@@ -541,7 +610,7 @@ class Problem(SageObject):
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
 			for ti in range(num_types):
-				D = loads(self._product_densities_dumps[(gi, ti)])
+				D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -624,7 +693,7 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = loads(self._product_densities_dumps[(gi, ti)])
+				D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._exact_Q_matrices[ti][j, k]
