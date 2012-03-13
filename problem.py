@@ -27,17 +27,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+import base64
+import gzip
+import json
 import numpy
 import os
 import pexpect
 import sys
+
+from sage.all import Integer, QQ, matrix
+from sage.structure.sage_object import SageObject
+
 
 # pexpect in Sage has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
 
 cdsp_cmd = "csdp"
 
-class Problem(sage.structure.sage_object.SageObject):
+    
+class Problem(SageObject):
 
 	forbidden_edge_numbers = {}
 	forbidden_graphs = []
@@ -48,7 +56,7 @@ class Problem(sage.structure.sage_object.SageObject):
 		self._graphs = []
 		self._types = []
 		self._flags = []		
-		
+
 	@property
 	def n(self):
 		return self._n
@@ -121,6 +129,30 @@ class Problem(sage.structure.sage_object.SageObject):
 		self._graph_densities = []
 		for g in self._graphs:
 			self._graph_densities.append(g.subgraph_density(dg))
+
+	def save_json(self, filename):
+		
+		f = gzip.open(filename, "wb")
+		d = {
+			"n" : self._n,
+			"graphs" : [repr(g) for g in self._graphs],
+			"types" : [repr(g) for g in self._types],
+			"flags" : [[repr(g) for g in flags] for flags in self._flags],
+			"flag_bases" : [base64.b64encode(dumps(M)) for M in self._flag_bases]
+		}
+		json.dump(d, f)
+		f.close()	
+
+	@classmethod
+	def load_json(cls, filename):
+		obj = Problem()
+		f = gzip.open(filename, "rb")
+		d = json.load(f)
+		self._n = d["n"]
+		self._graphs = d["graphs"]
+		self._types = d["graphs"]
+		#self._flag_bases = [loads(s) for s in d["flag_bases"]]
+
 
 	def set_inv_anti_inv_bases(self):
 
@@ -201,7 +233,7 @@ class Problem(sage.structure.sage_object.SageObject):
  	
  		graph_block = make_graph_block(self._graphs, self.n)
 		
-		self._product_densities = {}
+		self._product_densities_dumps = {}
  		sys.stdout.write("Calculating product densities...\n")
 
  		for ti in range(len(self._types)):
@@ -227,7 +259,7 @@ class Problem(sage.structure.sage_object.SageObject):
 				ND = B * D * B.T
 				if is_subdivided:
 					ND.subdivide(inv_rows, inv_rows)
-				self._product_densities[(gi, ti)] = sparse_symm_matrix_to_compact_repr(ND)
+				self._product_densities_dumps[(gi, ti)] = dumps(ND)
 
 
 	def write_block_sizes(self, f):
@@ -269,7 +301,7 @@ class Problem(sage.structure.sage_object.SageObject):
 
 		for i in range(num_graphs):
 			for j in range(num_types):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(i, j)])
+				D = loads(self._product_densities_dumps[(i, j)])
 				for key, value in D.dict().iteritems():
 					row, col = key
 					if row < col: # only print upper triangle
@@ -441,7 +473,7 @@ class Problem(sage.structure.sage_object.SageObject):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				D = loads(self._product_densities_dumps[(gi, ti)])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._sdp_Q_matrices[ti][j, k]
@@ -509,7 +541,7 @@ class Problem(sage.structure.sage_object.SageObject):
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
 			for ti in range(num_types):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				D = loads(self._product_densities_dumps[(gi, ti)])
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -592,7 +624,7 @@ class Problem(sage.structure.sage_object.SageObject):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				D = loads(self._product_densities_dumps[(gi, ti)])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._exact_Q_matrices[ti][j, k]

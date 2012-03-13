@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+
 class AxiomsProblem(Problem):
 
 	
@@ -236,7 +237,7 @@ class AxiomsProblem(Problem):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities_dumps[(gi, ti)])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._sdp_Q_matrices[ti][j, k]
@@ -309,7 +310,7 @@ class AxiomsProblem(Problem):
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
 			for ti in range(num_types):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities_dumps[(gi, ti)])
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -400,7 +401,7 @@ class AxiomsProblem(Problem):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = sparse_symm_matrix_from_compact_repr(self._product_densities[(gi, ti)])
+				D = sparse_symm_matrix_from_compact_repr(self._product_densities_dumps[(gi, ti)])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._exact_Q_matrices[ti][j, k]

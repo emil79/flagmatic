@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+
 def example(prob):
 	
 	if prob == "ff83":
@@ -49,12 +50,12 @@ def example(prob):
 
 		P = Problem()
 		P.forbidden_edge_numbers={4:3}
-		P.n = 6
-		P.set_inv_anti_inv_bases()
+		P.n = 7
+		#P.set_inv_anti_inv_bases()
 		C = None
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_csdp()
+		#P.write_sdp_input_file()
+		#P.run_csdp()
 
 
 	elif prob == "f32":

@@ -29,7 +29,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-class Construction(sage.structure.sage_object.SageObject):
+from sage.all import Integer, QQ, matrix, factorial, identity_matrix
+from sage.structure.sage_object import SageObject
+
+
+class Construction(SageObject):
 
 	def __init__(self):
 		pass
