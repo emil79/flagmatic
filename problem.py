@@ -37,7 +37,7 @@ import sys
 
 cdsp_cmd = "csdp"
 
-class Problem(object):
+class Problem(sage.structure.sage_object.SageObject):
 
 	forbidden_edge_numbers = {}
 	forbidden_graphs = []

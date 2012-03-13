@@ -240,11 +240,7 @@ def example(prob):
 		P.forbidden_edge_numbers={4:3}
 		P.forbidden_graphs = [Flag("6:612623634645651")]
 		P.n = 6
-		tg = Flag("2:")
-		f1 = Flag("3:123", tg)
-		f2 = Flag("2:", tg)
-		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
-		P.set_inv_anti_inv_bases()
+		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
 		C = RandomTournamentConstruction()
 		P.construction = C
@@ -253,25 +249,28 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_csdp()
 		P.check_floating_point_bound()
-		P.make_exact(1024*1024)
+		P.make_exact(240*1024)
 		P.check_exact_bound()
 
 	elif prob == "marchant":
 	
-		P = axioms_problem()
+		P = AxiomsProblem()
 		P.forbidden_graphs = [Flag("5:123124125345")]
 		P.n = 6
-		tg = Flag("2:")
-		f1 = Flag("3:123", tg)
-		f2 = Flag("2:", tg)
-		P.add_axiom(tg, [f1, f2], [1, Rational("-1/3")])
+		P.add_codegree_axiom(Rational("1/3"))
 		P.set_inv_anti_inv_bases()
+		P._force_sharps = True
 		C = BlowupConstruction(Flag("3:112223331"))
 		P.construction = C
+		P._target_bound = 0
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_csdp()
+		
+		P.check_floating_point_bound()
+		P.make_exact(1024*1024)
+		P.check_exact_bound()
 
 
 	return P,C
