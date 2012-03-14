@@ -266,12 +266,11 @@ def example(prob):
 		P._target_bound = 0
 		P.set_new_bases()
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_csdp()
-		
-		P.check_floating_point_bound()
-		P.make_exact(1024*1024)
-		P.check_exact_bound()
+		#P.write_sdp_input_file()
+		#P.run_csdp()
+		#P.check_floating_point_bound()
+		#P.make_exact(1024*1024)
+		#P.check_exact_bound()
 
 
 	return P,C

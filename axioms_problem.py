@@ -29,13 +29,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 class AxiomsProblem(Problem):
-
-	_quantum_graphs = []
-	_sdp_density_coeffs = []
-	_exact_density_coeffs = []
 	
 	def __init__(self):
+	
 		Problem.__init__(self)
+		self._quantum_graphs = []
+		self._sdp_density_coeffs = []
+		self._exact_density_coeffs = []
 	
 
 	def save_more_json(self, d):

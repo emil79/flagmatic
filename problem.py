@@ -47,33 +47,33 @@ cdsp_cmd = "csdp"
     
 class Problem(SageObject):
 
-	_n = 0
-	forbidden_edge_numbers = {}
-	forbidden_graphs = []
-	forbidden_induced_graphs = []
-	_graphs = []
-	_graph_densities = []
-	_density_graph = None
-
-	_types = []
-	_flags = []
-	_flag_bases = []
-	_target_bound = None
-	_sharp_graphs = []
-	_zero_eigenvectors = []
-	_product_densities_dumps = {}
-	
-	_obj_value_factor = -1
-	_force_sharps = False
-	_sdp_input_filename = None
-	_sdp_output_filename = None
-	
-	_sdp_Q_matrices = []
-	_exact_Q_matrices = []
-	_bounds = []
-
 	def __init__(self):
-		pass
+	
+		self._n = 0
+		self.forbidden_edge_numbers = {}
+		self.forbidden_graphs = []
+		self.forbidden_induced_graphs = []
+		self._graphs = []
+		self._graph_densities = []
+		self._density_graph = None
+
+		self._types = []
+		self._flags = []
+		self._flag_bases = []
+		self._target_bound = None
+		self._sharp_graphs = []
+		self._zero_eigenvectors = []
+		self._product_densities_dumps = {}
+	
+		self._obj_value_factor = -1
+		self._force_sharps = False
+		self._sdp_input_filename = None
+		self._sdp_output_filename = None
+	
+		self._sdp_Q_matrices = []
+		self._exact_Q_matrices = []
+		self._bounds = []
+
 
 	def save_json(self, filename):
 		
