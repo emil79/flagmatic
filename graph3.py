@@ -32,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # TODO: turn some forbidden graphs into forbidden edge numbers.
 
 
-def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
+def generate_flags(n, tg, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
 	"""
 	For an integer n, and a type tg, returns a list of all tg-flags on n
 	vertices, that satisfy certain constraints.
@@ -53,34 +53,54 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 	
 	"""
 
+	if not (r == 2 or r == 3):
+		raise NotImplementedError
+		
+	if oriented and r != 2:
+		raise NotImplementedError
+
 	if tg is None:
-		s = 0
-	else:
-		s = tg.n
-		if tg.t != 0:
-			raise NotImplementedError("type must not contain labelled vertices.")
+		tg = Flag(r=r, oriented=oriented)
+
+	if r != tg.r or oriented != tg.oriented:
+		raise ValueError
+
+	if tg.t != 0:
+		raise NotImplementedError("type must not contain labelled vertices.")
+
+	s = tg.n
 
 	if n < s:
 		return []
 
 	if n == s:
-		if tg is None:
-			return [Flag()]
-		else:
-			ntg = tg.copy()
-			ntg.t = s
-			return [ntg]
+		ntg = tg.copy()
+		ntg.t = s
+		return [ntg]
 
-	max_ne = (n - 1) * (n - 2) / 2
-	max_e = n * max_ne / 3
+	#max_ne = (n - 1) * (n - 2) / 2
+	max_ne = binomial(n - 1, r - 1)
+
+	#max_e = n * max_ne / 3
+	max_e = binomial(n, r)
 	
 	new_graphs = []
 	hashes = set()
 	
-	smaller_graphs = generate_flags(n - 1, tg, forbidden_edge_numbers=forbidden_edge_numbers,
+	smaller_graphs = generate_flags(n - 1, tg, r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
 		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 	
-	possible_nbrs = Combinations(range(1, n), 2)
+	possible_edges = []
+
+	if r == 3:
+		for c in Combinations(range(1, n), 2):
+			possible_edges.append((c[0], c[1], n))
+
+	elif r == 2:
+		for x in range(1, n):
+			possible_edges.append((x, n))
+			if oriented:
+				possible_edges.append((n, x))
 
 	for sg in smaller_graphs:
 	
@@ -90,12 +110,18 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 			
 		for ne in range(maxd, max_ne + 1):
 		
-			for nb in Combinations(possible_nbrs, ne):
-			
+			for nb in Combinations(possible_edges, ne):
+
+				# For oriented graphs, can't have bidirected edges.
+				# TODO: exclude these in a more efficient way!
+				if oriented:
+					if any(e in nb and (e[1], e[0]) in nb for e in possible_edges):
+						continue
+						
 				ng = sg.copy()
 				ng.n = n
-				for v in nb:
-					ng.add_edge((v[0], v[1], n))
+				for e in nb:
+					ng.add_edge(e)
 
 				if ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
 					continue
@@ -115,7 +141,7 @@ def generate_flags(n, tg, forbidden_edge_numbers={}, forbidden_graphs = [], forb
 	return new_graphs
 
 
-def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
+def generate_graphs(n, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
 	"""
 	For an integer n, return a list of all 3-graphs on n vertices that satisfy certain
 	constraints.
@@ -134,7 +160,7 @@ def generate_graphs(n, forbidden_edge_numbers={}, forbidden_graphs = [], forbidd
 		[(4, ()), (4, ((1, 2, 3),)), (4, ((1, 2, 3), (1, 2, 4)))]
 	
 	"""
-	return generate_flags(n, None, forbidden_edge_numbers=forbidden_edge_numbers,
+	return generate_flags(n, None, r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
 		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
 

@@ -42,22 +42,30 @@ from libc.string cimport memset
 from sage.all import binomial, falling_factorial, Tuples, Permutations, Combinations, Integer, QQ, matrix 
 from sage.structure.sage_object cimport SageObject
 
-DEF MAX_NUMBER_OF_EDGES = (35 + 42 + 7)
-
+# 35 + 42 + 7 = 84, 84 * 3 = 252
+DEF MAX_NUMBER_OF_EDGE_INTS = 256
 
 # TODO: check that flag contains type
 
 cdef class Flag (SageObject):
 
 	cdef int _n
+	cdef int _r
+	cdef bint _oriented
 	cdef int _t
 	cdef readonly bint is_degenerate
 	cdef readonly int ne
-	cdef int _edges[MAX_NUMBER_OF_EDGES * 3]
+	cdef int _edges[MAX_NUMBER_OF_EDGE_INTS]
 	cdef public Flag type
 
 
-	def __init__(self, string_rep=None):
+	def __init__(self, string_rep=None, r=3, oriented=False):
+	
+		if oriented and r != 2:
+			raise NotImplementedError("only 2-graphs can be oriented.")
+	
+		self._r = r
+		self._oriented = oriented
 	
 		if string_rep:
 			self.init_from_string(string_rep)
@@ -72,9 +80,49 @@ cdef class Flag (SageObject):
 	
 			cdef int i
 			edge_list = []
-			for i in range(0, 3 * self.ne, 3):
-				edge_list.append((self._edges[i], self._edges[i + 1], self._edges[i + 2]))
+			if self._r == 3:
+				for i in range(0, 3 * self.ne, 3):
+					edge_list.append((self._edges[i], self._edges[i + 1], self._edges[i + 2]))
+			elif self._r == 2:
+				for i in range(0, 2 * self.ne, 2):
+					edge_list.append((self._edges[i], self._edges[i + 1]))
+				
 			return tuple(edge_list)
+
+
+	property r:
+		"""
+		The number of vertices in an edge.
+		"""
+
+		def __get__(self):
+			return self._r
+	
+		def __set__(self, value):
+
+			if not (value == 2 or value == 3):
+				raise NotImplementedError("only 2-graphs and 3-graphs are supported.")
+				
+			if self.ne != 0:
+				raise ValueError
+
+			self._r = value
+
+
+	property oriented:
+		"""
+		Whether the order of vertices within an edge is significant.
+		"""
+
+		def __get__(self):
+			return self._oriented
+	
+		def __set__(self, value):
+
+			if not (value is True or value is False):
+				raise ValueError
+			
+			self._oriented = value
 
 
 	property n:
@@ -113,31 +161,55 @@ cdef class Flag (SageObject):
 	
 		cdef int x, y, z
 		
-		if self.ne == MAX_NUMBER_OF_EDGES:
-			raise NotImplementedError("Too many edges.")
+		if self._r == 3:
+
+			if (self.ne + 1) * 3 > MAX_NUMBER_OF_EDGE_INTS:
+				raise NotImplementedError("Too many edges.")
 		
-		x = <int?> edge[0]
-		y = <int?> edge[1]
-		z = <int?> edge[2]
-		if x < 1 or y < 1 or z < 1:
-			raise ValueError
-		if x > self._n or y > self._n or z > self._n:
-			raise ValueError
+			x = <int?> edge[0]
+			y = <int?> edge[1]
+			z = <int?> edge[2]
+			if x < 1 or y < 1 or z < 1:
+				raise ValueError
+			if x > self._n or y > self._n or z > self._n:
+				raise ValueError
+	
+			self._edges[3 * self.ne] = x
+			self._edges[3 * self.ne + 1] = y
+			self._edges[3 * self.ne + 2] = z
+			self.ne += 1
+	
+			if x == y or x == z or y == z:
+				self.is_degenerate = True
 
-		self._edges[3 * self.ne] = x
-		self._edges[3 * self.ne + 1] = y
-		self._edges[3 * self.ne + 2] = z
-		self.ne += 1
+		elif self._r == 2:
 
-		if x == y or x == z or y == z:
-			self.is_degenerate = True
+			if (self.ne + 1) * 2 > MAX_NUMBER_OF_EDGE_INTS:
+				raise NotImplementedError("Too many edges.")
+		
+			x = <int?> edge[0]
+			y = <int?> edge[1]
+			if x < 1 or y < 1:
+				raise ValueError
+			if x > self._n or y > self._n:
+				raise ValueError
+	
+			self._edges[2 * self.ne] = x
+			self._edges[2 * self.ne + 1] = y
+			self.ne += 1
+	
+			if x == y:
+				self.is_degenerate = True
 		
 
 	def __getitem__(self, name):
 	
 		cdef int i = <int?> name
 		if i < self.ne:
-			return (self._edges[3 * i], self._edges[3 * i + 1], self._edges[3 * i + 2])
+			if self._r == 3:
+				return (self._edges[3 * i], self._edges[3 * i + 1], self._edges[3 * i + 2])
+			elif self._r == 2:
+				return (self._edges[2 * i], self._edges[2 * i + 1])			
 		else:
 			raise IndexError
 
@@ -147,7 +219,7 @@ cdef class Flag (SageObject):
 		return list(self.edges).__iter__()
 	
 	
-	# TODO: handle > 9 vertices
+	# TODO: handle > 16 vertices. 
 	
 	def init_from_string(self, s):
 
@@ -157,7 +229,7 @@ cdef class Flag (SageObject):
 			print s
 			raise ValueError
 
-		n = int(s[0])
+		n = int(s[0], 16) # read in hex
 		if n < 0:
 			raise ValueError
 		self._n = n
@@ -166,7 +238,7 @@ cdef class Flag (SageObject):
 		if s[-1] == ")":
 			if s[-3] != "(":
 				raise ValueError
-			t = int(s[-2])
+			t = int(s[-2], 16)
 			if t > n:
 				raise ValueError
 			s = s[:-3]
@@ -175,25 +247,37 @@ cdef class Flag (SageObject):
 		self._t = t
 
 		ne = len(s) - 2
-		if ne % 3 != 0:
-			raise ValueError
-		ne /= 3
-			
-		for i in range(ne):	 # N.B. +2 because of n: header
-			self.add_edge((int(s[i * 3 + 2]), int(s[i * 3 + 3]), int(s[i * 3 + 4])))
+		
+		if self._r == 3:
+		
+			if ne % 3 != 0:
+				raise ValueError
+			ne /= 3
+				
+			for i in range(ne):	 # N.B. +2 because of n: header
+				self.add_edge((int(s[i * 3 + 2]), int(s[i * 3 + 3]), int(s[i * 3 + 4])))
+
+		elif self._r == 2:
+		
+			if ne % 2 != 0:
+				raise ValueError
+			ne /= 2
+				
+			for i in range(ne):	 # N.B. +2 because of n: header
+				self.add_edge((int(s[i * 2 + 2]), int(s[i * 2 + 3])))
 	
 
-	# TODO: handle > 9 vertices properly
+	# TODO: handle > 15 vertices properly
+	# Note that hex(4) gives '0x4', and so hex(4)[-1] gives '4'.
 
 	def _repr_(self):
 
-
 		cdef int i
-		string_rep = str(self._n) + ":"
-		for i in range(3 * self.ne):
-			string_rep += str(self._edges[i])
+		string_rep = hex(self._n)[-1] + ":"
+		for i in range(self._r * self.ne):
+			string_rep += hex(self._edges[i])[-1]
 		if self._t > 0:
-			string_rep += "(" + str(self._t) + ")"
+			string_rep += "(" + hex(self._t)[-1] + ")"
 		return string_rep
  	
 	def _latex_(self):
@@ -209,8 +293,7 @@ cdef class Flag (SageObject):
 	# TODO: work out how to make sets of these work
 	
 	def __hash__(self):
-		return hash(self._repr_())
-
+		return hash(self._repr_() + str(self._r) + str(self._oriented))
 
  	
 
@@ -219,6 +302,12 @@ cdef class Flag (SageObject):
 	def is_equal(self, Flag other):
 	
 		cdef int i
+
+		if self._r != other._r:
+			return False
+
+		if self._oriented != other._oriented:
+			return False
 
 		if self._n != other._n:
 			return False
@@ -229,7 +318,7 @@ cdef class Flag (SageObject):
 		if self.ne != other.ne:
 			return False
 
-		for i in range(3 * self.ne):
+		for i in range(self._r * self.ne):
 			if self._edges[i] != other._edges[i]:
 				return False
 	
@@ -244,11 +333,13 @@ cdef class Flag (SageObject):
 		cdef int i
 		ng = Flag()
 		ng.n = self._n
+		ng.r = self._r
+		ng.oriented = self._oriented
 		ng.t = self._t
 		ng.ne = self.ne
 		ng.is_degenerate = self.is_degenerate
 
-		for i in range(3 * self.ne):
+		for i in range(self._r * self.ne):
 			ng._edges[i] = self._edges[i]
 		
 		return ng
@@ -257,10 +348,12 @@ cdef class Flag (SageObject):
 	# TODO: possibly something different with degenerate graphs?
 
 	def degrees(self):
-
+		"""
+		Returns a list of vertex degrees. Orientation not taken into account.
+		"""
 		cdef int i
 		deg_list = [0 for i in range(self._n)]
-		for i in range(3 * self.ne):
+		for i in range(self._r * self.ne):
 			deg_list[self._edges[i] - 1] += 1
 		return tuple(deg_list)
 
@@ -275,7 +368,7 @@ cdef class Flag (SageObject):
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
 		
-		return self.ne / binomial(self.n, 3)
+		return self.ne / binomial(self._n, self._r)
 
 
 	def subgraph_density(self, h):
@@ -313,7 +406,7 @@ cdef class Flag (SageObject):
 			if verts[i] < 1 or verts[i] > self._n:
 				raise ValueError
 	
-		for i in range(3 * self.ne):
+		for i in range(self._r * self.ne):
 			self._edges[i] = verts[self._edges[i] - 1]
 
 		self.minimize_edges()
@@ -321,7 +414,7 @@ cdef class Flag (SageObject):
 	
 	def minimize_edges(self):
 	
-		raw_minimize_edges(self._edges, self.ne)
+		raw_minimize_edges(self._edges, self.ne, self._r, self._oriented)
 
 
 	def make_minimal_isomorph(self):
@@ -329,26 +422,26 @@ cdef class Flag (SageObject):
 		cdef int i, *new_edges, *winning_edges, *e
 		cdef int *p, np, is_lower
 		
-		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
-		winning_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+		new_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
+		winning_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
 		
 		p = generate_permutations_fixing(self._n, self._t, &np)
 	
 		for i in range(np):
 		
-			for j in range(3 * self.ne):
+			for j in range(self._r * self.ne):
 				new_edges[j] = p[self._n * i + self._edges[j] - 1]
 		
-			raw_minimize_edges(new_edges, self.ne)
+			raw_minimize_edges(new_edges, self.ne, self._r, self._oriented)
 	
 			if i == 0:
-				for j in range(3 * self.ne):
+				for j in range(self._r * self.ne):
 					winning_edges[j] = new_edges[j]
 				continue
 	
 			is_lower = 1
 	
-			for j in range(3 * self.ne):
+			for j in range(self._r * self.ne):
 				if new_edges[j] > winning_edges[j]:
 					is_lower = 0
 					break
@@ -356,10 +449,10 @@ cdef class Flag (SageObject):
 					break
 			
 			if is_lower: # We have a new winner
-				for j in range(3 * self.ne):
+				for j in range(self._r * self.ne):
 					winning_edges[j] = new_edges[j]
 		
-		for i in range(3 * self.ne):
+		for i in range(self._r * self.ne):
 			self._edges[i] = winning_edges[i]
 		
 		free(new_edges)
@@ -396,30 +489,52 @@ cdef class Flag (SageObject):
 			raise NotImplementedError("degenerate graphs are not supported.")
 
 		ig.n = num_verts
+		ig.r = self._r
+		ig.oriented = self._oriented
 		ig.t = 0
+
+		if self._r == 3:
 		
-		for i in range(self.ne):
-			e = &self._edges[3 * i]
-			got = 0
-			for j in range(num_verts):
-				if e[0] == verts[j]:
-					got += 1
-					te[0] = j + 1
-				elif e[1] == verts[j]:
-					got += 1
-					te[1] = j + 1
-				elif e[2] == verts[j]:
-					got += 1
-					te[2] = j + 1
-			if got == 3:
-				e = &ig._edges[3 * nm]
-				e[0] = te[0]
-				e[1] = te[1]
-				e[2] = te[2]
-				nm += 1
+			for i in range(self.ne):
+				e = &self._edges[3 * i]
+				got = 0
+				for j in range(num_verts):
+					if e[0] == verts[j]:
+						got += 1
+						te[0] = j + 1
+					elif e[1] == verts[j]:
+						got += 1
+						te[1] = j + 1
+					elif e[2] == verts[j]:
+						got += 1
+						te[2] = j + 1
+				if got == 3:
+					e = &ig._edges[3 * nm]
+					e[0] = te[0]
+					e[1] = te[1]
+					e[2] = te[2]
+					nm += 1
+
+		elif self._r == 2:
+
+			for i in range(self.ne):
+				e = &self._edges[2 * i]
+				got = 0
+				for j in range(num_verts):
+					if e[0] == verts[j]:
+						got += 1
+						te[0] = j + 1
+					elif e[1] == verts[j]:
+						got += 1
+						te[1] = j + 1
+				if got == 2:
+					e = &ig._edges[2 * nm]
+					e[0] = te[0]
+					e[1] = te[1]
+					nm += 1
+
 		ig.ne = nm
 		ig.minimize_edges()
-
 		return ig
 	
 
@@ -432,33 +547,50 @@ cdef class Flag (SageObject):
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
-	
-		new_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+
+		if self._r != h._r or self._oriented != h._oriented:
+			raise ValueError
+			
+		new_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
 		
 		p = generate_permutations(self._n, &np)
 	
 		for i in range(np):
 		
-			for j in range(3 * self.ne):
+			for j in range(self._r * self.ne):
 				new_edges[j] = p[self._n * i + self._edges[j] - 1]
-	
+				
 			got_all = 1
 			for j in range(h.ne):
 				got_edge = 0
-				for k in range(self.ne):
-					got = 0
-					for l in range(3):
-						if (h._edges[3 * j] == new_edges[(3 * k) + l] or 
-							h._edges[(3 * j) + 1] == new_edges[(3 * k) + l] or
-							h._edges[(3 * j) + 2] == new_edges[(3 * k) + l]):
-							got += 1
-					if got == 3:
-						got_edge = 1
+				
+				if self._r == 3:
+					for k in range(self.ne):
+						got = 0
+						for l in range(3):
+							if (h._edges[3 * j] == new_edges[(3 * k) + l] or 
+								h._edges[(3 * j) + 1] == new_edges[(3 * k) + l] or
+								h._edges[(3 * j) + 2] == new_edges[(3 * k) + l]):
+								got += 1
+						if got == 3:
+							got_edge = 1
+							break
+					if got_edge == 0:
+						got_all = 0
 						break
-				if got_edge == 0:
-					got_all = 0
-					break
-		
+				
+				elif self._r == 2:
+					for k in range(self.ne):
+						if (h._edges[2 * j] == new_edges[2 * k]
+							and h._edges[2 * j + 1] == new_edges[2 * k + 1]):
+							got_edge = 1
+						elif not self._oriented and (h._edges[2 * j] == new_edges[2 * k + 1]
+							and h._edges[2 * j + 1] == new_edges[2 * k]):
+							got_edge = 1
+					if got_edge == 0:
+						got_all = 0
+						break						
+			
 			if got_all:
 				free(new_edges)
 				return 1
@@ -494,16 +626,28 @@ cdef class Flag (SageObject):
 					num_e = 0
 					for j in range(self.ne):
 						got = 0
-						e = &self._edges[3 * j]
-						for l in range(k - 1):
-							if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
-								got += 1
-						if self._n == e[0] or self._n == e[1] or self._n == e[2]:
-								got += 1
-						if got == 3:
-							num_e += 1
-							if num_e == fe:
-								return True
+						if self._r == 3:
+							e = &self._edges[3 * j]
+							for l in range(k - 1):
+								if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+									got += 1
+							if self._n == e[0] or self._n == e[1] or self._n == e[2]:
+									got += 1
+							if got == 3:
+								num_e += 1
+								if num_e == fe:
+									return True
+						elif self._r == 2:
+							e = &self._edges[2 * j]
+							for l in range(k - 1):
+								if comb[l] == e[0] or comb[l] == e[1]:
+									got += 1
+							if self._n == e[0] or self._n == e[1]:
+									got += 1
+							if got == 2:
+								num_e += 1
+								if num_e == fe:
+									return True
 	
 			else:
 	
@@ -514,14 +658,24 @@ cdef class Flag (SageObject):
 					num_e = 0
 					for j in range(self.ne):
 						got = 0
-						e = &self._edges[3 * j]
-						for l in range(k):
-							if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
-								got += 1
-						if got == 3:
-							num_e += 1
-							if num_e == fe:
-								return True
+						if self._r == 3:
+							e = &self._edges[3 * j]
+							for l in range(k):
+								if comb[l] == e[0] or comb[l] == e[1] or comb[l] == e[2]:
+									got += 1
+							if got == 3:
+								num_e += 1
+								if num_e == fe:
+									return True
+						elif self._r == 2:
+							e = &self._edges[2 * j]
+							for l in range(k):
+								if comb[l] == e[0] or comb[l] == e[1]:
+									got += 1
+							if got == 2:
+								num_e += 1
+								if num_e == fe:
+									return True
 	
 		return False
 
@@ -534,7 +688,7 @@ cdef class Flag (SageObject):
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
 		
-		cur_edges = <int *> malloc (sizeof(int) * 3 * self.ne)
+		cur_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
 		
 		for i in range(len(graphs)):
 	
@@ -572,6 +726,9 @@ cdef class Flag (SageObject):
 		degenerate graphs. 
 		"""
 
+		if self._oriented:
+			raise NotImplementedError
+
 		if x < 1 or x > self._n:
 			raise ValueError
 	
@@ -579,25 +736,42 @@ cdef class Flag (SageObject):
 		ng.n += 1
 		nv = self._n + 1
 		
-		for e in self.edges:
+		if self._r == 3:
 		
-			le = list(e)
-			if le.count(x) == 1:
-				nle = [y for y in le if y != x]
-				ng.add_edge(nle + [nv])
-			elif le.count(x) == 2:
-				nle = [y for y in le if y != x]
-				ng.add_edge(nle + [x, nv])
-				ng.add_edge(nle + [nv, nv])
-			elif le.count(x) == 3:
-				ng.add_edge((x, x, nv))
-				ng.add_edge((x, nv, nv))
-				ng.add_edge((nv, nv, nv))
+			for e in self.edges:
+			
+				le = list(e)
+				if le.count(x) == 1:
+					nle = [y for y in le if y != x]
+					ng.add_edge(nle + [nv])
+				elif le.count(x) == 2:
+					nle = [y for y in le if y != x]
+					ng.add_edge(nle + [x, nv])
+					ng.add_edge(nle + [nv, nv])
+				elif le.count(x) == 3:
+					ng.add_edge((x, x, nv))
+					ng.add_edge((x, nv, nv))
+					ng.add_edge((nv, nv, nv))
+
+		elif self._r == 2:
 		
+			for e in self.edges:
+				if e[0] == x:
+					if e[1] == x:
+						ng.add_edge((x, nv))
+						ng.add_edge((nv, nv))
+					else:
+						ng.add_edge((nv, e[1]))
+				elif e[1] == x:
+					ng.add_edge((e[0], nv))
+
 		return ng
 
 
 	def degenerate_induced_subgraph(self, verts):
+
+		if self._oriented:
+			raise NotImplementedError
 		
 		cg = self.copy()
 		vertices = []
@@ -610,15 +784,25 @@ cdef class Flag (SageObject):
 		
 		ng = Flag()
 		ng.n = len(vertices)
-		ng.t = 0
+		ng.r = self._r
+		ng.t = 0		
 		
-		for e in cg.edges:
-			if e[0] in vertices and e[1] in vertices and e[2] in vertices:
-				x = vertices.index(e[0]) + 1
-				y = vertices.index(e[1]) + 1
-				z = vertices.index(e[2]) + 1
-				if x != y and x != z and y != z:
-					ng.add_edge((x, y, z))
+		if self._r == 3:
+			for e in cg.edges:
+				if e[0] in vertices and e[1] in vertices and e[2] in vertices:
+					x = vertices.index(e[0]) + 1
+					y = vertices.index(e[1]) + 1
+					z = vertices.index(e[2]) + 1
+					if x != y and x != z and y != z:
+						ng.add_edge((x, y, z))
+
+		elif self._r == 2:
+			for e in cg.edges:
+				if e[0] in vertices and e[1] in vertices:
+					x = vertices.index(e[0]) + 1
+					y = vertices.index(e[1]) + 1
+					if x != y:
+						ng.add_edge((x, y))
 
 		ng.minimize_edges()
 		return ng
@@ -626,8 +810,13 @@ cdef class Flag (SageObject):
 
 	def degenerate_edge_density(self):
 
-		h = Flag("3:123")
-		return self.degenerate_subgraph_density(h)
+		if self._oriented:
+			raise NotImplementedError
+		
+		if self._r == 3:
+			return self.degenerate_subgraph_density(Flag("3:123"))
+		elif self._r == 2:
+			return self.degenerate_subgraph_density(Flag("2:12", r=2))
 		
 
 	def degenerate_subgraph_density(self, h):
@@ -635,6 +824,12 @@ cdef class Flag (SageObject):
 		Returns the H-density. That is, the number of k-sets of vertices that induce
 		graphs isomorphic to H, divided by binomial(n, k).
 		"""
+
+		if self._oriented or h._oriented:
+			raise NotImplementedError
+			
+		if self._r != h._r:
+			raise NotImplementedError
 				
 		found, total = 0, 0
 		minh = h.copy()
@@ -693,47 +888,83 @@ cdef class Flag (SageObject):
 		return [Integer(count[i]) / total for i in range(len(flags))]
 
 
-cdef void raw_minimize_edges(int *edges, int m):
+cdef void raw_minimize_edges(int *edges, int m, int r, bint oriented):
 
-	cdef int i, *e
-
-	for i in range(m):
-		e = &edges[i * 3]
-		if e[0] > e[1]:
-			e[0], e[1] = e[1], e[0]
-		if e[1] > e[2]:
-			e[1], e[2] = e[2], e[1]
-		if e[0] > e[1]:
-			e[0], e[1] = e[1], e[0]
-
-	cdef int round = 1, swapped
+	cdef int i, *e, round, swapped
 	
-	while True:
-	
-		swapped = 0
-		for i in range(m - round):
-			
+	if r == 3:
+
+		for i in range(m):
 			e = &edges[i * 3]
-			
-			if e[0] < e[3]:
-				continue
-			if e[0] == e[3]:
-				if e[1] < e[4]:
+			if e[0] > e[1]:
+				e[0], e[1] = e[1], e[0]
+			if e[1] > e[2]:
+				e[1], e[2] = e[2], e[1]
+			if e[0] > e[1]:
+				e[0], e[1] = e[1], e[0]
+	
+		round = 1
+		
+		while True:
+		
+			swapped = 0
+			for i in range(m - round):
+				
+				e = &edges[i * 3]
+				
+				if e[0] < e[3]:
 					continue
-				if e[1] == e[4]:
-					if e[2] < e[5]:
+				if e[0] == e[3]:
+					if e[1] < e[4]:
 						continue
-						
-			e[0], e[3] = e[3], e[0]
-			e[1], e[4] = e[4], e[1]
-			e[2], e[5] = e[5], e[2]
+					if e[1] == e[4]:
+						if e[2] < e[5]:
+							continue
+							
+				e[0], e[3] = e[3], e[0]
+				e[1], e[4] = e[4], e[1]
+				e[2], e[5] = e[5], e[2]
+	
+				swapped = 1
+				
+			if swapped == 0:
+				break
+				
+			round += 1
 
-			swapped = 1
-			
-		if swapped == 0:
-			break
-			
-		round += 1
+	elif r == 2:
+	
+		if oriented == False:
+		
+			for i in range(m):
+				e = &edges[i * 2]
+				if e[0] > e[1]:
+					e[0], e[1] = e[1], e[0]
+		
+		round = 1
+		
+		while True:
+		
+			swapped = 0
+			for i in range(m - round):
+				
+				e = &edges[i * 2]
+				
+				if e[0] < e[2]:
+					continue
+				if e[0] == e[2]:
+					if e[1] < e[3]:
+						continue
+							
+				e[0], e[2] = e[2], e[0]
+				e[1], e[3] = e[3], e[1]
+	
+				swapped = 1
+				
+			if swapped == 0:
+				break
+				
+			round += 1
 
 
 cdef class combinatorial_info_block:
@@ -1064,7 +1295,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 		flags2 = flags1
 		p = generate_equal_pair_combinations(n, s, m1, &np)
 
-	cur_edges = <int *> malloc (sizeof(int) * 3 * MAX_NUMBER_OF_EDGES)
+	cur_edges = <int *> malloc (sizeof(int) * MAX_NUMBER_OF_EDGE_INTS)
 	pf1 = <int *> malloc (sizeof(int) * m1)
 	pf2 = <int *> malloc (sizeof(int) * m2)
 	grb = <int *> malloc (flags1.len * flags2.len * sizeof(int))
@@ -1202,7 +1433,7 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 		equal_flags_mode = 0
 		p = generate_pair_combinations(n, s, m1, m2, &np)
 	
-	cur_edges = <int *> malloc (sizeof(int) * 3 * MAX_NUMBER_OF_EDGES)
+	cur_edges = <int *> malloc (sizeof(int) * MAX_NUMBER_OF_EDGE_INTS)
 	pf1 = <int *> malloc (sizeof(int) * m1)
 	pf2 = <int *> malloc (sizeof(int) * m2)
 
