@@ -27,7 +27,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-from copy import deepcopy
 import base64
 import gzip
 import json
@@ -74,6 +73,7 @@ class Problem(SageObject):
 		self._sdp_Q_matrices = []
 		self._sdp_density_coeffs = []
 		self._exact_Q_matrices = []
+		self._exact_density_coeffs = []
 		self._bounds = []
 
 
@@ -816,3 +816,56 @@ class Problem(SageObject):
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
 
 		self._bounds = bounds
+
+
+	def combine_densities(self, denominator=32, larger_than=0.0):
+	
+		num_graphs = len(self._graphs)
+		num_densities = len(self._densities)
+	
+		def rationalize (f):
+			return Integer(round(f * denominator)) / denominator
+	
+		new_density_weights = [rationalize(n) for n in self._sdp_density_coeffs]
+	
+		for j in range(num_densities):
+			if self._sdp_density_coeffs[j] < larger_than:
+				new_density_weights[j] = Integer(0)
+	
+		print new_density_weights
+	
+		new_density = [Integer(0) for i in range(num_graphs)]
+		for i in range(num_graphs):
+			for j in range(num_densities):
+				new_density[i] += self._densities[j][i] * new_density_weights[j]
+				
+		new_problem = copy(self)
+		new_problem._sdp_Q_matrices = []
+		new_problem._exact_Q_matrices = []
+		new_problem._sdp_density_coeffs = []
+		new_problem._exact_density_coeffs = []
+		new_problem._bounds = []
+		new_problem._densities = [new_density]
+
+		return new_problem
+
+
+	def lose_small_densities(self, larger_than):
+	
+		num_densities = len(self._densities)
+
+		new_densities = []
+		for j in range(num_densities):
+			if self._sdp_density_coeffs[j] > larger_than:
+				new_densities.append(self._densities[j])
+		
+		new_problem = copy(self)
+		new_problem._sdp_Q_matrices = []
+		new_problem._exact_Q_matrices = []
+		new_problem._sdp_density_coeffs = []
+		new_problem._exact_density_coeffs = []
+		new_problem._bounds = []
+		new_problem._densities = new_densities
+
+		return new_problem
+

@@ -195,15 +195,6 @@ def example(prob):
 		P.calculate_product_densities()
 		
 
-	elif prob == "cod":
-	
-		P = AxiomsProblem()
-		C = None
-		P.forbidden_edge_numbers={4:3}
-		P.n = 6
-		#P.set_inv_anti_inv_bases()
-		P.calculate_product_densities()
-
 	elif prob == "cod6":
 	
 		P = AxiomsProblem()
@@ -241,6 +232,7 @@ def example(prob):
 		P.forbidden_edge_numbers={4:3}
 		P.forbidden_graphs = [Flag("6:612623634645651")]
 		P.n = 6
+		P.set_inv_anti_inv_bases()
 		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
@@ -251,8 +243,35 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_csdp()
 		P.check_floating_point_bound()
-		P.make_exact(240*1024)
+		P.make_exact(1024*1024)
 		P.check_exact_bound()
+
+	elif prob == "k4-cod":
+	
+		P = AxiomsProblem()
+		P.forbidden_edge_numbers={4:3}
+		P.n = 7
+		P.save_json("k4-cod.js")
+		P.set_inv_anti_inv_bases()
+		P.save_json("k4-cod.js")
+		P.clear_axioms()
+		P.add_codegree_axiom(Rational("1/4"))
+		P._force_sharps = True
+		C = RandomTournamentConstruction()
+		P.use_construction(C)
+		P.set_new_bases()
+		P.save_json("k4-cod.js")
+		P.calculate_product_densities()
+		P.save_json("k4-cod.js")
+		P.write_sdp_input_file()
+		P.save_json("k4-cod.js")
+		P.run_csdp(True)
+		P.save_json("k4-cod.js")
+		P.check_floating_point_bound()
+		P.save_json("k4-cod.js")
+		#P.make_exact(1024*1024)
+		#P.check_exact_bound()
+
 
 	elif prob == "marchant":
 	
