@@ -54,7 +54,7 @@ class Problem(SageObject):
 		self.forbidden_graphs = []
 		self.forbidden_induced_graphs = []
 		self._graphs = []
-		self._graph_densities = []
+		self._densities = []
 		self._density_graph = None
 
 		self._types = []
@@ -71,6 +71,7 @@ class Problem(SageObject):
 		self._sdp_output_filename = None
 	
 		self._sdp_Q_matrices = []
+		self._sdp_density_coeffs = []
 		self._exact_Q_matrices = []
 		self._bounds = []
 
@@ -83,9 +84,9 @@ class Problem(SageObject):
 		d["forbidden_edge_numbers"] = self.forbidden_edge_numbers
 		d["forbidden_graphs"] = [repr(g) for g in self.forbidden_graphs]
 		d["forbidden_induced_graphs"] = [repr(g) for g in self.forbidden_induced_graphs]
-			
+		
 		d["graphs"] = [repr(g) for g in self._graphs]
-		d["graph_densities"] = [repr(r) for r in self._graph_densities]
+		d["densities"] = [[repr(r) for r in x] for x in self._densities]
 		if not self._density_graph is None:
 			d["density_graph"] = repr(self._density_graph)
 			
@@ -106,7 +107,9 @@ class Problem(SageObject):
 			d["sdp_output_filename"] = self._sdp_output_filename
 			
 		d["sdp_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._sdp_Q_matrices]
+		d["sdp_density_coeffs"] = [n for n in self._sdp_density_coeffs]
 		d["exact_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._exact_Q_matrices]
+		d["exact_density_coeffs"] = [repr(r) for r in self._exact_density_coeffs]
 		d["bounds"] = [repr(r) for r in self._bounds]
 		
 		self.save_more_json(d)
@@ -133,7 +136,7 @@ class Problem(SageObject):
 		obj.forbidden_induced_graphs = [Flag(s) for s in d["forbidden_induced_graphs"]]
 		
 		obj._graphs = [Flag(s) for s in d["graphs"]]
-		obj._graph_densities = [sage_eval(s) for s in d["graph_densities"]]
+		obj._densities = [[sage_eval(s) for s in x] for x in d["densities"]]
 		if "density_graph" in d:
 			obj._density_graph = Flag(d["density_graph"])
 
@@ -155,7 +158,9 @@ class Problem(SageObject):
 			obj._sdp_output_filename = d["sdp_output_filename"]
 			
 		obj._sdp_Q_matrices = [loads(base64.b64decode(s)) for s in d["sdp_Q_matrices"]]
+		obj._sdp_density_coeffs = [n for n in d["sdp_density_coeffs"]]
 		obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
+		obj._exact_density_coeffs = [loads(base64.b64decode(s)) for s in d["exact_density_coeffs"]]
 		obj._bounds = [sage_eval(s) for s in d["bounds"]]
 	
 		cls.load_more_json(d, obj)
@@ -182,9 +187,7 @@ class Problem(SageObject):
 			forbidden_induced_graphs=self.forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
-		self._graph_densities = []
-		for g in self._graphs:
-			self._graph_densities.append(g.edge_density())
+		self._densities = [[g.edge_density() for g in self._graphs]]
 	
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
@@ -236,9 +239,7 @@ class Problem(SageObject):
 	@density_graph.setter
 	def density_graph(self, dg):
 		self._density_graph = dg
-		self._graph_densities = []
-		for g in self._graphs:
-			self._graph_densities.append(g.subgraph_density(dg))
+		self._densities = [[g.subgraph_density(dg) for g in self._graphs]]
 
 
 	def set_inv_anti_inv_bases(self):
@@ -345,9 +346,9 @@ class Problem(SageObject):
 			
 			self._product_densities_dumps.append(this_type_dumps)
 
-
-	def write_block_sizes(self, f):
 	
+	def write_blocks(self, f, write_sizes=False):
+
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		
@@ -362,26 +363,13 @@ class Problem(SageObject):
 				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)
 
-		for i in range(num_types):
-			f.write("%d " % inv_block_sizes[i])
-			f.write("%d " % anti_inv_block_sizes[i])
+		if write_sizes:
 
-	
-	def write_blocks(self, f):
+			for i in range(num_types):
+				f.write("%d " % inv_block_sizes[i])
+				f.write("%d " % anti_inv_block_sizes[i])
 
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-		
-		inv_block_sizes = []
-		anti_inv_block_sizes = []
-		for i in range(num_types):
-			row_div = self._flag_bases[i].subdivisions()[0]
-			if len(row_div) > 0:
-				inv_block_sizes.append(row_div[0])
-				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
-			else:
-				inv_block_sizes.append(self._flag_bases[i].nrows())
-				anti_inv_block_sizes.append(1)
+			return
 
 		for i in range(num_graphs):
 			for j in range(num_types):
@@ -404,9 +392,13 @@ class Problem(SageObject):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
+		num_densities = len(self._densities)
 		
 		# Multiply SDP solver objective value by -1
 		self._obj_value_factor = -1
+		
+		if num_densities < 1:
+			raise NotImplementedError("there must be at least one density.")
 		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
@@ -416,9 +408,8 @@ class Problem(SageObject):
 			f.write("%d\n" % (2 * num_types + 3,))
 			
 			f.write("1 ")
-			self.write_block_sizes(f)
-			f.write("-%d -1\n" % num_graphs)
-			
+			self.write_blocks(f, True)
+			f.write("-%d -%d\n" % (num_graphs, num_densities))
 			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
 			f.write("0 1 1 1 -1.0\n")
 	
@@ -428,14 +419,63 @@ class Problem(SageObject):
 					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
-				d = self._graph_densities[i]
-				if d != 0:
-					f.write("%d %d 1 1 %s\n" % (i + 1, 2 * num_types + 3, d.n(digits=64)))
+				for j in range(num_densities):
+					d = self._densities[j][i]
+					if d != 0:
+						f.write("%d %d %d %d %s\n" % (i + 1, 2 * num_types + 3, j + 1, j + 1, d.n(digits=64)))
 			
-			f.write("%d %d 1 1 1.0\n" % (num_graphs + 1, 2 * num_types + 3))
+			for j in range(num_densities):
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, 2 * num_types + 3, j + 1, j + 1))
 		
 			self.write_blocks(f)
+
+
+	def write_alternate_sdp_input_file(self):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._densities)
+
+		self._obj_value_factor = 1
 		
+		if num_densities < 1:
+			raise NotImplementedError("there must be at least one density.")
+		
+		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
+	
+		with open(self._sdp_input_filename, "w") as f:
+	
+			f.write("%d\n" % (num_graphs + num_densities * 2,))
+			f.write("%d\n" % (2 * num_types + 5,))
+			
+			f.write("1 ")
+			self.write_blocks(f, True)
+			f.write("-%d -%d -%d -%d\n" % (num_graphs, num_densities, num_densities, num_densities))
+			f.write("%s%s%s\n" % ("0.0 " * num_graphs, "0.0 " * num_densities, "1.0 " * num_densities))
+			f.write("0 1 1 1 1.0\n")
+	
+			for i in range(num_graphs):
+				if not (self._force_sharps and i in self._sharp_graphs):
+					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
+	
+			for i in range(num_graphs):
+				for j in range(num_densities):
+					d = self._densities[i][j]
+					if d != 0:
+						f.write("%d %d %d %d %s\n" % (i + 1, 2 * num_types + 3, j + 1, j + 1, d.n(digits=64)))
+			
+			for j in range(num_densities):
+				f.write("%d 1 1 1 -1.0\n" % (num_graphs + 1 + j,))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1 + j, 2 * num_types + 3, j + 1, j + 1))
+				f.write("%d %d %d %d -1.0\n" % (num_graphs + 1 + j, 2 * num_types + 4, j + 1, j + 1))
+		
+			for j in range(num_densities):
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, 2 * num_types + 3, j + 1, j + 1))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, 2 * num_types + 5, j + 1, j + 1))
+	
+			self.write_blocks(f)
+
+
 
 	def run_csdp(self, show_output=False):
 	
@@ -484,6 +524,7 @@ class Problem(SageObject):
 
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
+		num_densities = len(self._densities)
 		
 		inv_block_sizes = []
 		anti_inv_block_sizes = []
@@ -496,11 +537,17 @@ class Problem(SageObject):
 				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)	
 		
+		self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
+		
 		for line in f:
 			numbers = line.split()
 			if numbers[0] != "2":
 				continue
 			ti = int(numbers[1]) - 2
+			if ti == 2 * num_types + 1:
+				j = int(numbers[2]) - 1
+				self._sdp_density_coeffs[j] = RDF(numbers[4])
+				continue
 			if ti < 0 or ti >= 2 * num_types:
 				continue
 			j = int(numbers[2]) - 1
@@ -550,7 +597,9 @@ class Problem(SageObject):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
-		fbounds = [RDF(self._graph_densities[i]) for i in range(num_graphs)]
+		num_densities = len(self._densities)
+		
+		fbounds = [sum([self._densities[j][i] * self._sdp_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 		
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
@@ -592,6 +641,7 @@ class Problem(SageObject):
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_sharps = len(self._sharp_graphs)
+		num_densities = len(self._densities)
 
 		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
 
@@ -610,7 +660,12 @@ class Problem(SageObject):
 						M[j, k] = value
 						M[k, j] = value
 			self._exact_Q_matrices.append(M)
-	
+
+		if num_densities == 1:
+			self._exact_density_coeffs = [Integer(1)]
+		else:
+			self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
+			
 		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
 			for k in range(j, q_sizes[ti])]
 	
@@ -631,10 +686,21 @@ class Problem(SageObject):
 						if j != k:
 							value *= 2
 						R[si, triple_to_index[trip]] = value
-
-		rankR = R.rank()
-		sys.stdout.write("R matrix has %d rows and rank %d.\n" % (R.nrows(), rankR))		
 		
+		density_cols_to_use = []
+		DR = matrix(QQ, num_sharps, 0, sparse=True)
+		rankDR = 0
+		# Only if there is more than one density
+		if num_densities > 1:
+			for j in range(num_densities):
+				newDR = DR.augment(matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]]).T)
+				if newDR.rank() > rankDR:
+					rankDR += 1
+					DR = newDR
+					density_cols_to_use.append(j)
+			
+		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
+				
 		col_norms = {}
 		for i in range(num_triples):
 			n = sum(x**2 for x in R.column(i))
@@ -647,42 +713,47 @@ class Problem(SageObject):
 		cols_in_order = sorted(col_norms.keys(), key = lambda i : -col_norms[i])
 		cols_to_use = []
 	
-		PR = matrix(QQ, num_sharps, 0, sparse=True)
-		rankPR = 0
 		for j in cols_in_order:
-			newPR = PR.augment(R[:, j : j + 1])
-			if newPR.rank() > rankPR:
-				rankPR += 1
-				PR = newPR
+			newDR = DR.augment(R[:, j : j + 1])
+			if newDR.rank() > rankDR:
+				rankDR += 1
+				DR = newDR
 				cols_to_use.append(j)
-				if rankPR == rankR:
-					break
-		else:
-			raise NotImplementedError("could not find enough columns.")		
 		
-		sys.stdout.write("Chosen PR matrix of rank %d.\n" % PR.rank())
+		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
 		
 		T = matrix(QQ, num_sharps, 1, sparse=True)
 		
 		for si in range(num_sharps):
 		
 			gi = self._sharp_graphs[si]
-			T[si, 0] = self._target_bound - self._graph_densities[gi]		
+			T[si, 0] = self._target_bound
+			
+			for j in range(num_densities):
+				if not j in density_cols_to_use:
+					T[si, 0] -= self._exact_density_coeffs[j] * self._densities[j][gi]
 		
 			for i in range(num_triples):
 				if not i in cols_to_use:
 					ti, j, k = triples[i]
 					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
 
-		X = PR.solve_right(T)
+		X = DR.solve_right(T)
 		RX = matrix(RDF, X.nrows(), 1)
 	
-		for i in range(len(cols_to_use)):
-			ti, j, k = triples[cols_to_use[i]]
+		for i in range(len(density_cols_to_use)):
+			di = density_cols_to_use[i]
+			RX[i, 0] = self._exact_density_coeffs[di]
+			self._exact_density_coeffs[di] = X[i, 0]
+
+		for i in range(len(density_cols_to_use), X.nrows()):
+			ti, j, k = triples[cols_to_use[i - len(density_cols_to_use)]]
 			RX[i, 0] = self._sdp_Q_matrices[ti][j, k]
 			self._exact_Q_matrices[ti][j, k] = X[i, 0]
 			self._exact_Q_matrices[ti][k, j] = X[i, 0]
-			print "%s : %s : %s" % (RX[i,0], X[i,0], RDF(X[i,0]))
+		
+		for i in range(X.nrows()):
+			print "%s : %s" % (RX[i,0], RDF(X[i,0]))
 
 	
 	# TODO: Make sure this always does it numerically (numpy).
@@ -701,7 +772,9 @@ class Problem(SageObject):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
-		bounds = [self._graph_densities[i] for i in range(num_graphs)]
+		num_densities = len(self._densities)
+		
+		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 		
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])

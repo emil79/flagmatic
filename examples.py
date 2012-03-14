@@ -241,6 +241,7 @@ def example(prob):
 		P.forbidden_edge_numbers={4:3}
 		P.forbidden_graphs = [Flag("6:612623634645651")]
 		P.n = 6
+		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
 		C = RandomTournamentConstruction()
