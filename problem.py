@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+from copy import deepcopy
 import base64
 import gzip
 import json
@@ -214,9 +215,11 @@ class Problem(SageObject):
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
 
-		self._flag_bases = []
+		self._flag_bases = [identity_matrix(QQ, len(self._flags[ti]), sparse=True) for ti in range(len(self._types))]
+
 		for ti in range(len(self._types)):
-			self._flag_bases.append(identity_matrix(QQ, len(self._flags[ti]), sparse=True))
+			self._flag_bases[ti].set_immutable()
+
 
 	@property
 	def graphs(self):
@@ -286,6 +289,10 @@ class Problem(SageObject):
 				
 			self._zero_eigenvectors.append(block_diagonal_matrix(M))
 
+		for ti in range(len(self._types)):
+			self._zero_eigenvectors[ti].set_immutable()
+
+
 
 	def set_new_bases(self):
 
@@ -309,6 +316,8 @@ class Problem(SageObject):
 					M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
 
 			self._flag_bases[ti] = block_diagonal_matrix(M) * self._flag_bases[ti]
+			self._flag_bases[ti].set_immutable()
+
 
 
  	def calculate_product_densities(self):
@@ -507,14 +516,6 @@ class Problem(SageObject):
 			
 		# TODO: if program is infeasible, a returncode of 1 is given,
 		# and output contains "infeasible"
-		
-		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
-			for i in range(num_types)]
-		
-		for ti in range(len(self._types)):
-			B = self._flag_bases[ti]
-			row_div = B.subdivisions()[0]
-			self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
 
 		with open(self._sdp_output_filename, "r") as f:
 			self.process_sdp_output_file(f)
@@ -536,6 +537,14 @@ class Problem(SageObject):
 			else:
 				inv_block_sizes.append(self._flag_bases[i].nrows())
 				anti_inv_block_sizes.append(1)	
+
+		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
+			for i in range(num_types)]
+		
+		for ti in range(num_types):
+			B = self._flag_bases[ti]
+			row_div = B.subdivisions()[0]
+			self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
 		
 		self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
 		
@@ -562,6 +571,9 @@ class Problem(SageObject):
 				ti /= 2
 			self._sdp_Q_matrices[ti][j, k] = numbers[4]
 			self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
+
+		for ti in range(num_types):
+			self._sdp_Q_matrices[ti].set_immutable()
 
 
 	def zero_eigenvalues(self, tolerance = 0.00001):
@@ -755,9 +767,11 @@ class Problem(SageObject):
 		for i in range(X.nrows()):
 			print "%s : %s" % (RX[i,0], RDF(X[i,0]))
 
+		for ti in range(num_types):
+			self._exact_Q_matrices[ti].set_immutable()
 	
-	# TODO: Make sure this always does it numerically (numpy).
 	
+
 	def compare_eigenvalues(self):
 	
 		for ti in range(len(self._types)):
