@@ -44,11 +44,6 @@ class AxiomsProblem(Problem):
 		d["sdp_density_coeffs"] = [repr(r) for r in self._sdp_density_coeffs]
 		d["exact_density_coeffs"] = [repr(r) for r in self._exact_density_coeffs]
 
-
-#	@classmethod
-#	def load_json(cls, filename):
-#		return Problem.load_json(
-	
 	
 	@classmethod
 	def load_more_json(cls, d, obj):
