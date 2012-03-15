@@ -326,4 +326,43 @@ def example(prob):
 		P.check_exact_bound()
 
 
+	elif prob == "34":
+
+
+		P = Problem(2)
+		P.forbidden_induced_graphs = [Flag("4:",2)]
+		P.n = 5
+		P.set_inv_anti_inv_bases()
+		P.density_graph = Flag("3:121323",2)
+		C = BlowupConstruction(Flag("3:112233", 2))
+		P.use_construction(C)
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P._minimize=True
+		P.write_sdp_input_file()
+		P.run_csdp()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
+
+	elif prob == "43":
+
+
+		P = Problem(2)
+		P.forbidden_induced_graphs = [Flag("3:",2)]
+		P.n = 6
+		P.set_inv_anti_inv_bases()
+		P.density_graph = Flag("4:121314232434",2)
+		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
+		P.use_construction(C)
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P._minimize=True
+		P.write_sdp_input_file()
+		P.run_csdp()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
 	return P,C

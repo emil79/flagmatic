@@ -248,6 +248,9 @@ cdef class Flag (SageObject):
 
 		ne = len(s) - 2
 		
+		if ne > MAX_NUMBER_OF_EDGE_INTS:
+			raise NotImplementedError("Too many edges.")
+		
 		if self._r == 3:
 		
 			if ne % 3 != 0:

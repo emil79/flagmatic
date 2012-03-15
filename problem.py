@@ -138,45 +138,63 @@ class Problem(SageObject):
 		with open(filename, "rb") as f:
 			d = json.load(f)
 		
-		obj._n = d["n"]
+		if "n" in d:
+			obj._n = d["n"]
 		if "r" in d:
 			obj._r = d["r"]
 		if "oriented" in d:
 			obj._oriented = d["oriented"]
-			
-		obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
-		obj.forbidden_graphs = [Flag(s) for s in d["forbidden_graphs"]]
-		obj.forbidden_induced_graphs = [Flag(s) for s in d["forbidden_induced_graphs"]]
+		if "forbidden_edge_numbers" in d:	
+			obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
+		if "forbidden_graphs" in d:
+			obj.forbidden_graphs = [Flag(s) for s in d["forbidden_graphs"]]
+		if "forbidden_induced_graphs" in d:
+			obj.forbidden_induced_graphs = [Flag(s) for s in d["forbidden_induced_graphs"]]
 		
-		obj._graphs = [Flag(s) for s in d["graphs"]]
-		obj._densities = [[sage_eval(s) for s in x] for x in d["densities"]]
+		if "graphs" in d:
+			obj._graphs = [Flag(s) for s in d["graphs"]]
+		if "densities" in d:
+			obj._densities = [[sage_eval(s) for s in x] for x in d["densities"]]
 		if "density_graph" in d:
 			obj._density_graph = Flag(d["density_graph"])
 
-		obj._types = [Flag(s) for s in d["types"]]
-		obj._flags = [[Flag(s) for s in x] for x in d["flags"]]
-		obj._flag_bases = [loads(base64.b64decode(s)) for s in d["flag_bases"]]
+		if "types" in d:
+			obj._types = [Flag(s) for s in d["types"]]
+		if "flags" in d:
+			obj._flags = [[Flag(s) for s in x] for x in d["flags"]]
+		if "flag_bases" in d:
+			obj._flag_bases = [loads(base64.b64decode(s)) for s in d["flag_bases"]]
 		if "target_bound" in d:
 			obj._target_bound = sage_eval(d["target_bound"]) 
 		
-		obj._sharp_graphs = d["sharp_graphs"]
-		obj._zero_eigenvectors = [loads(base64.b64decode(s)) for s in d["zero_eigenvectors"]]
-		obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
+		if "sharp_graphs" in d:
+			obj._sharp_graphs = d["sharp_graphs"]
+		if "zero_eigenvectors" in d:
+			obj._zero_eigenvectors = [loads(base64.b64decode(s)) for s in d["zero_eigenvectors"]]
+		if "product_densities_dumps" in d:
+			obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
 
-		obj._obj_value_factor = d["obj_value_factor"]
+		if "obj_value_factor" in d:
+			obj._obj_value_factor = d["obj_value_factor"]
 		if "minimize" in d:
 			self._minimize = d["minimize"]
-		obj._force_sharps = d["force_sharps"]
+		if "force_sharps" in d:
+			obj._force_sharps = d["force_sharps"]
 		if "sdp_input_filename" in d:
 			obj._sdp_input_filename = d["sdp_input_filename"]
 		if "sdp_output_filename" in d:
 			obj._sdp_output_filename = d["sdp_output_filename"]
 			
-		obj._sdp_Q_matrices = [loads(base64.b64decode(s)) for s in d["sdp_Q_matrices"]]
-		obj._sdp_density_coeffs = [n for n in d["sdp_density_coeffs"]]
-		obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
-		obj._exact_density_coeffs = [loads(base64.b64decode(s)) for s in d["exact_density_coeffs"]]
-		obj._bounds = [sage_eval(s) for s in d["bounds"]]
+		if "sdp_Q_matrices" in d:
+			obj._sdp_Q_matrices = [loads(base64.b64decode(s)) for s in d["sdp_Q_matrices"]]
+		if "sdp_density_coeffs" in d:
+			obj._sdp_density_coeffs = [n for n in d["sdp_density_coeffs"]]
+		if "exact_Q_matrices" in d:
+			obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
+		if "exact_density_coeffs" in d:
+			obj._exact_density_coeffs = [loads(base64.b64decode(s)) for s in d["exact_density_coeffs"]]
+		if "bounds" in d:
+			obj._bounds = [sage_eval(s) for s in d["bounds"]]
 	
 		cls.load_more_json(d, obj)
 	
@@ -424,8 +442,11 @@ class Problem(SageObject):
 		num_types = len(self._types)
 		num_densities = len(self._densities)
 		
-		# Multiply SDP solver objective value by -1
-		self._obj_value_factor = -1
+		if not self._minimize:
+			# Multiply SDP solver objective value by -1
+			self._obj_value_factor = -1
+		else:
+			self._obj_value_factor = 1
 		
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")
@@ -459,6 +480,8 @@ class Problem(SageObject):
 				for j in range(num_densities):
 					d = self._densities[j][i]
 					if d != 0:
+						if self._minimize:
+							d *= -1
 						f.write("%d %d %d %d %s\n" % (i + 1, 2 * num_types + 3, j + 1, j + 1, d.n(digits=64)))
 			
 			for j in range(num_densities):
@@ -618,6 +641,25 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
+	def zero_eigenvectors(self, ti, tolerance = 0.00001):
+	
+		if not ti - 1 in range(len(self._types)):
+			raise ValueError
+
+		ns = len(P._sdp_Q_matrices[ti].subdivisions()[0]) + 1
+	
+		B = []
+		for i in range(ns):
+			QB = self._sdp_Q_matrices[ti].subdivision(i, i)
+			eigvals, T = numpy.linalg.eigh(QB)
+			M = matrix(RDF, 0, QB.ncols())
+			for ei in range(len(eigvals)):
+				if eigvals[ei] < tolerance:
+					M = M.stack(matrix(numpy.matrix(T[:, ei])))
+			B.append(M)								
+		return block_diagonal_matrix(B)
+
+
 	def check_construction(self, C, tolerance = 0.00001):
 	
 		num_types = len(self._types)
@@ -652,9 +694,16 @@ class Problem(SageObject):
 							value *= 2
 						d = D[j, k]
 						if d != 0:
-							fbounds[gi] += d * value
+							if not self._minimize:
+								fbounds[gi] += d * value
+							else:
+								fbounds[gi] -= d * value
 
-		bound = max(fbounds)
+		if not self._minimize:
+			bound = max(fbounds)
+		else:
+			bound = min(fbounds)
+		
 		if abs(bound - RDF(self._target_bound)) < tolerance:
 			sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
 		else:
@@ -725,6 +774,8 @@ class Problem(SageObject):
 						value = D[j, k]
 						if j != k:
 							value *= 2
+						if self._minimize:
+							value *= -1
 						R[si, triple_to_index[trip]] = value
 		
 		density_cols_to_use = []
@@ -829,9 +880,16 @@ class Problem(SageObject):
 							value *= 2
 						d = D[j, k]
 						if d != 0:
-							bounds[gi] += d * value
+							if not self._minimize:
+								bounds[gi] += d * value
+							else:
+								bounds[gi] -= d * value
 
-		bound = max(bounds)
+		if not self._minimize:
+			bound = max(bounds)
+		else:
+			bound = min(bounds)
+
 		if bound > self._target_bound:
 			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
 			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
