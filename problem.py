@@ -47,9 +47,12 @@ cdsp_cmd = "csdp"
     
 class Problem(SageObject):
 
-	def __init__(self):
+	def __init__(self, r=3, oriented=False):
 	
 		self._n = 0
+		self._r = r
+		self._oriented = oriented
+
 		self.forbidden_edge_numbers = {}
 		self.forbidden_graphs = []
 		self.forbidden_induced_graphs = []
@@ -172,6 +175,13 @@ class Problem(SageObject):
 	def load_more_json(cls, d, obj):
 		pass
 
+	@property
+	def r(self):
+		return self._r
+		
+	@property
+	def oriented(self):
+		return self._oriented
 
 	@property
 	def n(self):
@@ -182,7 +192,7 @@ class Problem(SageObject):
 		self._n = n
 
 		sys.stdout.write("Generating graphs...\n")
-		self._graphs = generate_graphs(n,
+		self._graphs = generate_graphs(n, self._r, self._oriented,
 			forbidden_edge_numbers=self.forbidden_edge_numbers,
 			forbidden_graphs=self.forbidden_graphs,
 			forbidden_induced_graphs=self.forbidden_induced_graphs)
@@ -196,7 +206,7 @@ class Problem(SageObject):
 	
 		for s in range(n % 2, n - 1, 2):
 			
-			these_types = generate_graphs(s,
+			these_types = generate_graphs(s, self._r, self._oriented,
 				forbidden_edge_numbers=self.forbidden_edge_numbers,
 				forbidden_graphs=self.forbidden_graphs,
 				forbidden_induced_graphs=self.forbidden_induced_graphs)
@@ -206,7 +216,7 @@ class Problem(SageObject):
 			m = (n + s) / 2
 			these_flags = []
 			for tg in these_types:
-				these_flags.append(generate_flags(m, tg,
+				these_flags.append(generate_flags(m, tg, self._r, self._oriented,
 					forbidden_edge_numbers=self.forbidden_edge_numbers,
 					forbidden_graphs=self.forbidden_graphs,
 					forbidden_induced_graphs=self.forbidden_induced_graphs))

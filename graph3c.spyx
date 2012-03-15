@@ -816,7 +816,7 @@ cdef class Flag (SageObject):
 		if self._r == 3:
 			return self.degenerate_subgraph_density(Flag("3:123"))
 		elif self._r == 2:
-			return self.degenerate_subgraph_density(Flag("2:12", r=2))
+			return self.degenerate_subgraph_density(Flag("2:12", 2))
 		
 
 	def degenerate_subgraph_density(self, h):
@@ -825,10 +825,10 @@ cdef class Flag (SageObject):
 		graphs isomorphic to H, divided by binomial(n, k).
 		"""
 
-		if self._oriented or h._oriented:
+		if self.oriented or h.oriented:
 			raise NotImplementedError
 			
-		if self._r != h._r:
+		if self.r != h.r:
 			raise NotImplementedError
 				
 		found, total = 0, 0

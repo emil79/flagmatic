@@ -30,13 +30,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 class AxiomsProblem(Problem):
 	
-	def __init__(self):
+	def __init__(self, r=3, oriented=False):
 	
-		Problem.__init__(self)
+		Problem.__init__(self, r, oriented)
 	
 
 	def save_more_json(self, d):
-		pass	
+		pass
 
 	
 	@classmethod
@@ -92,5 +92,3 @@ class AxiomsProblem(Problem):
 		f1 = Flag("3:123(1)")
 		f2 = Flag("1:(1)")
 		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
-
-
