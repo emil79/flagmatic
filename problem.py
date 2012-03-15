@@ -69,6 +69,7 @@ class Problem(SageObject):
 		self._product_densities_dumps = {}
 	
 		self._obj_value_factor = -1
+		self._minimize = False
 		self._force_sharps = False
 		self._sdp_input_filename = None
 		self._sdp_output_filename = None
@@ -85,6 +86,8 @@ class Problem(SageObject):
 		d = {}
 		
 		d["n"] = self._n
+		d["r"] = self._r
+		d["oriented"] = self._oriented
 		d["forbidden_edge_numbers"] = self.forbidden_edge_numbers
 		d["forbidden_graphs"] = [repr(g) for g in self.forbidden_graphs]
 		d["forbidden_induced_graphs"] = [repr(g) for g in self.forbidden_induced_graphs]
@@ -104,6 +107,7 @@ class Problem(SageObject):
 		d["product_densities_dumps"] = [[base64.b64encode(s) for s in x] for x in self._product_densities_dumps]
 
 		d["obj_value_factor"] = self._obj_value_factor
+		d["minimize"] = self._minimize
 		d["force_sharps"] = self._force_sharps
 		if not self._sdp_input_filename is None:
 			d["sdp_input_filename"] = self._sdp_input_filename,
@@ -135,6 +139,11 @@ class Problem(SageObject):
 			d = json.load(f)
 		
 		obj._n = d["n"]
+		if "r" in d:
+			obj._r = d["r"]
+		if "oriented" in d:
+			obj._oriented = d["oriented"]
+			
 		obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
 		obj.forbidden_graphs = [Flag(s) for s in d["forbidden_graphs"]]
 		obj.forbidden_induced_graphs = [Flag(s) for s in d["forbidden_induced_graphs"]]
@@ -155,6 +164,8 @@ class Problem(SageObject):
 		obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
 
 		obj._obj_value_factor = d["obj_value_factor"]
+		if "minimize" in d:
+			self._minimize = d["minimize"]
 		obj._force_sharps = d["force_sharps"]
 		if "sdp_input_filename" in d:
 			obj._sdp_input_filename = d["sdp_input_filename"]
@@ -430,10 +441,17 @@ class Problem(SageObject):
 			self.write_blocks(f, True)
 			f.write("-%d -%d\n" % (num_graphs, num_densities))
 			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
-			f.write("0 1 1 1 -1.0\n")
+			
+			if not self._minimize:
+				f.write("0 1 1 1 -1.0\n")
+			else:
+				f.write("0 1 1 1 1.0\n")
 	
 			for i in range(num_graphs):
-				f.write("%d 1 1 1 -1.0\n" % (i + 1,))
+				if not self._minimize:
+					f.write("%d 1 1 1 -1.0\n" % (i + 1,))
+				else:
+					f.write("%d 1 1 1 1.0\n" % (i + 1,))
 				if not (self._force_sharps and i in self._sharp_graphs):
 					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
 	
