@@ -94,6 +94,9 @@ class BlowupConstruction(Construction):
 
 			total += factor
 		
+		sys.stdout.write("The following %d graphs appear in the construction:\n" %
+			len(sharp_graphs))
+		
 		for gs in sorted(sharp_graphs, key = lambda g : g.ne):
 			density = sharp_graph_counts[hash(gs)] / Integer(total)
 			sys.stdout.write("%s has density %s (%g).\n" % (gs,

@@ -371,6 +371,12 @@ class Problem(SageObject):
 
 	def set_new_bases(self):
 
+		# If there are no zero eigenvectors, just use the block bases
+		if len(self._zero_eigenvectors) == 0:
+			for ti in range(len(self._types)):
+				self._flag_bases[ti] = self._block_bases[ti]
+			return
+
 		for ti in range(len(self._types)):
 	
 			col_div = self._zero_eigenvectors[ti].subdivisions()[1]
@@ -926,18 +932,19 @@ class Problem(SageObject):
 
 		if not self._minimize:
 			bound = max(bounds)
+			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
 		else:
 			bound = min(bounds)
-
-		if bound > self._target_bound:
-			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
-			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
-			for gi in violators:
-				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
-
+			violators = [gi for gi in range(num_graphs) if bounds[gi] < self._target_bound]
+		
 		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
 		for gi in range(num_graphs):
 			if bounds[gi] == self._target_bound:
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
+
+		if len(violators) > 0:
+			sys.stdout.write("Bound violated by:")
+			for gi in violators:
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
 
 		self._bounds = bounds
