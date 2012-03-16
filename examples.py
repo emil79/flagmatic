@@ -326,6 +326,33 @@ def example(prob):
 		P.check_exact_bound()
 
 
+	elif prob == "paw":
+
+		P = Problem(2)
+		P.n = 5
+		
+		P._types = P._types[:4]
+		P._flags = P._flags[:4]
+		P._flag_basess = P._flag_bases[:4]
+		
+		P.create_block_bases()
+		P.density_graph = Flag("4:12233114", 2)
+		C = BlowupConstruction(Flag("4:1223344111223344", 2))
+		P.use_construction(C)
+		P.set_new_bases()
+		
+		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[0,0,0,-5,2]]))
+		#P._sharp_graphs.extend([24, 27])
+		P.set_new_bases()
+		
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
+
 	elif prob == "34":
 
 		P = Problem(2)
