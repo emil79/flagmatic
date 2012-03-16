@@ -686,7 +686,7 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
-	def show_zero_eigenvectors(self, ti, tolerance = 0.00001):
+	def get_zero_eigenvectors(self, ti, tolerance = 0.00001):
 	
 		if not ti in range(len(self._types)):
 			raise ValueError
