@@ -62,6 +62,7 @@ class Problem(SageObject):
 
 		self._types = []
 		self._flags = []
+		self._block_bases = []
 		self._flag_bases = []
 		self._target_bound = None
 		self._sharp_graphs = []
@@ -99,6 +100,7 @@ class Problem(SageObject):
 			
 		d["types"] = [repr(g) for g in self._types]
 		d["flags"] = [[repr(g) for g in x] for x in self._flags]
+		d["block_bases"] = [base64.b64encode(dumps(M)) for M in self._block_bases]
 		d["flag_bases"] = [base64.b64encode(dumps(M)) for M in self._flag_bases]
 		if not self._target_bound is None:
 			d["target_bound"] = repr(self._target_bound)
@@ -162,6 +164,8 @@ class Problem(SageObject):
 			obj._types = [Flag(s) for s in d["types"]]
 		if "flags" in d:
 			obj._flags = [[Flag(s) for s in x] for x in d["flags"]]
+		if "block_bases" in d:
+			obj._block_bases = [loads(base64.b64decode(s)) for s in d["block_bases"]]
 		if "flag_bases" in d:
 			obj._flag_bases = [loads(base64.b64decode(s)) for s in d["flag_bases"]]
 		if "target_bound" in d:
@@ -284,11 +288,13 @@ class Problem(SageObject):
 		self._densities = [[g.subgraph_density(dg) for g in self._graphs]]
 
 
-	def set_inv_anti_inv_bases(self):
+	def create_block_bases(self):
 
+		self._block_bases = []
 		for ti in range(len(self._types)):
 			B = flag_basis(self._types[ti], self._flags[ti])
-			self._flag_bases[ti] = B
+			self._block_bases.append(B)
+
 
 	def use_construction(self, c):
 
@@ -316,20 +322,50 @@ class Problem(SageObject):
 		
 		for ti in range(len(self._types)):
 		
-			row_div = self._flag_bases[ti].subdivisions()[0]
-			div_sizes = row_div + [len(self._flags)]
-			for i in range(1, len(div_sizes)):
-				div_sizes[i] -= div_sizes[i - 1]
-	
-			M = []
-			for i in range(len(div_sizes)):
-				M.append(c.zero_eigenvectors(self._types[ti], self._flags[ti],
-					self._flag_bases[ti].subdivision(i,0)))
-				
-			self._zero_eigenvectors.append(block_diagonal_matrix(M))
+			if len(self._block_bases) != 0:
 
+				row_div = self._block_bases[ti].subdivisions()[0]
+				div_sizes = row_div + [len(self._flags[ti])]
+				for i in range(1, len(div_sizes)):
+					div_sizes[i] -= div_sizes[i - 1]
+	
+				M = []
+				for i in range(len(div_sizes)):
+					M.append(c.zero_eigenvectors(self._types[ti], self._flags[ti],
+						self._block_bases[ti].subdivision(i,0)))
+				self._zero_eigenvectors.append(block_diagonal_matrix(M))
+
+			else:
+
+				self._zero_eigenvectors.append(c.zero_eigenvectors(self._types[ti], self._flags[ti]))
+		
 		for ti in range(len(self._types)):
 			self._zero_eigenvectors[ti].set_immutable()
+
+	
+	# TODO: make this work if _block_bases == [].
+
+	def add_zero_eigenvectors(self, ti, bi, M):
+	
+		OM = self._flag_bases[ti].subdivision(bi,0).solve_right(M.T)
+		MM = OM.T * self._block_bases[ti].subdivision(bi,0).T
+		
+		row_div = self._block_bases[ti].subdivisions()[0]
+		div_sizes = row_div + [len(self._flags[ti])]
+		for i in range(1, len(div_sizes)):
+			div_sizes[i] -= div_sizes[i - 1]
+		
+		B = []
+		for i in range(len(row_div) + 1):
+			BL = self._zero_eigenvectors[ti].subdivision(i, i)
+			if BL.nrows() == 0:
+				BL = matrix(QQ, 0, div_sizes[i])
+			if i == bi:
+				B.append(BL.stack(MM))
+			else:
+				B.append(BL)
+
+		self._zero_eigenvectors[ti] = block_diagonal_matrix(B)
 
 
 
@@ -354,7 +390,10 @@ class Problem(SageObject):
 					M[i], mu = M[i].gram_schmidt()
 					M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
 
-			self._flag_bases[ti] = block_diagonal_matrix(M) * self._flag_bases[ti]
+			if len(self._block_bases) != 0:
+				self._flag_bases[ti] = block_diagonal_matrix(M) * self._block_bases[ti]
+			else:
+				self._flag_bases[ti] = block_diagonal_matrix(M)
 			self._flag_bases[ti].set_immutable()
 
 
@@ -380,7 +419,7 @@ class Problem(SageObject):
  			s = tg.n
  			m = (self._n + s) / 2
 
- 			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti + 1, s, m))
+ 			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti, s, m))
  			flags_block = make_graph_block(self._flags[ti], m)
 			DL = flag_products(graph_block, tg, flags_block, None)
 		
@@ -627,7 +666,7 @@ class Problem(SageObject):
 			self._sdp_Q_matrices[ti].set_immutable()
 
 
-	def zero_eigenvalues(self, tolerance = 0.00001):
+	def show_zero_eigenvalues(self, tolerance = 0.00001):
 	
 		num_types = len(self._types)
 
@@ -635,18 +674,18 @@ class Problem(SageObject):
 			eigvals = self._sdp_Q_matrices[ti].eigenvalues()
 			zero_eigvals = sorted([e for e in eigvals if e < tolerance])
 			if len(zero_eigvals) == 0:
-				sys.stdout.write("Type %d. None.\n" % (ti + 1,))
+				sys.stdout.write("Type %d. None.\n" % ti)
 			else:
-				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti + 1, len(zero_eigvals),
+				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(zero_eigvals),
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
-	def zero_eigenvectors(self, ti, tolerance = 0.00001):
+	def show_zero_eigenvectors(self, ti, tolerance = 0.00001):
 	
-		if not ti - 1 in range(len(self._types)):
+		if not ti in range(len(self._types)):
 			raise ValueError
 
-		ns = len(P._sdp_Q_matrices[ti].subdivisions()[0]) + 1
+		ns = len(self._sdp_Q_matrices[ti].subdivisions()[0]) + 1
 	
 		B = []
 		for i in range(ns):
@@ -667,11 +706,11 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			M = C.zero_eigenvectors(self._types[ti], self._flags[ti])
 			if M.nrows() == 0:
-				sys.stdout.write("Type %d. None.\n" % (ti + 1,))
+				sys.stdout.write("Type %d. None.\n" % ti)
 			else:
 				R = M * self._sdp_Q_matrices[ti]
 				norms = [R[i,:].norm() for i in range(R.nrows())]
-				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti + 1, len(norms),
+				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(norms),
 					" ".join("%s" % e for e in norms)))
 
 
@@ -713,16 +752,16 @@ class Problem(SageObject):
 
 		sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
 		for gi in apparently_sharp_graphs:
-			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi + 1, self._graphs[gi]))
+			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
 		
 		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
 		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
 		
 		for gi in extra_sharp_graphs:
-			sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi + 1, self._graphs[gi]))
+			sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
 
 		for gi in missing_sharp_graphs:
-			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi + 1, self._graphs[gi]))
+			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
 	def make_exact(self, denominator=1024):
@@ -894,12 +933,12 @@ class Problem(SageObject):
 			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
 			sys.stdout.write("Bound of %s > %s attained.\n" % (bound, self._target_bound))
 			for gi in violators:
-				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
 
 		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
 		for gi in range(num_graphs):
 			if bounds[gi] == self._target_bound:
-				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi + 1, self._graphs[gi]))
+				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
 
 		self._bounds = bounds
 
