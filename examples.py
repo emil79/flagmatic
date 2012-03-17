@@ -309,6 +309,23 @@ def example(prob):
 		P.make_exact()
 		P.check_exact_bound()
 
+	elif prob == "grz":
+
+		P = Problem(2)
+		P.forbidden_edge_numbers = {3:3}
+		P.n = 5
+		#P.create_block_bases()
+		P.density_graph = Flag("5:1223344551", 2)
+		C = BlowupConstruction(Flag("5:1223344551", 2))
+		#P.use_construction(C)
+		#P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_csdp()
+		P.check_floating_point_bound()
+		#P.make_exact()
+		#P.check_exact_bound()
+
 	elif prob == "hirst":
 
 		P = Problem(2)
@@ -431,16 +448,16 @@ def example(prob):
 		P.n = 7
 		P.create_block_bases()
 		P.density_graph = Flag("6:",2)
-		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
-		#P.use_construction(C)
+		C = SymmetricBlowupConstruction(ClebschGraph())
+		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
 		P.run_csdp(True)
-		P._target_bound = Rational("19211/1048576")
+		#P._target_bound = Rational("19211/1048576")
 		P.check_floating_point_bound()
-		#P.make_exact(1024*1024)
-		#P.check_exact_bound()
+		P.make_exact(1024*1024)
+		P.check_exact_bound()
 
 	return P,C

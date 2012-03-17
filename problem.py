@@ -710,7 +710,7 @@ class Problem(SageObject):
 		num_types = len(self._types)
 
 		for ti in range(num_types):
-			M = C.zero_eigenvectors(self._types[ti], self._flags[ti])
+			M = C.zero_eigenvectors(self._types[ti], self._flags[ti], self._flag_bases[ti])
 			if M.nrows() == 0:
 				sys.stdout.write("Type %d. None.\n" % ti)
 			else:
@@ -749,10 +749,11 @@ class Problem(SageObject):
 		else:
 			bound = min(fbounds)
 		
-		if abs(bound - RDF(self._target_bound)) < tolerance:
-			sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
-		else:
-			sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
+		if not self._target_bound is None:
+			if abs(bound - RDF(self._target_bound)) < tolerance:
+				sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
+			else:
+				sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
 				
 		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
 
