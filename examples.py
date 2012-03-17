@@ -427,10 +427,10 @@ def example(prob):
 
 	elif prob == "63":
 
-
 		P = Problem(2)
 		P.forbidden_induced_graphs = [Flag("3:121323",2)]
 		P.n = 7
+		P.remove_types([1,2,4,7,9])
 		P.create_block_bases()
 		P.density_graph = Flag("6:",2)
 		C = SymmetricBlowupConstruction(ClebschGraph())

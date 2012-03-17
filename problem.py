@@ -288,6 +288,24 @@ class Problem(SageObject):
 		self._densities = [[g.subgraph_density(dg) for g in self._graphs]]
 
 
+	def remove_types(self, indices):
+	
+		num_types = len(self._types)
+		remaining = [i for i in range(num_types) if not i in indices]
+
+		sys.stdout.write("%d types removed.\n" % (num_types - len(remaining)))
+
+		if num_types > 0:
+			self._types = [self._types[i] for i in remaining]
+		if len(self._flags) > 0:
+			self._flags = [self._flags[i] for i in remaining]
+			sys.stdout.write("Remaining types have %s flags.\n" % [len(flags) for flags in self._flags])
+		if len(self._flag_bases) > 0:
+			self._flag_bases = [self._flag_bases[i] for i in remaining]
+		if len(self._block_bases) > 0:
+			self._block_bases = [self._block_bases[i] for i in remaining]
+
+
 	def create_block_bases(self):
 
 		self._block_bases = []
