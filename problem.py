@@ -301,22 +301,51 @@ class Problem(SageObject):
 		# TODO: axioms construction needs density of zero
 		# maybe create a self.density(g) function
 
-		if self._density_graph is None:
-			self._target_bound = c.edge_density()
-			sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
-		else:
-			self._target_bound = c.subgraph_density(self._density_graph)
-			sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
-			
-		sharp_graphs = c.induced_subgraphs(self._n)
+		sys.stdout.write("Determining which graphs appear in construction...\n")
+		
+		sharp_graphs = c.subgraph_densities(self._n)
 		self._sharp_graphs = []
-		for sg in sharp_graphs:
+		for pair in sharp_graphs:
+			g, den = pair
 			for gi in range(len(self._graphs)):
-				if sg.is_equal(self._graphs[gi]):
+				if g.is_equal(self._graphs[gi]):
 					self._sharp_graphs.append(gi)
 					break
 			else:
 				sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
+
+		if self._density_graph is None:
+		
+			self._target_bound = c.edge_density()
+			sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
+		
+		else:
+		
+			if self._density_graph.n == self._n:
+				
+				# There's no guarantee that self._density_graph is minimally isomorphic!
+				mdg = self._density_graph.copy()
+				mdg.make_minimal_isomorph()
+				
+				for pair in sharp_graphs:
+					g, den = pair
+					if g.is_equal(mdg):
+						self._target_bound = den
+						break
+				else:
+					# if graph does not appear in construction, density is 0.
+					self._target_bound = 0		
+
+			else:
+			
+				self._target_bound = 0
+				
+				for pair in sharp_graphs:
+					g, den = pair
+					self._target_bound += den * g.subgraph_density(self._density_graph)
+			
+			sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
+
 		
 		self._zero_eigenvectors = []
 		

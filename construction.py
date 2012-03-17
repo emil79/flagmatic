@@ -50,40 +50,41 @@ class Construction(SageObject):
 	def __init__(self):
 		pass
 
-	def induced_subgraphs(self, n):
-		return ([], [])
+	def edge_density(self):
+		return 0
+
+	def subgraph_densities(self, n):
+		return []
 
 	def zero_eigenvectors(self, tg, flags):
 		return None
 
-	def edge_density(self):
-		return 0
-		
-	def subgraph_density(self, h):
-		return 0
 
 
 class BlowupConstruction(Construction):
 
 	def __init__(self, g):
 	
+		if g.oriented:
+			raise NotImplementedException("oriented graphs not supported.")
+	
 		self._graph = g
 	
 	
 	def edge_density(self):
 	
-		return self._graph.degenerate_edge_density()
+		den_pairs = self.subgraph_densities(self._graph.r)
+
+		for pair in den_pairs:
+			g, den = pair
+			if g.ne == 1:
+				return den		
 	
 		
-	def subgraph_density(self, h):
-	
-		return self._graph.degenerate_subgraph_density(h)
-	
-		
-	def induced_subgraphs(self, n):
+	def subgraph_densities(self, n):
 
 		cn = self._graph.n
-		total = 0
+		total = Integer(0)
 		sharp_graph_counts = {}
 		sharp_graphs = []
 
@@ -110,15 +111,7 @@ class BlowupConstruction(Construction):
 
 			total += factor
 		
-		sys.stdout.write("The following %d graphs appear in the construction:\n" %
-			len(sharp_graphs))
-		
-		for gs in sorted(sharp_graphs, key = lambda g : g.ne):
-			density = sharp_graph_counts[hash(gs)] / Integer(total)
-			sys.stdout.write("%s has density %s (%g).\n" % (gs,
-				density, density))
-	
-		return sharp_graphs
+		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
 
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):
@@ -276,7 +269,7 @@ class SymmetricBlowupConstruction (BlowupConstruction):
 		return M
 	
 	
-	def induced_subgraphs(self, n):
+	def subgraph_densities(self, n):
 
 		sharp_graph_counts = {}
 		sharp_graphs = []
@@ -297,14 +290,5 @@ class SymmetricBlowupConstruction (BlowupConstruction):
 				sharp_graphs.append(ig)
 				sharp_graph_counts[ghash] = factor
 
-		sys.stdout.write("The following %d graphs appear in the construction:\n" %
-			len(sharp_graphs))
-		
-		for gs in sorted(sharp_graphs, key = lambda g : g.ne):
-			density = sharp_graph_counts[hash(gs)] / Integer(total)
-			sys.stdout.write("%s has density %s (%g).\n" % (gs,
-				density, density))
+		return [(g, sharp_graph_counts[hash(g)] / Integer(total)) for g in sharp_graphs]
 	
-		return sharp_graphs			
-
-		
