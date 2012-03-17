@@ -66,6 +66,72 @@ class BlowupConstruction(Construction):
 	def subgraph_density(self, h):
 	
 		return self._graph.degenerate_subgraph_density(h)		
+	
+	
+	def tuple_orbit_reprs(self, k):
+		
+		SG = self._graph.Graph()
+		G = SG.automorphism_group()
+		gen_str = ", ".join(str(t) for t in G.gens())
+		gap_str = "g:=Group(%s);" % gen_str
+		gap.eval(gap_str)
+		print gap_str
+
+		T = [tuple(t) for t in Tuples(range(1, self._graph.n + 1), k)]
+		total = 0
+		orb_reprs = {}
+		
+		while len(T) > 0:
+		
+			rep = T[0]
+			
+			factor = 1
+# 			factor = factorial(k)
+# 			for i in range(1, self._graph.n + 1):
+# 				factor /= factorial(rep.count(i))
+			
+			L = gap.new("Orbit(g, %s, OnTuples);" % (list(rep),)).sage()
+			
+			#print L
+			orb = [tuple(t) for t in L]
+			for t in orb:
+				T.remove(t)
+			orb_reprs[rep] = len(orb) * factor
+			total += len(orb) * factor
+						
+		return (total, orb_reprs)
+
+
+	def new_induced_subgraphs(self, n):
+
+		sharp_graph_counts = {}
+		sharp_graphs = []
+		
+		total, orb_reprs = self.tuple_orbit_reprs(n)
+		
+		for P, factor in orb_reprs.iteritems():
+		
+			ig = self._graph.degenerate_induced_subgraph(P)
+			ig.make_minimal_isomorph()
+			
+			print P, ig, factor
+			
+			ghash = hash(ig)
+			if ghash in sharp_graph_counts:
+				sharp_graph_counts[ghash] += factor
+			else:
+				sharp_graphs.append(ig)
+				sharp_graph_counts[ghash] = factor
+
+		sys.stdout.write("The following %d graphs appear in the construction:\n" %
+			len(sharp_graphs))
+		
+		for gs in sorted(sharp_graphs, key = lambda g : g.ne):
+			density = sharp_graph_counts[hash(gs)] / Integer(total)
+			sys.stdout.write("%s has density %s (%g).\n" % (gs,
+				density, density))
+	
+		return sharp_graphs			
 		
 		
 	def induced_subgraphs(self, n):
@@ -81,6 +147,9 @@ class BlowupConstruction(Construction):
 			
 			for i in range(1, cn + 1):
 				factor /= factorial(P.count(i))
+		
+# 		for P in Tuples(range(1, cn + 1), n):
+# 			factor = 1
 		
 			ig = self._graph.degenerate_induced_subgraph(P)
 			ig.make_minimal_isomorph()
