@@ -32,6 +32,18 @@ import sys
 from sage.all import Integer, QQ, matrix, factorial, identity_matrix
 from sage.structure.sage_object import SageObject
 
+def ClebschGraph():
+
+	cleb = Flag("0:",2)
+	cleb.n = 16
+	edges = [(1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 7), (2, 8), (2, 9), (2, 10),
+		(3, 7), (3, 11), (3, 12), (3, 13), (4, 8), (4, 11), (4, 14), (4,15), (5, 9),
+		(5, 12), (5, 14), (5, 16), (6, 10), (6, 13), (6, 15), (6, 16), (7, 14), (7, 15),
+		(7, 16), (8, 12), (8, 13), (8, 16), (9, 11), (9, 13), (9, 15), (10, 11), (10, 12),
+		(10, 14), (11, 16), (12, 15), (13, 14)]
+	for e in edges:
+		cleb.add_edge(e)
+	return cleb
 
 class Construction(SageObject):
 
@@ -65,41 +77,91 @@ class BlowupConstruction(Construction):
 		
 	def subgraph_density(self, h):
 	
-		return self._graph.degenerate_subgraph_density(h)		
+		return self._graph.degenerate_subgraph_density(h)
 	
-	
-	def tuple_orbit_reprs(self, k):
+
+
+	def tuple_orbits(self, k):
 		
 		SG = self._graph.Graph()
-		G = SG.automorphism_group()
-		gen_str = ", ".join(str(t) for t in G.gens())
-		gap_str = "g:=Group(%s);" % gen_str
-		gap.eval(gap_str)
-		print gap_str
+		G, d = SG.automorphism_group(translation=True)
 
-		T = [tuple(t) for t in Tuples(range(1, self._graph.n + 1), k)]
+		# Sage gives the graph new labels! Get a translation dictionary.
+		rd = dict((v,k) for (k,v) in d.iteritems())
+
+		gen_str = ", ".join(str(t) for t in G.gens())
+		gap_str = "g := Group(%s);" % gen_str
+		gap.eval(gap_str)
+
+		orbs = gap.new("Orbits(g, Tuples([1..%d], %d), OnTuples);" % (self._graph.n, k)).sage()
+
 		total = 0
 		orb_reprs = {}
+		for o in orbs:
+			sys.stdout.write("Orbit %d:\n" % len(orb_reprs))
+			orb_reprs[tuple(o[0])] = len(o)
+			for t in o:
+				ig = self._graph.degenerate_induced_subgraph(map(lambda x : rd[x], t))
+				ig.make_minimal_isomorph()
+				sys.stdout.write("%s " % ig)
+			sys.stdout.write("\n")
+
+		return orb_reprs
 		
-		while len(T) > 0:
+
+	def un_tuple_orbits(self, k):
 		
-			rep = T[0]
-			
-			factor = 1
-# 			factor = factorial(k)
-# 			for i in range(1, self._graph.n + 1):
-# 				factor /= factorial(rep.count(i))
-			
-			L = gap.new("Orbit(g, %s, OnTuples);" % (list(rep),)).sage()
-			
-			#print L
-			orb = [tuple(t) for t in L]
-			for t in orb:
-				T.remove(t)
-			orb_reprs[rep] = len(orb) * factor
-			total += len(orb) * factor
-						
-		return (total, orb_reprs)
+		SG = self._graph.Graph()
+		G, d = SG.automorphism_group(translation=True)
+
+		# Sage gives the graph new labels! Get a translation dictionary.
+		rd = dict((v,k) for (k,v) in d.iteritems())
+
+		gen_str = ", ".join(str(t) for t in G.gens())
+		gap_str = "g := Group(%s);" % gen_str
+		gap.eval(gap_str)
+
+		orbs = gap.new("Orbits(g, Tuples([1..%d], %d), OnTuples);" % (self._graph.n, k)).sage()
+
+		total = 0
+		orb_reprs = {}
+		for o in orbs:
+			sys.stdout.write("Orbit %d:\n" % len(orb_reprs))
+			orb_reprs[tuple(o[0])] = len(o)
+			for t in o:
+				ig = self._graph.degenerate_induced_subgraph(map(lambda x : rd[x], t))
+				ig.make_minimal_isomorph()
+				sys.stdout.write("%s " % ig)
+			sys.stdout.write("\n")
+
+		return orb_reprs
+		
+
+
+	def tuple_orbit_reps(self, k):
+		
+		SG = self._graph.Graph()
+		G, d = SG.automorphism_group(translation=True)
+
+		# Sage gives the graph new labels! Get a translation dictionary.
+		rd = dict((v,k) for (k,v) in d.iteritems())
+
+		gen_str = ", ".join(str(t) for t in G.gens())
+		gap_str = "g := Group(%s);" % gen_str
+		gap.eval(gap_str)
+
+		orbs = gap.new("Orbits(g, Tuples([1..%d], %d), OnTuples);" % (self._graph.n, k)).sage()
+
+		total = 0
+		orb_reps = {}
+		for o in orbs:
+			rep = tuple(map(lambda x : rd[x], o[0]))
+			orb_reps[rep] = len(o)
+			total += len(o)
+	
+		return (total, orb_reps)
+
+
 
 
 	def new_induced_subgraphs(self, n):
@@ -107,14 +169,16 @@ class BlowupConstruction(Construction):
 		sharp_graph_counts = {}
 		sharp_graphs = []
 		
-		total, orb_reprs = self.tuple_orbit_reprs(n)
+		total, orb_reps = self.tuple_orbit_reps(n)
 		
-		for P, factor in orb_reprs.iteritems():
+		sys.stdout.write("Found %d orbits.\n" % len(orb_reps))
+		
+		for P, factor in orb_reps.iteritems():
 		
 			ig = self._graph.degenerate_induced_subgraph(P)
 			ig.make_minimal_isomorph()
 			
-			print P, ig, factor
+			#print P, ig, factor
 			
 			ghash = hash(ig)
 			if ghash in sharp_graph_counts:
