@@ -149,21 +149,21 @@ class Problem(SageObject):
 		if "forbidden_edge_numbers" in d:	
 			obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
 		if "forbidden_graphs" in d:
-			obj.forbidden_graphs = [Flag(s) for s in d["forbidden_graphs"]]
+			obj.forbidden_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_graphs"]]
 		if "forbidden_induced_graphs" in d:
-			obj.forbidden_induced_graphs = [Flag(s) for s in d["forbidden_induced_graphs"]]
+			obj.forbidden_induced_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_induced_graphs"]]
 		
 		if "graphs" in d:
-			obj._graphs = [Flag(s) for s in d["graphs"]]
+			obj._graphs = [Flag(s, obj._r, obj._oriented) for s in d["graphs"]]
 		if "densities" in d:
 			obj._densities = [[sage_eval(s) for s in x] for x in d["densities"]]
 		if "density_graph" in d:
-			obj._density_graph = Flag(d["density_graph"])
+			obj._density_graph = Flag(d["density_graph"], obj._r, obj._oriented)
 
 		if "types" in d:
-			obj._types = [Flag(s) for s in d["types"]]
+			obj._types = [Flag(s, obj._r, obj._oriented) for s in d["types"]]
 		if "flags" in d:
-			obj._flags = [[Flag(s) for s in x] for x in d["flags"]]
+			obj._flags = [[Flag(s, obj._r, obj._oriented) for s in x] for x in d["flags"]]
 		if "block_bases" in d:
 			obj._block_bases = [loads(base64.b64decode(s)) for s in d["block_bases"]]
 		if "flag_bases" in d:
