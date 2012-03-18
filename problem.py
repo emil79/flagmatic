@@ -818,7 +818,7 @@ class Problem(SageObject):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
-	def make_exact(self, denominator=1024):
+	def make_exact(self, denominator=1024, cholesky=[], protect=[]):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -832,15 +832,30 @@ class Problem(SageObject):
 
 		self._exact_Q_matrices = []
 		for ti in range(num_types):
-			M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
-			row_div = self._flag_bases[ti].subdivisions()[0]
-			M.subdivide(row_div, row_div)
-			for j in range(q_sizes[ti]):
-				for k in range(j, q_sizes[ti]):
-					value = rationalize(self._sdp_Q_matrices[ti][j, k])
-					if value != 0:
-						M[j, k] = value
-						M[k, j] = value
+			
+			if ti in cholesky:
+				try:
+					LF = numpy.linalg.cholesky(self._sdp_Q_matrices[ti])
+				except numpy.linalg.linalg.LinAlgError:
+					sys.stdout.write("Could not compute Cholesky decomposition for type %d.\n" % ti)
+					return
+				L = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
+				for j in range(q_sizes[ti]):
+					for k in range(j + 1): # only lower triangle
+						L[j, k] = rationalize(LF[j, k])
+				M = L * L.T
+			
+			else:
+				M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
+				row_div = self._flag_bases[ti].subdivisions()[0]
+				M.subdivide(row_div, row_div)
+				for j in range(q_sizes[ti]):
+					for k in range(j, q_sizes[ti]):
+						value = rationalize(self._sdp_Q_matrices[ti][j, k])
+						if value != 0:
+							M[j, k] = value
+							M[k, j] = value
+			
 			self._exact_Q_matrices.append(M)
 
 		if num_densities == 1:
@@ -874,8 +889,10 @@ class Problem(SageObject):
 		density_cols_to_use = []
 		DR = matrix(QQ, num_sharps, 0, sparse=True)
 		rankDR = 0
+		
 		# Only if there is more than one density
 		if num_densities > 1:
+			
 			for j in range(num_densities):
 				newDR = DR.augment(matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]]).T)
 				if newDR.rank() > rankDR:
@@ -883,7 +900,7 @@ class Problem(SageObject):
 					DR = newDR
 					density_cols_to_use.append(j)
 			
-		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
+			sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
 				
 		col_norms = {}
 		for i in range(num_triples):
@@ -897,12 +914,15 @@ class Problem(SageObject):
 		cols_in_order = sorted(col_norms.keys(), key = lambda i : -col_norms[i])
 		cols_to_use = []
 	
-		for j in cols_in_order:
-			newDR = DR.augment(R[:, j : j + 1])
+		for i in cols_in_order:
+			ti, j, k = triples[i]
+			if ti in protect: # don't use protected types
+				continue
+			newDR = DR.augment(R[:, i : i + 1])
 			if newDR.rank() > rankDR:
 				rankDR += 1
 				DR = newDR
-				cols_to_use.append(j)
+				cols_to_use.append(i)
 		
 		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
 		
