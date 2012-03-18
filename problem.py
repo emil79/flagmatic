@@ -108,7 +108,7 @@ class Problem(SageObject):
 		d["zero_eigenvectors"] = [base64.b64encode(dumps(M)) for M in self._zero_eigenvectors]
 		d["product_densities_dumps"] = [[base64.b64encode(s) for s in x] for x in self._product_densities_dumps]
 
-		d["obj_value_factor"] = self._obj_value_factor
+		d["obj_value_factor"] = repr(self._obj_value_factor)
 		d["minimize"] = self._minimize
 		d["force_sharps"] = self._force_sharps
 		if not self._sdp_input_filename is None:
@@ -117,7 +117,7 @@ class Problem(SageObject):
 			d["sdp_output_filename"] = self._sdp_output_filename
 			
 		d["sdp_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._sdp_Q_matrices]
-		d["sdp_density_coeffs"] = [n for n in self._sdp_density_coeffs]
+		d["sdp_density_coeffs"] = [repr(n) for n in self._sdp_density_coeffs]
 		d["exact_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._exact_Q_matrices]
 		d["exact_density_coeffs"] = [repr(r) for r in self._exact_density_coeffs]
 		d["bounds"] = [repr(r) for r in self._bounds]
@@ -179,9 +179,9 @@ class Problem(SageObject):
 			obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
 
 		if "obj_value_factor" in d:
-			obj._obj_value_factor = d["obj_value_factor"]
+			obj._obj_value_factor = RDF(d["obj_value_factor"])
 		if "minimize" in d:
-			self._minimize = d["minimize"]
+			obj._minimize = d["minimize"]
 		if "force_sharps" in d:
 			obj._force_sharps = d["force_sharps"]
 		if "sdp_input_filename" in d:
@@ -192,11 +192,11 @@ class Problem(SageObject):
 		if "sdp_Q_matrices" in d:
 			obj._sdp_Q_matrices = [loads(base64.b64decode(s)) for s in d["sdp_Q_matrices"]]
 		if "sdp_density_coeffs" in d:
-			obj._sdp_density_coeffs = [n for n in d["sdp_density_coeffs"]]
+			obj._sdp_density_coeffs = [RDF(s) for s in d["sdp_density_coeffs"]]
 		if "exact_Q_matrices" in d:
 			obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
 		if "exact_density_coeffs" in d:
-			obj._exact_density_coeffs = [loads(base64.b64decode(s)) for s in d["exact_density_coeffs"]]
+			obj._exact_density_coeffs = [sage_eval(s) for s in d["exact_density_coeffs"]]
 		if "bounds" in d:
 			obj._bounds = [sage_eval(s) for s in d["bounds"]]
 	
@@ -536,9 +536,9 @@ class Problem(SageObject):
 		
 		if not self._minimize:
 			# Multiply SDP solver objective value by -1
-			self._obj_value_factor = -1
+			self._obj_value_factor = -1.0
 		else:
-			self._obj_value_factor = 1
+			self._obj_value_factor = 1.0
 		
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")
@@ -588,7 +588,7 @@ class Problem(SageObject):
 		num_types = len(self._types)
 		num_densities = len(self._densities)
 
-		self._obj_value_factor = 1
+		self._obj_value_factor = 1.0
 		
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")

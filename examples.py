@@ -343,7 +343,7 @@ def example(prob):
 		P.use_construction(C)
 		P.set_new_bases()
 		
-		P.add_zero_eigenvectors(0, 0, matrix(QQ,[[70,0,0,35,31]]))
+#		P.add_zero_eigenvectors(0, 0, matrix(QQ,[[70,0,0,35,31],[2871, 2002, 930, 609]]))
 		P.add_zero_eigenvectors(1, 0, matrix(QQ,[[1,0,0,0],[0,0,0,1]]))
 		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0,0,-5,0,8],[0,0,10,8,0]]))
 		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[0,0,0,5,-2],[0,1,0,0,0]]))
