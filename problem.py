@@ -43,7 +43,7 @@ from sage.structure.sage_object import SageObject
 # So for now, CSDP has to be in a directory in $PATH.
 
 cdsp_cmd = "csdp"
-
+sdpa_cmd = "sdpa_dd"
     
 class Problem(SageObject):
 
@@ -629,14 +629,23 @@ class Problem(SageObject):
 
 
 
-	def run_csdp(self, show_output=False):
+	def run_sdp_solver(self, show_output=False, use_sdpa=False):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
+		num_densities = len(self._densities)
 
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 
-		cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
+		if not use_sdpa:
+
+			cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
+
+		else:
+		
+			sdpa_output_filename = os.path.join(SAGE_TMP, "sdpa.out")
+			cmd = "%s -ds %s -o %s" % (sdpa_cmd, self._sdp_input_filename, sdpa_output_filename)
+
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
 		obj_val = None
 		while True:
@@ -645,7 +654,9 @@ class Problem(SageObject):
 			try:
 				p.expect("\r\n")
 				line = p.before.strip() + "\n"
-				if "Primal objective value:" in line:
+				if "Primal objective value:" in line: # CSDP
+					obj_val = RDF(line.split()[-1]) * self._obj_value_factor
+				elif "objValPrimal" in line: # SDPA
 					obj_val = RDF(line.split()[-1]) * self._obj_value_factor
 				if show_output:
 					sys.stdout.write(line)
@@ -660,60 +671,98 @@ class Problem(SageObject):
 		# TODO: if program is infeasible, a returncode of 1 is given,
 		# and output contains "infeasible"
 
+		if use_sdpa:
+		
+			with open(sdpa_output_filename, "r") as inf:
+				with open(self._sdp_output_filename, "w") as f:
+
+					found, diagonal = False, False
+					t, row, col = 0, 1, 1
+					
+					for line in inf:
+						if line[:6] == "yMat =":
+							break
+					else:
+						raise ValueError
+	
+					for line in inf:
+							
+						if line == "}":
+							break						
+						elif line[:3] == "{ {":
+							t += 1
+							row = 1
+							diagonal = False
+						elif line[:2] == "{+" or line[:2] == "{-":
+							t += 1
+							row = 1
+							diagonal = True	
+						
+						line = line.replace("{", "")
+						line = line.replace("}", "")
+						col = 1
+						for a in line.split(","):
+							try:
+								v = a.strip()
+								vf = float(v)
+								if diagonal:
+									f.write("2 %d %d %d %s\n" % (t, row, col, v))
+									row += 1
+								elif row <= col:
+									f.write("2 %d %d %d %s\n" % (t, row, col, v))
+								col += 1
+							except ValueError:
+								pass
+						
+						if col > 1: # at least one number found...
+							row += 1
+
 		with open(self._sdp_output_filename, "r") as f:
-			self.process_sdp_output_file(f)
-
-
-	def process_sdp_output_file(self, f):
-
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-		num_densities = len(self._densities)
 		
-		inv_block_sizes = []
-		anti_inv_block_sizes = []
-		for i in range(num_types):
-			row_div = self._flag_bases[i].subdivisions()[0]
-			if len(row_div) > 0:
-				inv_block_sizes.append(row_div[0])
-				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
-			else:
-				inv_block_sizes.append(self._flag_bases[i].nrows())
-				anti_inv_block_sizes.append(1)	
-
-		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
-			for i in range(num_types)]
-		
-		for ti in range(num_types):
-			B = self._flag_bases[ti]
-			row_div = B.subdivisions()[0]
-			self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
-		
-		self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
-		
-		for line in f:
-			numbers = line.split()
-			if numbers[0] != "2":
-				continue
-			ti = int(numbers[1]) - 2
-			if ti == 2 * num_types + 1:
+			inv_block_sizes = []
+			anti_inv_block_sizes = []
+			for i in range(num_types):
+				row_div = self._flag_bases[i].subdivisions()[0]
+				if len(row_div) > 0:
+					inv_block_sizes.append(row_div[0])
+					anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
+				else:
+					inv_block_sizes.append(self._flag_bases[i].nrows())
+					anti_inv_block_sizes.append(1)	
+	
+			self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
+				for i in range(num_types)]
+			
+			for ti in range(num_types):
+				B = self._flag_bases[ti]
+				row_div = B.subdivisions()[0]
+				self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
+			
+			self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
+			
+			for line in f:
+				numbers = line.split()
+				if numbers[0] != "2":
+					continue
+				ti = int(numbers[1]) - 2
+				if ti == 2 * num_types + 1:
+					j = int(numbers[2]) - 1
+					self._sdp_density_coeffs[j] = RDF(numbers[4])
+					continue
+				if ti < 0 or ti >= 2 * num_types:
+					continue
 				j = int(numbers[2]) - 1
-				self._sdp_density_coeffs[j] = RDF(numbers[4])
-				continue
-			if ti < 0 or ti >= 2 * num_types:
-				continue
-			j = int(numbers[2]) - 1
-			k = int(numbers[3]) - 1
-			if ti % 2:
-				ti = (ti - 1) / 2
-				j += inv_block_sizes[ti]
-				k += inv_block_sizes[ti]
-				if j >= self._flag_bases[ti].nrows():
-					continue # Might be 'dummy' block for types with no anti-inv space
-			else:
-				ti /= 2
-			self._sdp_Q_matrices[ti][j, k] = numbers[4]
-			self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
+				k = int(numbers[3]) - 1
+				if ti % 2:
+					ti = (ti - 1) / 2
+					j += inv_block_sizes[ti]
+					k += inv_block_sizes[ti]
+					if j >= self._flag_bases[ti].nrows():
+						continue # Might be 'dummy' block for types with no anti-inv space
+				else:
+					ti /= 2
+				self._sdp_Q_matrices[ti][j, k] = numbers[4]
+				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
 		for ti in range(num_types):
 			self._sdp_Q_matrices[ti].set_immutable()

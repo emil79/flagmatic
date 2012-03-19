@@ -41,7 +41,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -55,7 +55,7 @@ def example(prob):
 		C = None
 		P.calculate_product_densities()
 		#P.write_sdp_input_file()
-		#P.run_csdp()
+		#P.run_sdp_solver()
 
 
 	elif prob == "f32":
@@ -70,7 +70,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -89,7 +89,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -109,7 +109,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -127,7 +127,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -144,7 +144,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -161,7 +161,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -179,7 +179,7 @@ def example(prob):
 		#P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 	
 	
 	elif prob == "k4-f32":
@@ -208,7 +208,7 @@ def example(prob):
 		P.create_block_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 
 	elif prob == "codn":
 	
@@ -223,7 +223,7 @@ def example(prob):
 		C = RandomTournamentConstruction()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 
 
 	elif prob == "codr":
@@ -241,7 +241,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact(1024*1024)
 		P.check_exact_bound()
@@ -265,7 +265,7 @@ def example(prob):
 		P.save_json("k4-cod.js")
 		P.write_sdp_input_file()
 		P.save_json("k4-cod.js")
-		P.run_csdp(True)
+		P.run_sdp_solver(True)
 		P.save_json("k4-cod.js")
 		P.check_floating_point_bound()
 		P.save_json("k4-cod.js")
@@ -278,6 +278,7 @@ def example(prob):
 		P = AxiomsProblem()
 		P.forbidden_graphs = [Flag("5:123124125345")]
 		P.n = 6
+		P.remove_types([0,2])
 		P.add_codegree_axiom(Rational("1/3"))
 		P.create_block_bases()
 		P._force_sharps = True
@@ -286,11 +287,11 @@ def example(prob):
 		P._target_bound = 0
 		P.set_new_bases()
 		P.calculate_product_densities()
-		#P.write_sdp_input_file()
-		#P.run_csdp()
-		#P.check_floating_point_bound()
-		#P.make_exact(1024*1024)
-		#P.check_exact_bound()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.make_exact(1024*1024)
+		P.check_exact_bound()
 
 
 	elif prob == "grzesik":
@@ -305,7 +306,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -322,7 +323,7 @@ def example(prob):
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -332,18 +333,16 @@ def example(prob):
 
 		P = Problem(2)
 		P.n = 5
-		
-		P._types = P._types[:4]
-		P._flags = P._flags[:4]
-		P._flag_bases = P._flag_bases[:4]
-		
+		P.remove_types([4])		
 		P.create_block_bases()
 		P.density_graph = Flag("4:12233114", 2)
 		C = BlowupConstruction(Flag("4:1223344111223344", 2))
 		P.use_construction(C)
 		P.set_new_bases()
 		
-#		P.add_zero_eigenvectors(0, 0, matrix(QQ,[[70,0,0,35,31],[2871, 2002, 930, 609]]))
+		P.add_zero_eigenvectors(0, 0, matrix(QQ,[[1, 0, 0, '1/2', '31/70'],
+			[0, 1, '49/106', '7/108', '-17/20']]))
+		
 		P.add_zero_eigenvectors(1, 0, matrix(QQ,[[1,0,0,0],[0,0,0,1]]))
 		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0,0,-5,0,8],[0,0,10,8,0]]))
 		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[0,0,0,5,-2],[0,1,0,0,0]]))
@@ -353,9 +352,9 @@ def example(prob):
 		P.calculate_product_densities()
 		P._force_sharps = True
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
-		P.make_exact()
+		P.make_exact(1024, cholesky=range(4))
 		P.check_exact_bound()
 
 
@@ -379,7 +378,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -399,7 +398,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -419,7 +418,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
-		P.run_csdp()
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -439,7 +438,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
-		P.run_csdp(True)
+		P.run_sdp_solver(True)
 		P.check_floating_point_bound()
 		P.make_exact(1024*1024)
 		P.check_exact_bound()
