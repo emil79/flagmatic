@@ -386,6 +386,9 @@ class Problem(SageObject):
 
 				self._zero_eigenvectors.append(c.zero_eigenvectors(self._types[ti], self._flags[ti]))
 		
+			sys.stdout.write("Found %d zero eigenvectors for type %d.\n" % (
+				self._zero_eigenvectors[ti].nrows(), ti))
+		
 		for ti in range(len(self._types)):
 			self._zero_eigenvectors[ti].set_immutable()
 
@@ -936,20 +939,30 @@ class Problem(SageObject):
 						R[si, triple_to_index[trip]] = value
 		
 		density_cols_to_use = []
-		DR = matrix(QQ, num_sharps, 0, sparse=True)
-		rankDR = 0
+		DR = matrix(QQ, 0, num_sharps, sparse=True)
+		EDR = matrix(QQ, 0, num_sharps, sparse=True)
+		
+		sys.stdout.write("Constructing DR matrix")
 		
 		# Only if there is more than one density
 		if num_densities > 1:
 			
 			for j in range(num_densities):
-				newDR = DR.augment(matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]]).T)
-				if newDR.rank() > rankDR:
-					rankDR += 1
-					DR = newDR
+				new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]])
+				if new_row.is_zero():
+					continue
+				try:
+					X = EDR.solve_left(new_row)
+					continue
+				except ValueError:
+					DR = DR.stack(new_row)
+					EDR = EDR.stack(new_row)
+					EDR.echelonize()
 					density_cols_to_use.append(j)
+					sys.stdout.write(".")
+					sys.stdout.flush()
 			
-			sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
+			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.nrows())
 				
 		col_norms = {}
 		for i in range(num_triples):
@@ -967,16 +980,26 @@ class Problem(SageObject):
 			ti, j, k = triples[i]
 			if ti in protect: # don't use protected types
 				continue
-			newDR = DR.augment(R[:, i : i + 1])
-			if newDR.rank() > rankDR:
-				rankDR += 1
-				DR = newDR
+			new_row = R[:, i : i + 1].T	
+			if new_row.is_zero():
+				continue
+			try:
+				X = EDR.solve_left(new_row)
+				continue
+			except ValueError:
+				DR = DR.stack(new_row)
+				EDR = EDR.stack(new_row)
+				EDR.echelonize()
 				cols_to_use.append(i)
+				sys.stdout.write(".")
+				sys.stdout.flush()
 		
-		sys.stdout.write("Chosen DR matrix of rank %d.\n" % rankDR)
+		sys.stdout.write("\n")
+		sys.stdout.write("DR matrix has rank %d.\n" % DR.nrows())
 		
+		DR = DR.T
 		T = matrix(QQ, num_sharps, 1, sparse=True)
-		
+				
 		for si in range(num_sharps):
 		
 			gi = self._sharp_graphs[si]
