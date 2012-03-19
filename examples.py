@@ -280,12 +280,16 @@ def example(prob):
 		P.n = 6
 		P.remove_types([0,2])
 		P.add_codegree_axiom(Rational("1/3"))
-		P.create_block_bases()
+		#P.create_block_bases()
 		P._force_sharps = True
 		C = BlowupConstruction(Flag("3:112223331"))
 		P.use_construction(C)
 		P._target_bound = 0
 		P.set_new_bases()
+		
+		P._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
+		P.set_new_bases()
+		
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
