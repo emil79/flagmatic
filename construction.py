@@ -38,14 +38,108 @@ class Construction(SageObject):
 	def __init__(self):
 		pass
 
+	@property
+	def field(self):
+		return RationalField()
+
 	def edge_density(self):
 		return 0
 
 	def subgraph_densities(self, n):
-		return []
+		return None
+
+	def target_bound(self):
+		return None
 
 	def zero_eigenvectors(self, tg, flags):
 		return None
+
+
+class AdHocConstruction(Construction):
+
+	def __init__(self, name):
+
+		self._name = name
+
+		if name == "maxs3":
+	
+			self._field_str = "NumberField(x^2+x-1/2, 'x', embedding=0.5)"
+	
+		elif name == "maxs4":
+
+			self._field_str = "NumberField(x^3+x^2+x-1/3, 'x', embedding=0.5)"
+
+		elif name == "maxs5":
+
+			self._field_str = "NumberField(x^4+x^3+x^2+x-1/4, 'x', embedding=0.5)"
+
+		else:
+		
+			self._field_str = "RationalField()"
+		
+		x = polygen(QQ)
+		self._field = sage_eval(self._field_str, locals={'x': x})
+
+
+	@property
+	def field(self):
+		return self._field
+	
+
+	def target_bound(self):
+
+		K = self._field
+		x = K.gen()
+
+		if self._name == "maxs3":
+
+			return (4 * x - 1, [0, 2, 4, 5])
+
+		if self._name == "maxs4":
+		
+			return (1 - 9 * x**2, [0, 5, 8, 16, 24, 27, 29, 31, 37, 38, 41])
+
+
+	def zero_eigenvectors(self, tg, flags):
+	
+		K = self._field
+		x = K.gen()
+		
+		rows = []
+
+		# TODO: should check flags are in the right order!
+		
+		if self._name == "maxs3":
+
+			if tg.is_equal(Flag("1:", 2, True)):
+		
+				rows = [
+					[1 - x,       0,     x],
+					[x * (1 - x), 1 - x, x**2]
+				]
+	
+		elif self._name == "maxs4":
+
+			if tg.is_equal(Flag("2:", 2, True)):
+		
+				rows = [
+					[1 - x,       0, 0, 0, 0, 0,   0, 0, x],
+					[x * (1 - x), 0, 0, 0, 0, 1-x, 0, 0, x**2]
+				]
+				
+			elif tg.is_equal(Flag("2:12", 2, True)):
+
+				rows = [
+					[0, 1 - x, 0, 0, 0, 0, 0, 0, x],
+					[0, 0,     0, 0, 1, 0, 0, 0, -1],
+					[0, 0,     0, 0, 0, 1, 0, 0, 0],
+					[0, 0,     0, 0, 0, 0, 1, 0, -1]
+				]
+		
+		if len(rows) > 0:
+			return matrix(K, rows, sparse=True)
+		else:
+			return matrix(K, 0, len(flags), sparse=True)
 
 
 class BlowupConstruction(Construction):

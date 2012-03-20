@@ -362,6 +362,40 @@ def example(prob):
 		P.check_exact_bound()
 
 
+	elif prob == "maxs3":
+
+		P = Problem(2, oriented=True)
+		P.n = 3
+		#P.create_block_bases()
+		P.density_graph = Flag("3:1213", 2, oriented=True)
+		C = AdHocConstruction("maxs3")
+		P.use_construction(C)
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
+	elif prob == "maxs4":
+
+		P = Problem(2, oriented=True)
+		P.n = 4
+		P.remove_types([0])
+		#P.create_block_bases()
+		P.density_graph = Flag("4:121314", 2, oriented=True)
+		C = AdHocConstruction("maxs4")
+		P.use_construction(C)
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
+
 	elif prob == "34":
 
 		P = Problem(2)
@@ -461,9 +495,9 @@ def example(prob):
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
-		P.run_sdp_solver(True)
-		P.check_floating_point_bound(tolerance=0.000001)
-		P.make_exact(1024*1024)
+		P.run_sdp_solver(True, True)
+		P.check_floating_point_bound(tolerance=10e-11)
+		P.make_exact(1024*1024,cholesky=range(40))
 		#P.check_exact_bound()
 
 	return P,C

@@ -37,6 +37,7 @@ import sys
 
 from sage.all import Integer, QQ, matrix
 from sage.structure.sage_object import SageObject
+from sage.modules.misc import gram_schmidt
 
 
 # pexpect in Sage has a bug, which prevents it using commands with full paths.
@@ -52,6 +53,7 @@ class Problem(SageObject):
 		self._n = 0
 		self._r = r
 		self._oriented = oriented
+		self._field = RationalField()
 
 		self.forbidden_edge_numbers = {}
 		self.forbidden_graphs = []
@@ -89,6 +91,8 @@ class Problem(SageObject):
 		d["n"] = self._n
 		d["r"] = self._r
 		d["oriented"] = self._oriented
+		d["field"] = dumps(self._field)
+		
 		d["forbidden_edge_numbers"] = self.forbidden_edge_numbers
 		d["forbidden_graphs"] = [repr(g) for g in self.forbidden_graphs]
 		d["forbidden_induced_graphs"] = [repr(g) for g in self.forbidden_induced_graphs]
@@ -146,6 +150,9 @@ class Problem(SageObject):
 			obj._r = d["r"]
 		if "oriented" in d:
 			obj._oriented = d["oriented"]
+		if "field" in d:
+			obj._field = loads(d["field"])	
+			
 		if "forbidden_edge_numbers" in d:	
 			obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
 		if "forbidden_graphs" in d:
@@ -316,54 +323,66 @@ class Problem(SageObject):
 
 	def use_construction(self, c):
 
-		# TODO: axioms construction needs density of zero
-		# maybe create a self.density(g) function
+		self._field = c.field
 
-		sys.stdout.write("Determining which graphs appear in construction...\n")
+		# Ad Hoc constructions use target_bound() instead of subgraph_densities()
 		
-		sharp_graphs = c.subgraph_densities(self._n)
-		self._sharp_graphs = []
-		for pair in sharp_graphs:
-			g, den = pair
-			for gi in range(len(self._graphs)):
-				if g.is_equal(self._graphs[gi]):
-					self._sharp_graphs.append(gi)
-					break
-			else:
-				sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
+		pair = c.target_bound()
 
-		if self._density_graph is None:
+		if not pair is None:
 		
-			self._target_bound = c.edge_density()
-			sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
-		
+			self._target_bound = pair[0]
+			self._sharp_graphs = pair[1]
+
 		else:
-		
-			if self._density_graph.n == self._n:
-				
-				# There's no guarantee that self._density_graph is minimally isomorphic!
-				mdg = self._density_graph.copy()
-				mdg.make_minimal_isomorph()
-				
-				for pair in sharp_graphs:
-					g, den = pair
-					if g.is_equal(mdg):
-						self._target_bound = den
+
+			# TODO: axioms construction needs density of zero
+			# maybe create a self.density(g) function
+	
+			sys.stdout.write("Determining which graphs appear in construction...\n")
+			
+			sharp_graphs = c.subgraph_densities(self._n)
+			self._sharp_graphs = []
+			for pair in sharp_graphs:
+				g, den = pair
+				for gi in range(len(self._graphs)):
+					if g.is_equal(self._graphs[gi]):
+						self._sharp_graphs.append(gi)
 						break
 				else:
-					# if graph does not appear in construction, density is 0.
-					self._target_bound = 0		
-
+					sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
+	
+			if self._density_graph is None:
+			
+				self._target_bound = c.edge_density()
+				sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
+			
 			else:
 			
-				self._target_bound = 0
+				if self._density_graph.n == self._n:
+					
+					# There's no guarantee that self._density_graph is minimally isomorphic!
+					mdg = self._density_graph.copy()
+					mdg.make_minimal_isomorph()
+					
+					for pair in sharp_graphs:
+						g, den = pair
+						if g.is_equal(mdg):
+							self._target_bound = den
+							break
+					else:
+						# if graph does not appear in construction, density is 0.
+						self._target_bound = 0		
+	
+				else:
 				
-				for pair in sharp_graphs:
-					g, den = pair
-					self._target_bound += den * g.subgraph_density(self._density_graph)
-			
-			sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
-
+					self._target_bound = 0
+					
+					for pair in sharp_graphs:
+						g, den = pair
+						self._target_bound += den * g.subgraph_density(self._density_graph)
+				
+				sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
 		
 		self._zero_eigenvectors = []
 		
@@ -436,15 +455,21 @@ class Problem(SageObject):
 				div_sizes[i] -= div_sizes[i - 1]
 
 			M = [self._zero_eigenvectors[ti].subdivision(i,i) for i in range(num_M)]
-	
+			
 			for i in range(num_M):
 				nzev = M[i].nrows()
 				if nzev == 0:
 					M[i] = identity_matrix(QQ, div_sizes[i])
 				else:
 					M[i] = M[i].stack(M[i].right_kernel().basis_matrix())
-					M[i], mu = M[i].gram_schmidt()
-					M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
+
+					if self._field == RationalField():
+						M[i], mu = M[i].gram_schmidt()
+						M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
+
+					else: # .gram_schmidt is broken for number fields in 4.8 !
+						rows, mu = gram_schmidt(M[i].rows())
+						M[i] = matrix(self._field, rows[nzev:])
 
 			if len(self._block_bases) != 0:
 				self._flag_bases[ti] = block_diagonal_matrix(M) * self._block_bases[ti]
@@ -908,7 +933,7 @@ class Problem(SageObject):
 							M[j, k] = value
 							M[k, j] = value
 			
-			self._exact_Q_matrices.append(M)
+			self._exact_Q_matrices.append(matrix(self._field, M))
 
 		if num_densities == 1:
 			self._exact_density_coeffs = [Integer(1)]
@@ -922,7 +947,7 @@ class Problem(SageObject):
 		triples.sort()
 		triple_to_index = dict((triples[i], i) for i in range(num_triples))
 
-		R = matrix(QQ, num_sharps, num_triples, sparse=True)
+		R = matrix(self._field, num_sharps, num_triples, sparse=True)
 
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
@@ -939,8 +964,8 @@ class Problem(SageObject):
 						R[si, triple_to_index[trip]] = value
 		
 		density_cols_to_use = []
-		DR = matrix(QQ, 0, num_sharps, sparse=True)
-		EDR = matrix(QQ, 0, num_sharps, sparse=True)
+		DR = matrix(self._field, 0, num_sharps, sparse=True)
+		EDR = matrix(self._field, 0, num_sharps, sparse=True)
 		
 		sys.stdout.write("Constructing DR matrix")
 		
@@ -997,8 +1022,7 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 		sys.stdout.write("DR matrix has rank %d.\n" % DR.nrows())
 		
-		DR = DR.T
-		T = matrix(QQ, num_sharps, 1, sparse=True)
+		T = matrix(self._field, num_sharps, 1, sparse=True)
 				
 		for si in range(num_sharps):
 		
@@ -1014,7 +1038,8 @@ class Problem(SageObject):
 					ti, j, k = triples[i]
 					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
 
-		X = DR.solve_right(T)
+		FDR = matrix(self._field, DR.T)
+		X = FDR.solve_right(T)
 		RX = matrix(RDF, X.nrows(), 1)
 	
 		for i in range(len(density_cols_to_use)):
@@ -1070,13 +1095,26 @@ class Problem(SageObject):
 							else:
 								bounds[gi] -= d * value
 
-		if not self._minimize:
-			bound = max(bounds)
-			violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
+		if self._field == RationalField():
+
+			if not self._minimize:
+				bound = max(bounds)
+				violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
+			else:
+				bound = min(bounds)
+				violators = [gi for gi in range(num_graphs) if bounds[gi] < self._target_bound]
+
 		else:
-			bound = min(bounds)
-			violators = [gi for gi in range(num_graphs) if bounds[gi] < self._target_bound]
-		
+
+			# Sorting doesn't currently work for number fields with embeddings, so use float approximation.
+
+			if not self._minimize:
+				bound = max(bounds, key = lambda x : float(x))
+				violators = [gi for gi in range(num_graphs) if float(bounds[gi]) > float(self._target_bound)]
+			else:
+				bound = min(bounds, key = lambda x : float(x))
+				violators = [gi for gi in range(num_graphs) if float(bounds[gi]) < float(self._target_bound)]
+			
 		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
 		for gi in range(num_graphs):
 			if bounds[gi] == self._target_bound:
