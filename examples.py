@@ -366,7 +366,7 @@ def example(prob):
 
 		P = Problem(2, oriented=True)
 		P.n = 3
-		#P.create_block_bases()
+		P.create_block_bases()
 		P.density_graph = Flag("3:1213", 2, oriented=True)
 		C = AdHocConstruction("maxs3")
 		P.use_construction(C)
@@ -383,7 +383,7 @@ def example(prob):
 		P = Problem(2, oriented=True)
 		P.n = 4
 		P.remove_types([0])
-		#P.create_block_bases()
+		P.create_block_bases()
 		P.density_graph = Flag("4:121314", 2, oriented=True)
 		C = AdHocConstruction("maxs4")
 		P.use_construction(C)

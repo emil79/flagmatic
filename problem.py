@@ -91,7 +91,7 @@ class Problem(SageObject):
 		d["n"] = self._n
 		d["r"] = self._r
 		d["oriented"] = self._oriented
-		d["field"] = dumps(self._field)
+		d["field"] = base64.b64encode(dumps(self._field))
 		
 		d["forbidden_edge_numbers"] = self.forbidden_edge_numbers
 		d["forbidden_graphs"] = [repr(g) for g in self.forbidden_graphs]
@@ -151,8 +151,9 @@ class Problem(SageObject):
 		if "oriented" in d:
 			obj._oriented = d["oriented"]
 		if "field" in d:
-			obj._field = loads(d["field"])	
-			
+			obj._field = loads(base64.b64decode(d["field"]))
+		x = obj._field.gen()
+
 		if "forbidden_edge_numbers" in d:	
 			obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
 		if "forbidden_graphs" in d:
@@ -163,27 +164,27 @@ class Problem(SageObject):
 		if "graphs" in d:
 			obj._graphs = [Flag(s, obj._r, obj._oriented) for s in d["graphs"]]
 		if "densities" in d:
-			obj._densities = [[sage_eval(s) for s in x] for x in d["densities"]]
+			obj._densities = [[sage_eval(s) for s in l] for l in d["densities"]]
 		if "density_graph" in d:
 			obj._density_graph = Flag(d["density_graph"], obj._r, obj._oriented)
 
 		if "types" in d:
 			obj._types = [Flag(s, obj._r, obj._oriented) for s in d["types"]]
 		if "flags" in d:
-			obj._flags = [[Flag(s, obj._r, obj._oriented) for s in x] for x in d["flags"]]
+			obj._flags = [[Flag(s, obj._r, obj._oriented) for s in l] for l in d["flags"]]
 		if "block_bases" in d:
 			obj._block_bases = [loads(base64.b64decode(s)) for s in d["block_bases"]]
 		if "flag_bases" in d:
 			obj._flag_bases = [loads(base64.b64decode(s)) for s in d["flag_bases"]]
 		if "target_bound" in d:
-			obj._target_bound = sage_eval(d["target_bound"]) 
+			obj._target_bound = sage_eval(d["target_bound"], locals={'x' : x})
 		
 		if "sharp_graphs" in d:
 			obj._sharp_graphs = d["sharp_graphs"]
 		if "zero_eigenvectors" in d:
 			obj._zero_eigenvectors = [loads(base64.b64decode(s)) for s in d["zero_eigenvectors"]]
 		if "product_densities_dumps" in d:
-			obj._product_densities_dumps = [[base64.b64decode(s) for s in x] for x in d["product_densities_dumps"]]
+			obj._product_densities_dumps = [[base64.b64decode(s) for s in l] for l in d["product_densities_dumps"]]
 
 		if "obj_value_factor" in d:
 			obj._obj_value_factor = RDF(d["obj_value_factor"])
@@ -203,9 +204,9 @@ class Problem(SageObject):
 		if "exact_Q_matrices" in d:
 			obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
 		if "exact_density_coeffs" in d:
-			obj._exact_density_coeffs = [sage_eval(s) for s in d["exact_density_coeffs"]]
+			obj._exact_density_coeffs = [sage_eval(s, locals = {'x' : x}) for s in d["exact_density_coeffs"]]
 		if "bounds" in d:
-			obj._bounds = [sage_eval(s) for s in d["bounds"]]
+			obj._bounds = [sage_eval(s, locals = {'x' : x}) for s in d["bounds"]]
 	
 		cls.load_more_json(d, obj)
 	

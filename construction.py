@@ -51,7 +51,7 @@ class Construction(SageObject):
 	def target_bound(self):
 		return None
 
-	def zero_eigenvectors(self, tg, flags):
+	def zero_eigenvectors(self, tg, flags, flag_basis=None):
 		return None
 
 
@@ -100,7 +100,7 @@ class AdHocConstruction(Construction):
 			return (1 - 9 * x**2, [0, 5, 8, 16, 24, 27, 29, 31, 37, 38, 41])
 
 
-	def zero_eigenvectors(self, tg, flags):
+	def zero_eigenvectors(self, tg, flags, flag_basis=None):
 	
 		K = self._field
 		x = K.gen()
@@ -135,11 +135,20 @@ class AdHocConstruction(Construction):
 					[0, 0,     0, 0, 0, 1, 0, 0, 0],
 					[0, 0,     0, 0, 0, 0, 1, 0, -1]
 				]
+
+
+		if flag_basis is None:
+			flag_basis = identity_matrix(QQ, len(flags))
+
+		M = matrix(K, list(rows), sparse=True) * flag_basis.T
 		
-		if len(rows) > 0:
-			return matrix(K, rows, sparse=True)
-		else:
-			return matrix(K, 0, len(flags), sparse=True)
+		if M.rank() == 0:
+			return matrix(K, 0, flag_basis.nrows(), sparse=True)
+		
+		M = M.echelon_form()
+		M = M[:M.rank(),:]
+
+		return M
 
 
 class BlowupConstruction(Construction):
@@ -197,12 +206,12 @@ class BlowupConstruction(Construction):
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):
 	
-		if flag_basis is None:
-			flag_basis = identity_matrix(QQ, len(flags))
-	
 		rows = set()
 		for tv in Tuples(range(1, self._graph.n + 1), tg.n):
 			rows.add(tuple(self._graph.degenerate_flag_density(tg, flags, tv)))
+
+		if flag_basis is None:
+			flag_basis = identity_matrix(QQ, len(flags))
 	
 		M = matrix(QQ, list(rows), sparse=True) * flag_basis.T
 		
