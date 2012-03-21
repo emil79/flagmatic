@@ -312,15 +312,14 @@ class UnbalancedBlowupConstruction(Construction):
 		cn = self._graph.n
 
 		x = polygen(QQ)
-		tot = Integer(0)
-		total = Integer(0)
+		expr = Integer(0)
 		
 		for tp in UnorderedTuples(range(1, cn + 1), 4):
 			P = list(tp)
 			
 			ig = self._graph.degenerate_induced_subgraph(P)
 
-			if ig.ne == 0:
+			if ig.ne > 0:
 				fact = Integer(1)
 				for i in range(1, cn + 1):
 					fact /= factorial(P.count(i))
@@ -328,12 +327,10 @@ class UnbalancedBlowupConstruction(Construction):
 					if i < 5:
 						fact *= x
 					else:
-						fact *= (1 - x*4)/4
-				tot += fact
-				
-			total += 1
+						fact *= Integer(1)/4 - x
+				expr += fact
 
-		return tot
+		return expr
 				
 
 
