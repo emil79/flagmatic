@@ -36,11 +36,11 @@ from sage.structure.sage_object import SageObject
 class Construction(SageObject):
 
 	def __init__(self):
-		pass
+		self._field = RationalField()
 
 	@property
 	def field(self):
-		return RationalField()
+		return self._field
 
 	def edge_density(self):
 		return 0
@@ -175,7 +175,7 @@ class BlowupConstruction(Construction):
 			raise NotImplementedException("oriented graphs not supported.")
 	
 		self._graph = g
-	
+		self._field = RationalField()
 	
 	def edge_density(self):
 	
@@ -305,33 +305,6 @@ class UnbalancedBlowupConstruction(Construction):
 			total += factor
 		
 		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
-
-
-	def k4(self):
-
-		cn = self._graph.n
-
-		x = polygen(QQ)
-		expr = Integer(0)
-		
-		for tp in UnorderedTuples(range(1, cn + 1), 4):
-			P = list(tp)
-			
-			ig = self._graph.degenerate_induced_subgraph(P)
-
-			if ig.ne > 0:
-				fact = Integer(1)
-				for i in range(1, cn + 1):
-					fact /= factorial(P.count(i))
-				for i in P:
-					if i < 5:
-						fact *= x
-					else:
-						fact *= Integer(1)/4 - x
-				expr += fact
-
-		return expr
-				
 
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):

@@ -617,24 +617,33 @@ cdef class Flag (SageObject):
 		free(new_edges)
 		return 0
 
+
+	# TODO: ValueError on invalid forbidden_edge_numbers (currently they are ignored)
 	
 	def has_forbidden_edge_numbers(self, forbidden_edge_numbers, must_have_highest=False):
 	
-		cdef int *c, nc, i, j, k, l, fe, *edges, *e, got, *comb, num_e
+		cdef int *c, nc, i, j, k, l, fe, *edges, *e, got, *comb, num_e, max_e
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
+
+		forb_k = [pair[0] for pair in forbidden_edge_numbers]
 	
-		for pk, pfe in forbidden_edge_numbers.iteritems():
-	
-			k = <int ?> pk
-			fe = <int ?> pfe
+		for k in range(self._r, self._n + 1): # only conditions in this range make sense
+
+			if not k in forb_k:
+				continue
 			
-			if k > self._n:
-				continue # vacuous condition
-	
-			if fe < 1:
-				raise ValueError
+			if self._r == 3:
+				max_e = k * (k - 1) * (k - 2) / 6
+			else:
+				max_e = k * (k - 1) / 2
+			
+			forbidden_edge_nums = <int *> calloc(max_e + 1, sizeof(int))
+
+			for i in range(max_e + 1):
+				if (k, i) in forbidden_edge_numbers:
+					forbidden_edge_nums[i] = 1
 			
 			if must_have_highest:
 			
@@ -654,7 +663,7 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 3:
 								num_e += 1
-								if num_e == fe:
+								if forbidden_edge_nums[num_e] == 1:
 									return True
 						elif self._r == 2:
 							e = &self._edges[2 * j]
@@ -665,7 +674,7 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 2:
 								num_e += 1
-								if num_e == fe:
+								if forbidden_edge_nums[num_e] == 1:
 									return True
 	
 			else:
@@ -684,7 +693,7 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 3:
 								num_e += 1
-								if num_e == fe:
+								if forbidden_edge_nums[num_e] == 1:
 									return True
 						elif self._r == 2:
 							e = &self._edges[2 * j]
@@ -693,7 +702,7 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 2:
 								num_e += 1
-								if num_e == fe:
+								if forbidden_edge_nums[num_e] == 1:
 									return True
 	
 		return False

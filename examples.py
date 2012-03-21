@@ -33,7 +33,7 @@ def example(prob):
 	if prob == "ff83":
 	
 		P = Problem()
-		P.forbidden_graphs=[Flag("5:123124345")]
+		P.forbid_subgraph(Flag("5:123124345"))
 		P.n = 6
 		P.create_block_bases()
 		C = BlowupConstruction(Flag("3:123"))
@@ -49,7 +49,7 @@ def example(prob):
 	elif prob == "k4-":
 
 		P = Problem()
-		P.forbidden_edge_numbers={4:3}
+		P.forbid_edge_number(4, 3)
 		P.n = 7
 		#P.create_block_bases()
 		C = None
@@ -61,7 +61,7 @@ def example(prob):
 	elif prob == "f32":
 
 		P = Problem()
-		P.forbidden_graphs=[Flag("5:123124125345")]
+		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 6
 		#P.create_block_bases()
 		#C = BlowupConstruction(Flag("3:122123133"))
@@ -80,8 +80,8 @@ def example(prob):
 	elif prob == "razb":
 	
 		P = Problem()
-		P.forbidden_edge_numbers={4:4}
-		P.forbidden_induced_graphs=[Flag("4:123")]
+		P.forbid_edge_number(4, 4)
+		P.forbid_induced_subgraph(Flag("4:123"))
 		P.n = 6
 		P.create_block_bases()
 		C = BlowupConstruction(Flag("3:112223331123"))
@@ -99,11 +99,10 @@ def example(prob):
 	elif prob == "k5weak":
 	
 		P = Problem()
-		P.forbidden_edge_numbers={5:10}
-		h1 = Flag("5:134234125135235145245345")
-		h2 = Flag("5:124134234125135235145245")
-		P.forbidden_induced_graphs=[h1,h2]
+		P.forbid_edge_number(5, 10)
+		P.forbid_induced_edge_number(5, 8)
 		P.n = 6
+		return P,C
 		P.create_block_bases()
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
@@ -119,10 +118,10 @@ def example(prob):
 	elif prob == "turank4-":
 	
 		P = Problem()
-		P.forbidden_graphs=[Flag("4:123124134234")]
+		P.forbid_edge_number(4, 4)
 		P.n = 6
 		P.create_block_bases()
-		P.density_graph =Flag("4:123124134")
+		P.density_graph = Flag("4:123124134")
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -154,7 +153,8 @@ def example(prob):
 	elif prob == "38":
 
 		P = Problem()
-		P.forbidden_graphs=[Flag("5:123124125345"),Flag("5:123124125134135145")]
+		P.forbid_subgraph(Flag("5:123124125345"))
+		P.forbid_subgraph(Flag("5:123124125134135145"))
 		P.n = 6
 		P.create_block_bases()
 		C = BlowupConstruction(Flag("4:123124134234"))
@@ -188,8 +188,8 @@ def example(prob):
 	elif prob == "k4-f32":
 
 		P = Problem()
-		P.forbidden_edge_numbers={4:3}
-		P.forbidden_graphs=[Flag("5:123124125345")]
+		P.forbid_edge_number(4, 3)
+		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 7
 		P.create_block_bases()
 		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
@@ -202,7 +202,7 @@ def example(prob):
 	
 		P = AxiomsProblem()
 		C = None
-		P.forbidden_edge_numbers={4:3}
+		P.forbid_edge_number(4, 3)
 		P.n = 6
 		tg = Flag("2:")
 		f1 = Flag("3:123", tg)
@@ -216,8 +216,8 @@ def example(prob):
 	elif prob == "codn":
 	
 		P = AxiomsProblem()
-		P.forbidden_edge_numbers={4:3}
-		P.forbidden_graphs = [Flag("6:612623634645651")]
+		P.forbid_edge_number(4, 3)
+		P.forbid_subgraph(Flag("6:612623634645651"))
 		P.n = 6
 		tg = Flag("2:")
 		f1 = Flag("3:123", tg)
@@ -232,10 +232,10 @@ def example(prob):
 	elif prob == "codr":
 	
 		P = AxiomsProblem()
-		P.forbidden_edge_numbers={4:3}
-		P.forbidden_graphs = [Flag("6:612623634645651")]
+		P.forbid_edge_number(4, 3)
+		P.forbid_subgraph(Flag("6:612623634645651"))
 		P.n = 6
-		P.create_block_bases()
+		#P.create_block_bases()
 		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
@@ -252,7 +252,7 @@ def example(prob):
 	elif prob == "k4-cod":
 	
 		P = AxiomsProblem()
-		P.forbidden_edge_numbers={4:3}
+		P.forbid_edge_number(4, 3)
 		P.n = 7
 		P.save_json("k4-cod.js")
 		P.create_block_bases()
@@ -279,7 +279,7 @@ def example(prob):
 	elif prob == "marchant":
 	
 		P = AxiomsProblem()
-		P.forbidden_graphs = [Flag("5:123124125345")]
+		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 6
 		P.remove_types([0,2])
 		P.add_codegree_axiom(Rational("1/3"))
@@ -304,7 +304,7 @@ def example(prob):
 	elif prob == "grzesik":
 
 		P = Problem(2)
-		P.forbidden_edge_numbers = {3:3}
+		P.forbid_edge_number(3, 3)
 		P.n = 5
 		P.create_block_bases()
 		P.density_graph = Flag("5:1223344551", 2)
@@ -402,7 +402,7 @@ def example(prob):
 	elif prob == "34":
 
 		P = Problem(2)
-		P.forbidden_induced_graphs = [Flag("4:",2)]
+		P.forbid_induced_edge_number(4, 0)
 		P.n = 5
 		P.create_block_bases()
 		P.density_graph = Flag("3:121323",2)
@@ -429,7 +429,7 @@ def example(prob):
 
 
 		P = Problem(2)
-		P.forbidden_induced_graphs = [Flag("3:",2)]
+		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
 		P.create_block_bases()
 		P.density_graph = Flag("4:121314232434",2)
@@ -447,18 +447,23 @@ def example(prob):
 
 	elif prob == "44":
 
-
 		P = Problem(2)
-		P.forbidden_edge_numbers={4:4}
-		P.n = 5
-		#P.create_block_bases()
-		P.density_graph = Flag("4:",2)
-		C = UnbalancedBlowupConstruction(Flag("8:12152834364756576878", 2), [ ])
+		P.forbid_induced_edge_number(4, 0)
+		P.n = 8
+		P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
+		P.create_block_bases()
+		P.density_graph = Flag("4:121314232434",2)
+		x = polygen(QQ)
+		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
+		x = K.gen()
+		C = UnbalancedBlowupConstruction(Flag("8:122886633447755156781122334455667788",2),
+			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.use_construction(C)
-		#P.set_new_bases()
-		#P.calculate_product_densities()
-		#P._minimize=True
-		#P.write_sdp_input_file()
+		return P, C
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P._minimize=True
+		P.write_sdp_input_file()
 		#P.run_sdp_solver()
 		#P.check_floating_point_bound()
 		#P.make_exact()
@@ -469,7 +474,7 @@ def example(prob):
 
 
 		P = Problem(2)
-		P.forbidden_induced_graphs = [Flag("3:",2)]
+		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
 		P.create_block_bases()
 		P.density_graph = Flag("5:12131415232425343545",2)
@@ -488,7 +493,7 @@ def example(prob):
 	elif prob == "63":
 
 		P = Problem(2)
-		P.forbidden_induced_graphs = [Flag("3:121323",2)]
+		P.forbid_induced_edge_number(3, 3)
 		P.n = 7
 		P.remove_types([1,2,4,7,9])
 		#P.create_block_bases()
@@ -507,7 +512,7 @@ def example(prob):
 	elif prob == "73":
 
 		P = Problem(2)
-		P.forbidden_induced_graphs = [Flag("3:121323",2)]
+		P.forbid_induced_edge_number(3, 3)
 		P.n = 8
 		P.remove_types([1,3,4,5,6,7,8,10])
 #		P.create_block_bases()

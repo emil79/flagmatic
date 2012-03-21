@@ -54,9 +54,9 @@ class AxiomsProblem(Problem):
 		m = self.n - max([f.n for f in flags]) + tg.n
 
 		axiom_flags = generate_flags(m, tg,
-			forbidden_edge_numbers=self.forbidden_edge_numbers,
-			forbidden_graphs=self.forbidden_graphs,
-			forbidden_induced_graphs=self.forbidden_induced_graphs)
+			forbidden_edge_numbers=self._forbidden_edge_numbers,
+			forbidden_graphs=self._forbidden_graphs,
+			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		
 		num_densities = len(axiom_flags)
 		sys.stdout.write("Added %d quantum graphs.\n" % num_densities)

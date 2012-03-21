@@ -55,11 +55,12 @@ class Problem(SageObject):
 		self._oriented = oriented
 		self._field = RationalField()
 
-		self.forbidden_edge_numbers = {}
-		self.forbidden_graphs = []
-		self.forbidden_induced_graphs = []
+		self._forbidden_edge_numbers = []
+		self._forbidden_graphs = []
+		self._forbidden_induced_graphs = []
 		self._graphs = []
 		self._densities = []
+		
 		self._density_graph = None
 
 		self._types = []
@@ -93,9 +94,9 @@ class Problem(SageObject):
 		d["oriented"] = self._oriented
 		d["field"] = base64.b64encode(dumps(self._field))
 		
-		d["forbidden_edge_numbers"] = self.forbidden_edge_numbers
-		d["forbidden_graphs"] = [repr(g) for g in self.forbidden_graphs]
-		d["forbidden_induced_graphs"] = [repr(g) for g in self.forbidden_induced_graphs]
+		d["forbidden_edge_numbers"] = self._forbidden_edge_numbers
+		d["forbidden_graphs"] = [repr(g) for g in self._forbidden_graphs]
+		d["forbidden_induced_graphs"] = [repr(g) for g in self._forbidden_induced_graphs]
 		
 		d["graphs"] = [repr(g) for g in self._graphs]
 		d["densities"] = [[repr(r) for r in x] for x in self._densities]
@@ -155,11 +156,11 @@ class Problem(SageObject):
 		x = obj._field.gen()
 
 		if "forbidden_edge_numbers" in d:	
-			obj.forbidden_edge_numbers = d["forbidden_edge_numbers"]
+			obj._forbidden_edge_numbers = d["forbidden_edge_numbers"]
 		if "forbidden_graphs" in d:
-			obj.forbidden_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_graphs"]]
+			obj._forbidden_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_graphs"]]
 		if "forbidden_induced_graphs" in d:
-			obj.forbidden_induced_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_induced_graphs"]]
+			obj._forbidden_induced_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_induced_graphs"]]
 		
 		if "graphs" in d:
 			obj._graphs = [Flag(s, obj._r, obj._oriented) for s in d["graphs"]]
@@ -234,9 +235,9 @@ class Problem(SageObject):
 
 		sys.stdout.write("Generating graphs...\n")
 		self._graphs = generate_graphs(n, self._r, self._oriented,
-			forbidden_edge_numbers=self.forbidden_edge_numbers,
-			forbidden_graphs=self.forbidden_graphs,
-			forbidden_induced_graphs=self.forbidden_induced_graphs)
+			forbidden_edge_numbers=self._forbidden_edge_numbers,
+			forbidden_graphs=self._forbidden_graphs,
+			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
 		self._densities = [[g.edge_density() for g in self._graphs]]
@@ -248,9 +249,9 @@ class Problem(SageObject):
 		for s in range(n % 2, n - 1, 2):
 			
 			these_types = generate_graphs(s, self._r, self._oriented,
-				forbidden_edge_numbers=self.forbidden_edge_numbers,
-				forbidden_graphs=self.forbidden_graphs,
-				forbidden_induced_graphs=self.forbidden_induced_graphs)
+				forbidden_edge_numbers=self._forbidden_edge_numbers,
+				forbidden_graphs=self._forbidden_graphs,
+				forbidden_induced_graphs=self._forbidden_induced_graphs)
 			sys.stdout.write("Generated %d types of order %d, " % (
 				len(these_types), s))
 
@@ -258,9 +259,9 @@ class Problem(SageObject):
 			these_flags = []
 			for tg in these_types:
 				these_flags.append(generate_flags(m, tg, self._r, self._oriented,
-					forbidden_edge_numbers=self.forbidden_edge_numbers,
-					forbidden_graphs=self.forbidden_graphs,
-					forbidden_induced_graphs=self.forbidden_induced_graphs))
+					forbidden_edge_numbers=self._forbidden_edge_numbers,
+					forbidden_graphs=self._forbidden_graphs,
+					forbidden_induced_graphs=self._forbidden_induced_graphs))
 			sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
 						
 			self._types.extend(these_types)
@@ -294,6 +295,41 @@ class Problem(SageObject):
 	def density_graph(self, dg):
 		self._density_graph = dg
 		self._densities = [[g.subgraph_density(dg) for g in self._graphs]]
+
+
+	def forbid_edge_number(self, k, ne):
+
+		if k < self._r: 
+			raise ValueError
+
+		max_e = binomial(k, self._r)
+		if not ne in range(max_e + 1):
+			raise ValueError
+
+		for i in range(ne, max_e + 1):
+			self._forbidden_edge_numbers.append((k, i))
+
+
+	def forbid_induced_edge_number(self, k, ne):
+
+		if k < self._r:
+			raise ValueError
+
+		max_e = binomial(k, self._r)
+		if not ne in range(max_e + 1):
+			raise ValueError
+	
+		self._forbidden_edge_numbers.append((k, ne))
+
+
+	def forbid_subgraph(self, h):
+
+		self._forbidden_graphs.append(h)
+
+
+	def forbid_induced_subgraph(self, h):
+
+		self._forbidden_induced_graphs.append(h)
 
 
 	def remove_types(self, indices):
@@ -438,6 +474,7 @@ class Problem(SageObject):
 		self._zero_eigenvectors[ti] = block_diagonal_matrix(B)
 
 
+	# TODO: Handle the case where the zero eigenvectors span the whole space
 
 	def set_new_bases(self):
 
@@ -557,6 +594,8 @@ class Problem(SageObject):
 						value.n(digits=64)))
 
 
+	# TODO: helpful error message if product densities have not been computed.
+	
 	def write_sdp_input_file(self):
 	
 		num_graphs = len(self._graphs)
