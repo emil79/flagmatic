@@ -63,8 +63,9 @@ def example(prob):
 		P = Problem()
 		P.forbidden_graphs=[Flag("5:123124125345")]
 		P.n = 6
-		P.create_block_bases()
-		C = BlowupConstruction(Flag("3:122123133"))
+		#P.create_block_bases()
+		#C = BlowupConstruction(Flag("3:122123133"))
+		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
 		P.use_construction(C)
 		P._force_sharps = True
 		P.set_new_bases()
@@ -171,16 +172,18 @@ def example(prob):
 
 		P = Problem()
 		P.n = 5
+		P.remove_types([0])
 		P.create_block_bases()
 		P.density_graph = Flag("4:123124")
-		#C = random_geometric_construction()
-		C = None
-		#P.use_construction(C)
-		#P.set_new_bases()
+		C = AdHocConstruction("max42")
+		P.use_construction(C)
+		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
-	
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
 	
 	elif prob == "k4-f32":
 
@@ -440,6 +443,26 @@ def example(prob):
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
+
+
+	elif prob == "44":
+
+
+		P = Problem(2)
+		P.forbidden_edge_numbers={4:4}
+		P.n = 5
+		#P.create_block_bases()
+		P.density_graph = Flag("4:",2)
+		C = UnbalancedBlowupConstruction(Flag("8:12152834364756576878", 2), [ ])
+		P.use_construction(C)
+		#P.set_new_bases()
+		#P.calculate_product_densities()
+		#P._minimize=True
+		#P.write_sdp_input_file()
+		#P.run_sdp_solver()
+		#P.check_floating_point_bound()
+		#P.make_exact()
+		#P.check_exact_bound()
 
 
 	elif prob == "53":

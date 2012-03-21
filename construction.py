@@ -95,9 +95,13 @@ class AdHocConstruction(Construction):
 
 			return (4 * x - 1, [0, 2, 4, 5])
 
-		if self._name == "maxs4":
+		elif self._name == "maxs4":
 		
 			return (1 - 9 * x**2, [0, 5, 8, 16, 24, 27, 29, 31, 37, 38, 41])
+
+		elif self._name == "max42":
+
+			return (Integer(3)/4, [0, 4, 8, 23, 24, 27, 33])
 
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):
@@ -136,6 +140,18 @@ class AdHocConstruction(Construction):
 					[0, 0,     0, 0, 0, 0, 1, 0, -1]
 				]
 
+		elif self._name == "max42":
+
+			if tg.is_equal(Flag("3:")):
+
+				rows = [[1, 0, 0, 0, 1, 1, 1, 0]]
+			
+			elif tg.is_equal(Flag("3:123")):
+
+				rows = [[0, 1, 1, 1, 0, 0, 0, 1]]
+
+		if len(rows) == 0:
+			return matrix(K, 0, flag_basis.nrows(), sparse=True)
 
 		if flag_basis is None:
 			flag_basis = identity_matrix(QQ, len(flags))
@@ -213,6 +229,9 @@ class BlowupConstruction(Construction):
 		if flag_basis is None:
 			flag_basis = identity_matrix(QQ, len(flags))
 	
+		if len(rows) == 0:
+			return matrix(K, 0, flag_basis.nrows(), sparse=True)
+	
 		M = matrix(QQ, list(rows), sparse=True) * flag_basis.T
 		
 		if M.rank() == 0:
@@ -224,4 +243,153 @@ class BlowupConstruction(Construction):
 		return M
 
 
+class UnbalancedBlowupConstruction(Construction):
 
+
+	def __init__(self, g, weights=None, field=None):
+	
+		if g.oriented:
+			raise NotImplementedException("oriented graphs not supported.")
+		
+		self._graph = g
+		
+		if weights is None:
+			self._weights = [Integer(1)] * g.n
+		else:
+			if len(weights) != g.n:
+				raise ValueError
+			self._weights = weights
+	
+		if field is None:
+			self._field = RationalField()
+		else:
+			self._field = field
+	
+		
+	def edge_density(self):
+	
+		den_pairs = self.subgraph_densities(self._graph.r)
+
+		for pair in den_pairs:
+			g, den = pair
+			if g.ne == 1:
+				return den
+	
+		
+	def subgraph_densities(self, n):
+
+		cn = self._graph.n
+		total = Integer(0)
+		sharp_graph_counts = {}
+		sharp_graphs = []
+
+		for P in UnorderedTuples(range(1, cn + 1), n):
+		
+			factor = factorial(n)
+			for i in range(1, cn + 1):
+				factor /= factorial(P.count(i))
+
+			for v in P:
+				factor *= self._weights[v - 1]
+			
+			ig = self._graph.degenerate_induced_subgraph(P)
+			ig.make_minimal_isomorph()
+			
+			ghash = hash(ig)
+			if ghash in sharp_graph_counts:
+				sharp_graph_counts[ghash] += factor
+			else:
+				sharp_graphs.append(ig)
+				sharp_graph_counts[ghash] = factor
+
+			total += factor
+		
+		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
+
+
+	def k4(self):
+
+		cn = self._graph.n
+
+		x = polygen(QQ)
+		tot = Integer(0)
+		total = Integer(0)
+		
+		for tp in UnorderedTuples(range(1, cn + 1), 4):
+			P = list(tp)
+			
+			ig = self._graph.degenerate_induced_subgraph(P)
+
+			if ig.ne == 0:
+				fact = Integer(1)
+				for i in range(1, cn + 1):
+					fact /= factorial(P.count(i))
+				for i in P:
+					if i < 5:
+						fact *= x
+					else:
+						fact *= (1 - x*4)/4
+				tot += fact
+				
+			total += 1
+
+		return tot
+				
+
+
+	def zero_eigenvectors(self, tg, flags, flag_basis=None):
+
+		cn = self._graph.n
+		s = tg.n
+		k = flags[0].n # assume all flags the same order
+
+		rows = []
+
+		for tv in Tuples(range(1, cn + 1), s):
+
+			it = self._graph.degenerate_induced_subgraph(tv)
+			if not it.is_equal(tg):
+				continue
+
+			total = Integer(0)
+			row = [0] * len(flags)
+		
+			for ov in UnorderedTuples(range(1, cn + 1), k - s):
+		
+				factor = factorial(k - s)
+				for i in range(1, cn + 1):
+					factor /= factorial(ov.count(i))
+
+				for v in ov:
+					factor *= self._weights[v - 1]
+				
+				ig = self._graph.degenerate_induced_subgraph(tv + ov)
+				ig.t = s
+				ig.make_minimal_isomorph()
+				
+				for j in range(len(flags)):
+					if ig.is_equal(flags[j]):
+						row[j] += factor
+						total += factor
+						break
+						
+			for j in range(len(flags)):
+				row[j] /= total	
+			rows.append(row)
+
+		if flag_basis == None:
+			flag_basis = identity_matrix(QQ, len(flags), sparse=True)
+
+		if len(rows) == 0:
+			return matrix(self._field, 0, flag_basis.nrows(), sparse=True)
+
+		M = matrix(self._field, rows, sparse=True) * flag_basis.T
+		
+		if M.rank() == 0:
+			return matrix(self._field, 0, flag_basis.nrows(), sparse=True)
+		
+		M = M.echelon_form()
+		M = M[:M.rank(),:]
+
+		return M
+	

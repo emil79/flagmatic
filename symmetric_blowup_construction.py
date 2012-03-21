@@ -187,6 +187,7 @@ class SymmetricBlowupConstruction (BlowupConstruction):
 					for j in range(len(flags)):
 						if ig.is_equal(flags[j]):
 							row[j] += Integer(factor) / total
+							break
 				
 				rows.append(row)
 

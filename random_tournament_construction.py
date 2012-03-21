@@ -50,10 +50,7 @@ class RandomTournamentConstruction(Construction):
 		
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):
-	
-		if flag_basis == None:
-			flag_basis = identity_matrix(QQ, len(flags), sparse=True)	
-	
+		
 		rows = set()
 		for p in Tuples([0, 1], binomial(tg.n, 2)):
 			edges = []
@@ -74,9 +71,15 @@ class RandomTournamentConstruction(Construction):
 						row[i] = den
 						break
 			rows.add(tuple(row))
+
+		if flag_basis == None:
+			flag_basis = identity_matrix(QQ, len(flags), sparse=True)
 		
+		if len(rows) == 0:
+			return matrix(K, 0, flag_basis.nrows(), sparse=True)
+
 		M = matrix(QQ, list(rows), sparse=True) * flag_basis.T
-		
+
 		if M.rank() == 0:
 			return matrix(QQ, 0, flag_basis.nrows(), sparse=True)
 		
