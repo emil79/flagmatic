@@ -81,7 +81,7 @@ def example(prob):
 	
 		P = Problem()
 		P.forbid_edge_number(4, 4)
-		P.forbid_induced_subgraph(Flag("4:123"))
+		P.forbid_induced_edge_number(4, 1)
 		P.n = 6
 		P.create_block_bases()
 		C = BlowupConstruction(Flag("3:112223331123"))

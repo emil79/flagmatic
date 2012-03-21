@@ -663,8 +663,6 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 3:
 								num_e += 1
-								if forbidden_edge_nums[num_e] == 1:
-									return True
 						elif self._r == 2:
 							e = &self._edges[2 * j]
 							for l in range(k - 1):
@@ -674,8 +672,8 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 2:
 								num_e += 1
-								if forbidden_edge_nums[num_e] == 1:
-									return True
+					if forbidden_edge_nums[num_e] == 1:
+						return True
 	
 			else:
 	
@@ -693,8 +691,6 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 3:
 								num_e += 1
-								if forbidden_edge_nums[num_e] == 1:
-									return True
 						elif self._r == 2:
 							e = &self._edges[2 * j]
 							for l in range(k):
@@ -702,8 +698,8 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 2:
 								num_e += 1
-								if forbidden_edge_nums[num_e] == 1:
-									return True
+					if forbidden_edge_nums[num_e] == 1:
+						return True
 	
 		return False
 
