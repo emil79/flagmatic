@@ -1447,7 +1447,6 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 	return results
 
 
-
 def new_flag_products (Flag g, int s, int m1, int m2):
 	"""
 	Experimental function - not used for anything (yet).

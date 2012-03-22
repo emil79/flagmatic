@@ -102,8 +102,7 @@ def example(prob):
 		P.forbid_edge_number(5, 10)
 		P.forbid_induced_edge_number(5, 8)
 		P.n = 6
-		return P,C
-		P.create_block_bases()
+		#P.create_block_bases()
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
 		P.set_new_bases()

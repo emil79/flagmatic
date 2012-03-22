@@ -562,9 +562,11 @@ class Problem(SageObject):
  			s = tg.n
  			m = (self._n + s) / 2
 
- 			sys.stdout.write("Doing type %d (order %d; flags %d).\n" % (ti, s, m))
+ 			sys.stdout.write("Doing type %d (order %d; flags %d)...\n" % (ti, s, m))
  			flags_block = make_graph_block(self._flags[ti], m)
 			DL = flag_products(graph_block, tg, flags_block, None)
+		
+			sys.stdout.write("Transforming...\n")
 		
 			this_type_dumps = []
 			for gi in range(len(self._graphs)):
