@@ -387,7 +387,7 @@ cdef class Flag (SageObject):
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
 		
-		return self.ne / binomial(self._n, self._r)
+		return self.ne / binomial(self.n, self.r)
 
 
 	def subgraph_density(self, h):
@@ -398,6 +398,13 @@ cdef class Flag (SageObject):
 		
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
+		
+		# Short-cut if we are dealing with edge/non-edge density
+		if h.n == self.r:
+			if h.ne == 1:
+				return self.edge_density()
+			else:
+				return 1 - self.edge_density()
 		
 		found, total = 0, 0
 		minh = h.copy()
@@ -622,7 +629,7 @@ cdef class Flag (SageObject):
 	
 	def has_forbidden_edge_numbers(self, forbidden_edge_numbers, must_have_highest=False):
 	
-		cdef int *c, nc, i, j, k, l, fe, *edges, *e, got, *comb, num_e, max_e
+		cdef int *c, nc, i, j, k, l, fe, *edges, *e, got, *comb, num_e, max_e, ceiling
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -645,6 +652,13 @@ cdef class Flag (SageObject):
 				if (k, i) in forbidden_edge_numbers:
 					forbidden_edge_nums[i] = 1
 			
+			ceiling = max_e + 1
+			for i in range(max_e, -1, -1):
+				if forbidden_edge_nums[i] == 1:
+					ceiling = i
+				else:
+					break
+			
 			if must_have_highest:
 			
 				c = generate_combinations(self._n - 1, k - 1, &nc)
@@ -663,6 +677,8 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 3:
 								num_e += 1
+								if num_e == ceiling:
+									return True
 						elif self._r == 2:
 							e = &self._edges[2 * j]
 							for l in range(k - 1):
@@ -672,6 +688,8 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 2:
 								num_e += 1
+								if num_e == ceiling:
+									return True
 					if forbidden_edge_nums[num_e] == 1:
 						return True
 	
@@ -691,6 +709,8 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 3:
 								num_e += 1
+								if num_e == ceiling:
+									return True
 						elif self._r == 2:
 							e = &self._edges[2 * j]
 							for l in range(k):
@@ -698,6 +718,8 @@ cdef class Flag (SageObject):
 									got += 1
 							if got == 2:
 								num_e += 1
+								if num_e == ceiling:
+									return True
 					if forbidden_edge_nums[num_e] == 1:
 						return True
 	

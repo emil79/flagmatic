@@ -61,7 +61,9 @@ class Problem(SageObject):
 		self._graphs = []
 		self._densities = []
 		
-		self._density_graph = None
+		edge_graph = Flag("%d:" % r, r, oriented)
+		edge_graph.add_edge(range(1, r + 1))
+		self._density_graphs = [edge_graph]
 
 		self._types = []
 		self._flags = []
@@ -100,9 +102,8 @@ class Problem(SageObject):
 		
 		d["graphs"] = [repr(g) for g in self._graphs]
 		d["densities"] = [[repr(r) for r in x] for x in self._densities]
-		if not self._density_graph is None:
-			d["density_graph"] = repr(self._density_graph)
-			
+		d["density_graphs"] = [repr(g) for g in self._density_graphs]
+		
 		d["types"] = [repr(g) for g in self._types]
 		d["flags"] = [[repr(g) for g in x] for x in self._flags]
 		d["block_bases"] = [base64.b64encode(dumps(M)) for M in self._block_bases]
@@ -166,8 +167,8 @@ class Problem(SageObject):
 			obj._graphs = [Flag(s, obj._r, obj._oriented) for s in d["graphs"]]
 		if "densities" in d:
 			obj._densities = [[sage_eval(s) for s in l] for l in d["densities"]]
-		if "density_graph" in d:
-			obj._density_graph = Flag(d["density_graph"], obj._r, obj._oriented)
+		if "density_graphs" in d:
+			obj._density_graphs = [Flag(s, obj._r, obj._oriented) for s in d["density_graphs"]]
 
 		if "types" in d:
 			obj._types = [Flag(s, obj._r, obj._oriented) for s in d["types"]]
@@ -240,7 +241,7 @@ class Problem(SageObject):
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
-		self._densities = [[g.edge_density() for g in self._graphs]]
+		self.calculate_densities()
 	
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
@@ -285,16 +286,47 @@ class Problem(SageObject):
 	def flags(self):
 		return self._flags
 
-	# TODO: default self._density_graph to Flag("3:123")
-	
 	@property
-	def density_graph(self):
-		return self._density_graph
+	def density_graphs(self):
+		return self._density_graphs
 
-	@density_graph.setter
-	def density_graph(self, dg):
-		self._density_graph = dg
-		self._densities = [[g.subgraph_density(dg) for g in self._graphs]]
+
+	def calculate_densities(self):
+	
+		self._densities = [[
+			sum(g.subgraph_density(dg) for dg in self._density_graphs)
+			for g in self._graphs]]
+	
+	
+	def set_density_graph(self, dg):
+
+		self._density_graphs = [dg]
+		self.calculate_densities()
+
+
+	def set_density_graphs(self, dgs):
+
+		self._density_graphs = dgs
+		self.calculate_densities()
+
+
+	def set_density_edge_number(self, k, ne):
+
+		if k < self._r:
+			raise ValueError
+
+		max_e = binomial(k, self._r)
+		if not ne in range(max_e + 1):
+			raise ValueError
+
+		graphs = generate_graphs(k, self._r, self._oriented,
+			forbidden_edge_numbers=self._forbidden_edge_numbers,
+			forbidden_graphs=self._forbidden_graphs,
+			forbidden_induced_graphs=self._forbidden_induced_graphs)
+		
+		dgs = [g for g in graphs if g.ne == ne]
+
+		self.set_density_graphs(dgs)
 
 
 	def forbid_edge_number(self, k, ne):
@@ -389,37 +421,29 @@ class Problem(SageObject):
 				else:
 					sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
 	
-			if self._density_graph is None:
+			self._target_bound = 0
 			
-				self._target_bound = c.edge_density()
-				sys.stdout.write("Edge density of construction is %s.\n" % self._target_bound)
+			for dg in self._density_graphs:
 			
-			else:
-			
-				if self._density_graph.n == self._n:
+				if dg.n == self._n:
 					
-					# There's no guarantee that self._density_graph is minimally isomorphic!
-					mdg = self._density_graph.copy()
+					# There's no guarantee that dg is minimally isomorphic!
+					mdg = dg.copy()
 					mdg.make_minimal_isomorph()
 					
 					for pair in sharp_graphs:
 						g, den = pair
 						if g.is_equal(mdg):
-							self._target_bound = den
+							self._target_bound += den
 							break
-					else:
-						# if graph does not appear in construction, density is 0.
-						self._target_bound = 0		
 	
 				else:
 				
-					self._target_bound = 0
-					
 					for pair in sharp_graphs:
 						g, den = pair
-						self._target_bound += den * g.subgraph_density(self._density_graph)
-				
-				sys.stdout.write("%s density of construction is %s.\n" % (self._density_graph, self._target_bound))
+						self._target_bound += den * g.subgraph_density(dg)
+			
+			sys.stdout.write("Density of construction is %s.\n" % self._target_bound)
 		
 		self._zero_eigenvectors = []
 		
@@ -714,6 +738,11 @@ class Problem(SageObject):
 			sdpa_output_filename = os.path.join(SAGE_TMP, "sdpa.out")
 			cmd = "%s -ds %s -o %s" % (sdpa_cmd, self._sdp_input_filename, sdpa_output_filename)
 
+		if not use_sdpa:
+			sys.stdout.write("Running csdp...\n")
+		else:
+			sys.stdout.write("Running sdpa...\n")
+
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
 		obj_val = None
 		while True:
@@ -889,6 +918,8 @@ class Problem(SageObject):
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
+		
+		sys.stdout.write("Checking numerical bound...\n")
 		
 		fbounds = [sum([self._densities[j][i] * self._sdp_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 		

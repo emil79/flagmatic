@@ -121,7 +121,8 @@ def example(prob):
 		P.forbid_edge_number(4, 4)
 		P.n = 6
 		P.create_block_bases()
-		P.density_graph = Flag("4:123124134")
+		#P.density_graph = Flag("4:123124134")
+		P.set_density_edge_number(4, 3)
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -138,8 +139,26 @@ def example(prob):
 		P = Problem()
 		P.n = 6
 		P.create_block_bases()
-		P.density_graph = Flag("5:123124125134135145234235245")
+		#P.density_graph = Flag("5:123124125134135145234235245")
+		P.set_density_edge_number(5, 9)
 		C = BlowupConstruction(Flag("2:112122"))
+		P.use_construction(C)
+		P.set_new_bases()
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.make_exact()
+		P.check_exact_bound()
+
+
+	elif prob == "max56":
+	
+		P = Problem()
+		P.n = 6
+		P.create_block_bases()
+		P.set_density_edge_number(5, 6)
+		C = BlowupConstruction(Flag("3:112223331122233311"))
 		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
