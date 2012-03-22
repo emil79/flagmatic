@@ -44,8 +44,10 @@ from sage.modules.misc import gram_schmidt
 # So for now, CSDP has to be in a directory in $PATH.
 
 cdsp_cmd = "csdp"
-sdpa_cmd = "sdpa_dd"
-    
+sdpa_cmd = "sdpa"
+sdpa_dd_cmd = "sdpa_dd"
+sdpa_qd_cmd = "sdpa_qd"
+
 class Problem(SageObject):
 
 	def __init__(self, r=3, oriented=False):
@@ -87,136 +89,28 @@ class Problem(SageObject):
 		self._bounds = []
 
 
-	def save_json(self, filename):
-		
-		d = {}
-		
-		d["n"] = self._n
-		d["r"] = self._r
-		d["oriented"] = self._oriented
-		d["field"] = base64.b64encode(dumps(self._field))
-		
-		d["forbidden_edge_numbers"] = self._forbidden_edge_numbers
-		d["forbidden_graphs"] = [repr(g) for g in self._forbidden_graphs]
-		d["forbidden_induced_graphs"] = [repr(g) for g in self._forbidden_induced_graphs]
-		
-		d["graphs"] = [repr(g) for g in self._graphs]
-		d["densities"] = [[repr(r) for r in x] for x in self._densities]
-		d["density_graphs"] = [repr(g) for g in self._density_graphs]
-		
-		d["types"] = [repr(g) for g in self._types]
-		d["flags"] = [[repr(g) for g in x] for x in self._flags]
-		d["block_bases"] = [base64.b64encode(dumps(M)) for M in self._block_bases]
-		d["flag_bases"] = [base64.b64encode(dumps(M)) for M in self._flag_bases]
-		if not self._target_bound is None:
-			d["target_bound"] = repr(self._target_bound)
-		d["sharp_graphs"] = self._sharp_graphs
-		d["zero_eigenvectors"] = [base64.b64encode(dumps(M)) for M in self._zero_eigenvectors]
-		d["product_densities_dumps"] = [[base64.b64encode(s) for s in x] for x in self._product_densities_dumps]
+	def save(self, filename):
 
-		d["obj_value_factor"] = repr(self._obj_value_factor)
-		d["minimize"] = self._minimize
-		d["force_sharps"] = self._force_sharps
-		if not self._sdp_input_filename is None:
-			d["sdp_input_filename"] = self._sdp_input_filename,
-		if not self._sdp_output_filename is None:
-			d["sdp_output_filename"] = self._sdp_output_filename
-			
-		d["sdp_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._sdp_Q_matrices]
-		d["sdp_density_coeffs"] = [repr(n) for n in self._sdp_density_coeffs]
-		d["exact_Q_matrices"] = [base64.b64encode(dumps(M)) for M in self._exact_Q_matrices]
-		d["exact_density_coeffs"] = [repr(r) for r in self._exact_density_coeffs]
-		d["bounds"] = [repr(r) for r in self._bounds]
-		
-		self.save_more_json(d)
-		
+		if filename[-5:] != ".sobj":
+			filename += ".sobj"
+
 		with open(filename, "wb") as f:
-			json.dump(d, f)
-
-
-	def save_more_json(self, d):
-		pass		
+			f.write(dumps(self.__dict__))
 
 
 	@classmethod
-	def load_json(cls, filename):
+	def load(cls, filename):
+
+		if filename[-5:] != ".sobj":
+			filename += ".sobj"
 		
 		obj = cls()
 		
 		with open(filename, "rb") as f:
-			d = json.load(f)
+			d = loads(f.read())
+			obj.__dict__.update(d)
 		
-		if "n" in d:
-			obj._n = d["n"]
-		if "r" in d:
-			obj._r = d["r"]
-		if "oriented" in d:
-			obj._oriented = d["oriented"]
-		if "field" in d:
-			obj._field = loads(base64.b64decode(d["field"]))
-		x = obj._field.gen()
-
-		if "forbidden_edge_numbers" in d:	
-			obj._forbidden_edge_numbers = d["forbidden_edge_numbers"]
-		if "forbidden_graphs" in d:
-			obj._forbidden_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_graphs"]]
-		if "forbidden_induced_graphs" in d:
-			obj._forbidden_induced_graphs = [Flag(s, obj._r, obj._oriented) for s in d["forbidden_induced_graphs"]]
-		
-		if "graphs" in d:
-			obj._graphs = [Flag(s, obj._r, obj._oriented) for s in d["graphs"]]
-		if "densities" in d:
-			obj._densities = [[sage_eval(s) for s in l] for l in d["densities"]]
-		if "density_graphs" in d:
-			obj._density_graphs = [Flag(s, obj._r, obj._oriented) for s in d["density_graphs"]]
-
-		if "types" in d:
-			obj._types = [Flag(s, obj._r, obj._oriented) for s in d["types"]]
-		if "flags" in d:
-			obj._flags = [[Flag(s, obj._r, obj._oriented) for s in l] for l in d["flags"]]
-		if "block_bases" in d:
-			obj._block_bases = [loads(base64.b64decode(s)) for s in d["block_bases"]]
-		if "flag_bases" in d:
-			obj._flag_bases = [loads(base64.b64decode(s)) for s in d["flag_bases"]]
-		if "target_bound" in d:
-			obj._target_bound = sage_eval(d["target_bound"], locals={'x' : x})
-		
-		if "sharp_graphs" in d:
-			obj._sharp_graphs = d["sharp_graphs"]
-		if "zero_eigenvectors" in d:
-			obj._zero_eigenvectors = [loads(base64.b64decode(s)) for s in d["zero_eigenvectors"]]
-		if "product_densities_dumps" in d:
-			obj._product_densities_dumps = [[base64.b64decode(s) for s in l] for l in d["product_densities_dumps"]]
-
-		if "obj_value_factor" in d:
-			obj._obj_value_factor = RDF(d["obj_value_factor"])
-		if "minimize" in d:
-			obj._minimize = d["minimize"]
-		if "force_sharps" in d:
-			obj._force_sharps = d["force_sharps"]
-		if "sdp_input_filename" in d:
-			obj._sdp_input_filename = d["sdp_input_filename"]
-		if "sdp_output_filename" in d:
-			obj._sdp_output_filename = d["sdp_output_filename"]
-			
-		if "sdp_Q_matrices" in d:
-			obj._sdp_Q_matrices = [loads(base64.b64decode(s)) for s in d["sdp_Q_matrices"]]
-		if "sdp_density_coeffs" in d:
-			obj._sdp_density_coeffs = [RDF(s) for s in d["sdp_density_coeffs"]]
-		if "exact_Q_matrices" in d:
-			obj._exact_Q_matrices = [loads(base64.b64decode(s)) for s in d["exact_Q_matrices"]]
-		if "exact_density_coeffs" in d:
-			obj._exact_density_coeffs = [sage_eval(s, locals = {'x' : x}) for s in d["exact_density_coeffs"]]
-		if "bounds" in d:
-			obj._bounds = [sage_eval(s, locals = {'x' : x}) for s in d["bounds"]]
-	
-		cls.load_more_json(d, obj)
-	
-		return obj
-
-	@classmethod
-	def load_more_json(cls, d, obj):
-		pass
+		return obj	
 
 	@property
 	def r(self):
@@ -723,7 +617,7 @@ class Problem(SageObject):
 
 
 
-	def run_sdp_solver(self, show_output=False, use_sdpa=False):
+	def run_sdp_solver(self, show_output=False, sdpa=False):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -731,16 +625,23 @@ class Problem(SageObject):
 
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 
-		if not use_sdpa:
+		if not sdpa:
 
 			cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
 
 		else:
 		
+			if sdpa == "dd":
+				solver_cmd = sdpa_dd_cmd
+			elif sdpa == "qd":
+				solver_cmd = sdpa_qd_cmd
+			else:
+				solver_cmd = sdpa_cmd
+		
 			sdpa_output_filename = os.path.join(SAGE_TMP, "sdpa.out")
-			cmd = "%s -ds %s -o %s" % (sdpa_cmd, self._sdp_input_filename, sdpa_output_filename)
+			cmd = "%s -ds %s -o %s" % (solver_cmd, self._sdp_input_filename, sdpa_output_filename)
 
-		if not use_sdpa:
+		if not sdpa:
 			sys.stdout.write("Running csdp...\n")
 		else:
 			sys.stdout.write("Running sdpa...\n")
@@ -770,7 +671,7 @@ class Problem(SageObject):
 		# TODO: if program is infeasible, a returncode of 1 is given,
 		# and output contains "infeasible"
 
-		if use_sdpa:
+		if sdpa:
 		
 			with open(sdpa_output_filename, "r") as inf:
 				with open(self._sdp_output_filename, "w") as f:
