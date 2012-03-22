@@ -33,16 +33,24 @@ class AxiomsProblem(Problem):
 	def __init__(self, r=3, oriented=False):
 	
 		Problem.__init__(self, r, oriented)
+		self._density_graphs = []
+
+
+	def calculate_densities(self):
+		pass
 	
 
-	def save_more_json(self, d):
+	def set_density_graph(self, dg):
 		pass
 
 	
-	@classmethod
-	def load_more_json(cls, d, obj):
-		pass	
-	
+	def set_density_graphs(self, dgs):
+		pass
+
+
+	def set_density_edge_number(self, k, ne):
+		pass
+
 
 	def clear_axioms(self):
 		
@@ -75,7 +83,7 @@ class AxiomsProblem(Problem):
 				for k in range(num_densities):
 					quantum_graphs[k][j] += M[0, k] * flag_coeffs[i]
 		
-		self._densities.extend(quantum_graphs)		
+		self._densities.extend(quantum_graphs)
 	
 	
 	def add_codegree_axiom(self, value):

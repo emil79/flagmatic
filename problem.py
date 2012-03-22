@@ -187,8 +187,7 @@ class Problem(SageObject):
 
 	def calculate_densities(self):
 	
-		self._densities = [[
-			sum(g.subgraph_density(dg) for dg in self._density_graphs)
+		self._densities = [[sum(g.subgraph_density(dg) for dg in self._density_graphs)
 			for g in self._graphs]]
 	
 	
@@ -286,10 +285,13 @@ class Problem(SageObject):
 
 	def use_construction(self, c):
 
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._densities)
+
 		self._field = c.field
 
 		# Ad Hoc constructions use target_bound() instead of subgraph_densities()
-		
 		pair = c.target_bound()
 
 		if not pair is None:
@@ -299,45 +301,27 @@ class Problem(SageObject):
 
 		else:
 
-			# TODO: axioms construction needs density of zero
-			# maybe create a self.density(g) function
-	
 			sys.stdout.write("Determining which graphs appear in construction...\n")
 			
 			sharp_graphs = c.subgraph_densities(self._n)
+			target_densities = [0 for j in range(num_densities)]
 			self._sharp_graphs = []
+			
 			for pair in sharp_graphs:
 				g, den = pair
-				for gi in range(len(self._graphs)):
+				for gi in range(num_graphs):
 					if g.is_equal(self._graphs[gi]):
 						self._sharp_graphs.append(gi)
+						for j in range(num_densities):
+							target_densities[j] += self._densities[j][gi] * den
 						break
 				else:
 					sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
 	
-			self._target_bound = 0
+			# set target_bound to equal the maximum - probably this will always be what is wanted...
+			self._target_bound = max(target_densities)
 			
-			for dg in self._density_graphs:
-			
-				if dg.n == self._n:
-					
-					# There's no guarantee that dg is minimally isomorphic!
-					mdg = dg.copy()
-					mdg.make_minimal_isomorph()
-					
-					for pair in sharp_graphs:
-						g, den = pair
-						if g.is_equal(mdg):
-							self._target_bound += den
-							break
-	
-				else:
-				
-					for pair in sharp_graphs:
-						g, den = pair
-						self._target_bound += den * g.subgraph_density(dg)
-			
-			sys.stdout.write("Density of construction is %s.\n" % self._target_bound)
+		sys.stdout.write("Density of construction is %s.\n" % self._target_bound)
 		
 		self._zero_eigenvectors = []
 		

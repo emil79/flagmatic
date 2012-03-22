@@ -120,7 +120,7 @@ def example(prob):
 		P.forbid_edge_number(4, 4)
 		P.n = 6
 		P.create_block_bases()
-		#P.density_graph = Flag("4:123124134")
+		#P.set_density_graph(Flag("4:123124134"))
 		P.set_density_edge_number(4, 3)
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
@@ -138,7 +138,7 @@ def example(prob):
 		P = Problem()
 		P.n = 6
 		P.create_block_bases()
-		#P.density_graph = Flag("5:123124125134135145234235245")
+		#P.set_density_graph(Flag("5:123124125134135145234235245"))
 		P.set_density_edge_number(5, 9)
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
@@ -192,7 +192,7 @@ def example(prob):
 		P.n = 5
 		P.remove_types([0])
 		P.create_block_bases()
-		P.density_graph = Flag("4:123124")
+		P.set_density_graph(Flag("4:123124"))
 		C = AdHocConstruction("max42")
 		P.use_construction(C)
 		P.set_new_bases()
@@ -325,7 +325,7 @@ def example(prob):
 		P.forbid_edge_number(3, 3)
 		P.n = 5
 		P.create_block_bases()
-		P.density_graph = Flag("5:1223344551", 2)
+		P.set_density_graph(Flag("5:1223344551", 2))
 		C = SymmetricBlowupConstruction(Flag("5:1223344551", 2))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -342,7 +342,7 @@ def example(prob):
 		P = Problem(2)
 		P.n = 7
 		P.create_block_bases()
-		P.density_graph = Flag("4:1223241314", 2)
+		P.set_density_graph(Flag("4:1223241314", 2))
 		C = BlowupConstruction(Flag("5:12131415232425343545", 2))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -360,7 +360,7 @@ def example(prob):
 		P.n = 5
 		P.remove_types([4])		
 		P.create_block_bases()
-		P.density_graph = Flag("4:12233114", 2)
+		P.set_density_graph(Flag("4:12233114", 2))
 		C = BlowupConstruction(Flag("4:1223344111223344", 2))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -387,14 +387,14 @@ def example(prob):
 
 		P = Problem(2, oriented=True)
 		P.n = 3
-		P.create_block_bases()
-		P.density_graph = Flag("3:1213", 2, oriented=True)
+		#P.create_block_bases()
+		P.set_density_graph(Flag("3:1213", 2, oriented=True))
 		C = AdHocConstruction("maxs3")
 		P.use_construction(C)
 		P.set_new_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.run_sdp_solver(True)
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -405,7 +405,7 @@ def example(prob):
 		P.n = 4
 		P.remove_types([0])
 		P.create_block_bases()
-		P.density_graph = Flag("4:121314", 2, oriented=True)
+		P.set_density_graph(Flag("4:121314", 2, oriented=True))
 		C = AdHocConstruction("maxs4")
 		P.use_construction(C)
 		P.set_new_bases()
@@ -423,7 +423,7 @@ def example(prob):
 		P.forbid_induced_edge_number(4, 0)
 		P.n = 5
 		P.create_block_bases()
-		P.density_graph = Flag("3:121323",2)
+		P.set_density_graph(Flag("3:121323",2))
 		C = BlowupConstruction(Flag("3:112233", 2))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -450,7 +450,7 @@ def example(prob):
 		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
 		P.create_block_bases()
-		P.density_graph = Flag("4:121314232434",2)
+		P.set_density_graph(Flag("4:121314232434",2))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -470,7 +470,7 @@ def example(prob):
 		P.n = 8
 		P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
 		P.create_block_bases()
-		P.density_graph = Flag("4:121314232434",2)
+		P.set_density_graph(Flag("4:121314232434",2))
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
 		x = K.gen()
@@ -495,7 +495,7 @@ def example(prob):
 		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
 		P.create_block_bases()
-		P.density_graph = Flag("5:12131415232425343545",2)
+		P.set_density_graph(Flag("5:12131415232425343545",2))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
 		P.use_construction(C)
 		P.set_new_bases()
@@ -515,7 +515,7 @@ def example(prob):
 		P.n = 7
 		P.remove_types([1,2,4,7,9])
 		#P.create_block_bases()
-		P.density_graph = Flag("6:",2)
+		P.set_density_graph(Flag("6:",2))
 		C = SymmetricBlowupConstruction(ClebschGraph())
 		P.use_construction(C)
 		P.set_new_bases()
@@ -534,7 +534,7 @@ def example(prob):
 		P.n = 8
 		P.remove_types([1,3,4,5,6,7,8,10])
 #		P.create_block_bases()
-		P.density_graph = Flag("7:",2)
+		P.set_density_graph(Flag("7:",2))
 		C = SymmetricBlowupConstruction(ClebschGraph())
  		P.use_construction(C)
  		P.set_new_bases()

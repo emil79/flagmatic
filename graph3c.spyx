@@ -306,7 +306,7 @@ cdef class Flag (SageObject):
 		return self.is_equal(other)
  	
 	def __reduce__(self):
-		return (Flag, (self._repr_(),))
+		return (Flag, (self._repr_(), self._r, self._oriented))
 
 
 	# TODO: work out how to make sets of these work
