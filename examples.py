@@ -275,9 +275,9 @@ def example(prob):
 		P = AxiomsProblem()
 		P.forbid_edge_number(4, 3)
 		P.n = 7
-		return P, None
+		P.remove_types([3,4])
 		P.save("k4-cod")
-		P.create_block_bases()
+		#P.create_block_bases()
 		P.save("k4-cod")
 		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/4"))
