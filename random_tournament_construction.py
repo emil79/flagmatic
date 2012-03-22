@@ -35,18 +35,12 @@ from sage.structure.sage_object import SageObject
 
 class RandomTournamentConstruction(Construction):
 
-		
-	def induced_subgraphs(self, n):
+
+	def subgraph_densities(self, n):
 
 		tg = Flag()
 
-		graphs = self.induced_flags(n, tg, [])
-
-		for pair in graphs:
-			g, den = pair
-			sys.stdout.write("%s has density %s (%g).\n" % (g, den, den))
-
-		return [pair[0] for pair in graphs]
+		return self.induced_flags(n, tg, [])
 		
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):

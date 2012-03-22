@@ -249,18 +249,21 @@ def example(prob):
 
 	elif prob == "codr":
 	
-		P = AxiomsProblem()
-		P.forbid_edge_number(4, 3)
-		P.forbid_subgraph(Flag("6:612623634645651"))
-		P.n = 6
+		P1 = AxiomsProblem()
+		P1.forbid_edge_number(4, 3)
+		P1.forbid_subgraph(Flag("6:612623634645651"))
+		P1.n = 6
 		#P.create_block_bases()
-		P.clear_axioms()
-		P.add_codegree_axiom(Rational("1/4"))
-		P._force_sharps = True
+		P1.clear_axioms()
+		P1.add_codegree_axiom(Rational("1/4"))
+		P1._force_sharps = True
 		C = RandomTournamentConstruction()
-		P.use_construction(C)
-		P.set_new_bases()
-		P.calculate_product_densities()
+		P1.use_construction(C)
+		P1.set_new_bases()
+		P1.calculate_product_densities()
+		P1.write_sdp_input_file()
+		P1.run_sdp_solver()
+		P = P1.lose_small_densities(0.05)
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
@@ -272,24 +275,25 @@ def example(prob):
 		P = AxiomsProblem()
 		P.forbid_edge_number(4, 3)
 		P.n = 7
-		P.save_json("k4-cod.js")
+		return P, None
+		P.save("k4-cod")
 		P.create_block_bases()
-		P.save_json("k4-cod.js")
+		P.save("k4-cod")
 		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
 		C = RandomTournamentConstruction()
 		P.use_construction(C)
 		P.set_new_bases()
-		P.save_json("k4-cod.js")
+		P.save("k4-cod")
 		P.calculate_product_densities()
-		P.save_json("k4-cod.js")
+		P.save("k4-cod")
 		P.write_sdp_input_file()
-		P.save_json("k4-cod.js")
+		P.save("k4-cod")
 		P.run_sdp_solver(True)
-		P.save_json("k4-cod.js")
+		P.save("k4-cod")
 		P.check_floating_point_bound()
-		P.save_json("k4-cod.js")
+		P.save("k4-cod")
 		#P.make_exact(1024*1024)
 		#P.check_exact_bound()
 

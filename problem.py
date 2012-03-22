@@ -945,6 +945,7 @@ class Problem(SageObject):
 					sys.stdout.write(".")
 					sys.stdout.flush()
 			
+			sys.stdout.write("\n")
 			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.nrows())
 				
 		col_norms = {}
