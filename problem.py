@@ -316,7 +316,7 @@ class Problem(SageObject):
 							target_densities[j] += self._densities[j][gi] * den
 						break
 				else:
-					sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % sg)
+					sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % g)
 	
 			# set target_bound to equal the maximum - probably this will always be what is wanted...
 			self._target_bound = max(target_densities)

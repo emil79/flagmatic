@@ -61,7 +61,7 @@ class AxiomsProblem(Problem):
 
 		m = self.n - max([f.n for f in flags]) + tg.n
 
-		axiom_flags = generate_flags(m, tg,
+		axiom_flags = generate_flags(m, tg, self._r, self._oriented,
 			forbidden_edge_numbers=self._forbidden_edge_numbers,
 			forbidden_graphs=self._forbidden_graphs,
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
@@ -87,6 +87,9 @@ class AxiomsProblem(Problem):
 	
 	
 	def add_codegree_axiom(self, value):
+
+		if not self.r == 3:
+			raise NotImplementedError
 	
 		tg = Flag("2:")
 		f1 = Flag("3:123(2)")
@@ -96,7 +99,42 @@ class AxiomsProblem(Problem):
 
 	def add_degree_axiom(self, value):
 	
-		tg = Flag("1:")
-		f1 = Flag("3:123(1)")
-		f2 = Flag("1:(1)")
-		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+		if self.oriented:
+			raise NotImplementedError
+	
+		if self.r == 3:
+	
+			tg = Flag("1:")
+			f1 = Flag("3:123(1)")
+			f2 = Flag("1:(1)")
+			self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+
+		elif self.r == 2:
+
+			tg = Flag("1:", 2)
+			f1 = Flag("2:12(1)", 2)
+			f2 = Flag("1:(1)", 2)
+			self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+		
+	
+	def add_out_degree_axiom(self, value):
+	
+		if not (self.r == 2 and self.oriented):
+			raise NotImplementedError
+	
+		tg = Flag("1:", 2, True)
+		f1 = Flag("2:12(1)", 2, True)
+		f2 = Flag("1:(1)", 2, True)
+		self.add_axiom(tg, [f1, f2], [Integer(1), -value])		
+
+
+	def add_in_degree_axiom(self, value):
+	
+		if not (self.r == 2 and self.oriented):
+			raise NotImplementedError
+	
+		tg = Flag("1:", 2, True)
+		f1 = Flag("2:21(1)", 2, True)
+		f2 = Flag("1:(1)", 2, True)
+		self.add_axiom(tg, [f1, f2], [Integer(1), -value])		
+		

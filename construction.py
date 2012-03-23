@@ -171,8 +171,8 @@ class BlowupConstruction(Construction):
 
 	def __init__(self, g):
 	
-		if g.oriented:
-			raise NotImplementedException("oriented graphs not supported.")
+		if g.oriented and g.is_degenerate:
+			raise NotImplementedException("degenerate oriented graphs not supported.")
 	
 		self._graph = g
 		self._field = RationalField()
@@ -248,8 +248,8 @@ class UnbalancedBlowupConstruction(Construction):
 
 	def __init__(self, g, weights=None, field=None):
 	
-		if g.oriented:
-			raise NotImplementedException("oriented graphs not supported.")
+		if g.oriented and g.is_degenerate:
+			raise NotImplementedException("degenerate oriented graphs not supported.")
 		
 		self._graph = g
 		

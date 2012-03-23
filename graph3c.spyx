@@ -772,7 +772,7 @@ cdef class Flag (SageObject):
 		degenerate graphs. 
 		"""
 
-		if self._oriented:
+		if self._oriented and self.is_degenerate:
 			raise NotImplementedError
 
 		if x < 1 or x > self._n:
@@ -816,7 +816,7 @@ cdef class Flag (SageObject):
 
 	def degenerate_induced_subgraph(self, verts):
 
-		if self._oriented:
+		if self._oriented and self.is_degenerate:
 			raise NotImplementedError
 		
 		cg = self.copy()
@@ -831,7 +831,8 @@ cdef class Flag (SageObject):
 		ng = Flag()
 		ng.n = len(vertices)
 		ng.r = self._r
-		ng.t = 0		
+		ng.oriented = self._oriented
+		ng.t = 0
 		
 		if self._r == 3:
 			for e in cg.edges:
@@ -871,7 +872,10 @@ cdef class Flag (SageObject):
 		graphs isomorphic to H, divided by binomial(n, k).
 		"""
 
-		if self.oriented or h.oriented:
+		if self.oriented and self.is_degenerate:
+			raise NotImplementedError
+
+		if h.is_degenerate:
 			raise NotImplementedError
 			
 		if self.r != h.r:

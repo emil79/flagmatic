@@ -262,13 +262,13 @@ def example(prob):
 		P1.set_new_bases()
 		P1.calculate_product_densities()
 		P1.write_sdp_input_file()
-		P1.run_sdp_solver()
+		P1.run_sdp_solver(True)
 		P2 = P1.lose_small_densities(0.05)
 		P2.write_sdp_input_file()
-		P2.run_sdp_solver()
+		P2.run_sdp_solver(True)
 		P = P2.combine_densities(20)
 		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.run_sdp_solver(True)
 		P.check_floating_point_bound()
 		P.make_exact(1024*1024)
 		P.check_exact_bound()
@@ -552,5 +552,23 @@ def example(prob):
 		P.check_floating_point_bound(tolerance=10e-11)
 		P.make_exact(1024*1024,cholesky=range(40))
 		#P.check_exact_bound()
+
+	elif prob == "ch":
+	
+		P = AxiomsProblem(2, True)
+		P.forbid_subgraph(Flag("3:122331",2,True))
+		#P.forbid_subgraph(Flag("4:122334",2,True))
+		P.n = 5
+		P.clear_axioms()
+		P.add_out_degree_axiom(Integer(34)/100)
+		P.create_block_bases()
+		#C = BlowupConstruction(Flag("3:121323",2,True))
+ 		#P.use_construction(C)
+ 		P.set_new_bases()
+		P.calculate_product_densities()
+		#P._force_sharps = True
+		P.write_sdp_input_file()
+		P.run_sdp_solver(True,sdpa="qd")
+		C = None
 
 	return P,C
