@@ -252,13 +252,12 @@ def example(prob):
 		P1.forbid_edge_number(4, 3)
 		P1.forbid_subgraph(Flag("6:612623634645651"))
 		P1.n = 6
-		#
 		P1.clear_axioms()
 		P1.add_codegree_axiom(Rational("1/4"))
 		P1._force_sharps = True
 		C = RandomTournamentConstruction()
 		P1.use_construction(C)
-		P1.set_new_bases()
+		P1.change_problem_bases()
 		P1.calculate_product_densities()
 		P1.write_sdp_input_file()
 		P1.run_sdp_solver(True)
@@ -371,12 +370,12 @@ def example(prob):
 		P.use_construction(C)
 		P.change_problem_bases()
 		
-		P.add_zero_eigenvectors(0, 0, matrix(QQ,[[1, 0, 0, '1/2', '31/70'],
+		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, '1/2', '31/70'],
 			[0, 1, '49/106', '7/108', '-17/20']]))
 		
-		P.add_zero_eigenvectors(1, 0, matrix(QQ,[[1,0,0,0],[0,0,0,1]]))
-		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0,0,-5,0,8],[0,0,10,8,0]]))
-		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[0,0,0,5,-2],[0,1,0,0,0]]))
+		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]))
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,5,-2,0,0],[0,1,0,0,0,0,0]]))
 		P._sharp_graphs.extend([0,4,11,18,19,24, 27])
 		P.change_problem_bases()
 		
@@ -393,7 +392,6 @@ def example(prob):
 
 		P = Problem(2, oriented=True)
 		P.n = 3
-		#
 		P.set_density_graph(Flag("3:1213", 2, oriented=True))
 		C = AdHocConstruction("maxs3")
 		P.use_construction(C)
@@ -410,7 +408,6 @@ def example(prob):
 		P = Problem(2, oriented=True)
 		P.n = 4
 		P.remove_types([0])
-		
 		P.set_density_graph(Flag("4:121314", 2, oriented=True))
 		C = AdHocConstruction("maxs4")
 		P.use_construction(C)
@@ -433,12 +430,11 @@ def example(prob):
 		C = BlowupConstruction(Flag("3:112233", 2))
 		P.use_construction(C)
 		P.change_problem_bases()
-		
-		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0, 2, 1, 0, 0]]))
-		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[1, 0, 1, 1, 0, 0]]))
-		#P.add_zero_eigenvectors(3, 1, matrix(QQ,[[1, -1]]))
+				
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]))
+		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]))
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]))
 		P._sharp_graphs.extend([2, 3, 4, 16, 20])
-		#return P,C
 		P.change_problem_bases()
 		
 		P.calculate_product_densities()
