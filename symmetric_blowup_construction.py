@@ -191,21 +191,14 @@ class SymmetricBlowupConstruction (BlowupConstruction):
 				
 				rows.append(row)
 
-		if flag_basis == None:
-			flag_basis = identity_matrix(QQ, len(flags), sparse=True)
-
-		if len(rows) == 0:
-			return matrix(QQ, 0, flag_basis.nrows(), sparse=True)
-
-		M = matrix(QQ, rows, sparse=True) * flag_basis.T
-		
-		if M.rank() == 0:
-			return matrix(QQ, 0, flag_basis.nrows(), sparse=True)
-		
+		M = matrix(self._field, rows, sparse=True)
 		M = M.echelon_form()
 		M = M[:M.rank(),:]
-
-		return M
+		
+		if M.rank() == 0:
+			return matrix(self._field, 0, len(flags), sparse=True)
+		else:
+			return M
 	
 	
 	def subgraph_densities(self, n):

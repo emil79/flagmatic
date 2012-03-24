@@ -35,15 +35,21 @@ from sage.structure.sage_object import SageObject
 
 class RandomTournamentConstruction(Construction):
 
-
-	def subgraph_densities(self, n):
+		
+	def induced_subgraphs(self, n):
 
 		tg = Flag()
 
-		return self.induced_flags(n, tg, [])
+		graphs = self.induced_flags(n, tg, [])
+
+		for pair in graphs:
+			g, den = pair
+			sys.stdout.write("%s has density %s (%g).\n" % (g, den, den))
+
+		return [pair[0] for pair in graphs]
 		
 
-	def zero_eigenvectors(self, tg, flags, flag_basis=None):
+	def zero_eigenvectors(self, tg, flags):
 		
 		rows = set()
 		for p in Tuples([0, 1], binomial(tg.n, 2)):
@@ -66,21 +72,14 @@ class RandomTournamentConstruction(Construction):
 						break
 			rows.add(tuple(row))
 
-		if flag_basis == None:
-			flag_basis = identity_matrix(QQ, len(flags), sparse=True)
-		
-		if len(rows) == 0:
-			return matrix(K, 0, flag_basis.nrows(), sparse=True)
-
-		M = matrix(QQ, list(rows), sparse=True) * flag_basis.T
-
-		if M.rank() == 0:
-			return matrix(QQ, 0, flag_basis.nrows(), sparse=True)
-		
+		M = matrix(self._field, list(rows), sparse=True)
 		M = M.echelon_form()
 		M = M[:M.rank(),:]
-
-		return M
+		
+		if M.rank() == 0:
+			return matrix(self._field, 0, len(flags), sparse=True)
+		else:
+			return M
 
 
 	def induced_flags(self, n, tg, type_edges):

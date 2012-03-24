@@ -104,11 +104,9 @@ class AdHocConstruction(Construction):
 			return (Integer(3)/4, [0, 4, 8, 23, 24, 27, 33])
 
 
-	def zero_eigenvectors(self, tg, flags, flag_basis=None):
+	def zero_eigenvectors(self, tg, flags):
 	
-		K = self._field
-		x = K.gen()
-		
+		x = self._field.gen()		
 		rows = []
 
 		# TODO: should check flags are in the right order!
@@ -150,21 +148,15 @@ class AdHocConstruction(Construction):
 
 				rows = [[0, 1, 1, 1, 0, 0, 0, 1]]
 
-		if len(rows) == 0:
-			return matrix(K, 0, flag_basis.nrows(), sparse=True)
-
-		if flag_basis is None:
-			flag_basis = identity_matrix(QQ, len(flags))
-
-		M = matrix(K, list(rows), sparse=True) * flag_basis.T
-		
-		if M.rank() == 0:
-			return matrix(K, 0, flag_basis.nrows(), sparse=True)
-		
+		M = matrix(self._field, list(rows), sparse=True)
 		M = M.echelon_form()
 		M = M[:M.rank(),:]
+		
+		if M.rank() == 0:
+			return matrix(self._field, 0, len(flags), sparse=True)
+		else:
+			return M
 
-		return M
 
 
 class BlowupConstruction(Construction):
@@ -220,27 +212,20 @@ class BlowupConstruction(Construction):
 		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
 
 
-	def zero_eigenvectors(self, tg, flags, flag_basis=None):
+	def zero_eigenvectors(self, tg, flags):
 	
 		rows = set()
 		for tv in Tuples(range(1, self._graph.n + 1), tg.n):
 			rows.add(tuple(self._graph.degenerate_flag_density(tg, flags, tv)))
 
-		if flag_basis is None:
-			flag_basis = identity_matrix(QQ, len(flags))
-	
-		if len(rows) == 0:
-			return matrix(K, 0, flag_basis.nrows(), sparse=True)
-	
-		M = matrix(QQ, list(rows), sparse=True) * flag_basis.T
-		
-		if M.rank() == 0:
-			return matrix(QQ, 0, flag_basis.nrows(), sparse=True)
-		
+		M = matrix(self._field, list(rows), sparse=True)
 		M = M.echelon_form()
 		M = M[:M.rank(),:]
-
-		return M
+		
+		if M.rank() == 0:
+			return matrix(self._field, 0, len(flags), sparse=True)
+		else:
+			return M
 
 
 class UnbalancedBlowupConstruction(Construction):
@@ -307,7 +292,7 @@ class UnbalancedBlowupConstruction(Construction):
 		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
 
 
-	def zero_eigenvectors(self, tg, flags, flag_basis=None):
+	def zero_eigenvectors(self, tg, flags):
 
 		cn = self._graph.n
 		s = tg.n
@@ -347,19 +332,11 @@ class UnbalancedBlowupConstruction(Construction):
 				row[j] /= total	
 			rows.append(row)
 
-		if flag_basis == None:
-			flag_basis = identity_matrix(QQ, len(flags), sparse=True)
-
-		if len(rows) == 0:
-			return matrix(self._field, 0, flag_basis.nrows(), sparse=True)
-
-		M = matrix(self._field, rows, sparse=True) * flag_basis.T
-		
-		if M.rank() == 0:
-			return matrix(self._field, 0, flag_basis.nrows(), sparse=True)
-		
+		M = matrix(self._field, rows, sparse=True)
 		M = M.echelon_form()
 		M = M[:M.rank(),:]
-
-		return M
-	
+		
+		if M.rank() == 0:
+			return matrix(self._field, 0, len(flags), sparse=True)
+		else:
+			return M

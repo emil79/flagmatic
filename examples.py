@@ -35,10 +35,9 @@ def example(prob):
 		P = Problem()
 		P.forbid_subgraph(Flag("5:123124345"))
 		P.n = 6
-		P.create_block_bases()
 		C = BlowupConstruction(Flag("3:123"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -51,7 +50,7 @@ def example(prob):
 		P = Problem()
 		P.forbid_edge_number(4, 3)
 		P.n = 7
-		#P.create_block_bases()
+		#
 		C = None
 		P.calculate_product_densities()
 		#P.write_sdp_input_file()
@@ -63,13 +62,13 @@ def example(prob):
 		P = Problem()
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 6
-		#P.create_block_bases()
+		#
 		#C = BlowupConstruction(Flag("3:122123133"))
 		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
 		P.use_construction(C)
-		P._force_sharps = True
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
+		P._force_sharps = True
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
@@ -83,12 +82,12 @@ def example(prob):
 		P.forbid_edge_number(4, 4)
 		P.forbid_induced_edge_number(4, 1)
 		P.n = 6
-		P.create_block_bases()
+		
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
-		P._force_sharps = True
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
+		P._force_sharps = True
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
@@ -102,10 +101,10 @@ def example(prob):
 		P.forbid_edge_number(5, 10)
 		P.forbid_induced_edge_number(5, 8)
 		P.n = 6
-		#P.create_block_bases()
+		#
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -119,12 +118,12 @@ def example(prob):
 		P = Problem()
 		P.forbid_edge_number(4, 4)
 		P.n = 6
-		P.create_block_bases()
+		
 		#P.set_density_graph(Flag("4:123124134"))
 		P.set_density_edge_number(4, 3)
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -137,12 +136,12 @@ def example(prob):
 	
 		P = Problem()
 		P.n = 6
-		P.create_block_bases()
+		
 		#P.set_density_graph(Flag("5:123124125134135145234235245"))
 		P.set_density_edge_number(5, 9)
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -155,11 +154,11 @@ def example(prob):
 	
 		P = Problem()
 		P.n = 6
-		P.create_block_bases()
+		
 		P.set_density_edge_number(5, 6)
 		C = BlowupConstruction(Flag("3:112223331122233311"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -174,10 +173,10 @@ def example(prob):
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.forbid_subgraph(Flag("5:123124125134135145"))
 		P.n = 6
-		P.create_block_bases()
+		
 		C = BlowupConstruction(Flag("4:123124134234"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -191,11 +190,11 @@ def example(prob):
 		P = Problem()
 		P.n = 5
 		P.remove_types([0])
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("4:123124"))
 		C = AdHocConstruction("max42")
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -209,10 +208,10 @@ def example(prob):
 		P.forbid_edge_number(4, 3)
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 7
-		P.create_block_bases()
+		
 		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		
 
@@ -226,7 +225,7 @@ def example(prob):
 		f1 = Flag("3:123", tg)
 		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-264/1000")])
-		P.create_block_bases()
+		
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -253,7 +252,7 @@ def example(prob):
 		P1.forbid_edge_number(4, 3)
 		P1.forbid_subgraph(Flag("6:612623634645651"))
 		P1.n = 6
-		#P.create_block_bases()
+		#
 		P1.clear_axioms()
 		P1.add_codegree_axiom(Rational("1/4"))
 		P1._force_sharps = True
@@ -280,14 +279,14 @@ def example(prob):
 		P.n = 7
 		P.remove_types([3,4])
 		P.save("k4-cod")
-		#P.create_block_bases()
+		#
 		P.save("k4-cod")
 		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
 		C = RandomTournamentConstruction()
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.save("k4-cod")
 		P.calculate_product_densities()
 		P.save("k4-cod")
@@ -308,15 +307,15 @@ def example(prob):
 		P.n = 6
 		P.remove_types([0,2])
 		P.add_codegree_axiom(Rational("1/3"))
-		#P.create_block_bases()
+		#
 		P._force_sharps = True
 		C = BlowupConstruction(Flag("3:112223331"))
 		P.use_construction(C)
 		P._target_bound = 0
-		P.set_new_bases()
+		P.change_problem_bases()
 		
 		P._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
-		P.set_new_bases()
+		P.change_problem_bases()
 		
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
@@ -331,11 +330,11 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_edge_number(3, 3)
 		P.n = 5
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("5:1223344551", 2))
 		C = SymmetricBlowupConstruction(Flag("5:1223344551", 2))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -348,11 +347,11 @@ def example(prob):
 
 		P = Problem(2)
 		P.n = 7
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("4:1223241314", 2))
 		C = BlowupConstruction(Flag("5:12131415232425343545", 2))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -366,11 +365,11 @@ def example(prob):
 		P = Problem(2)
 		P.n = 5
 		P.remove_types([4])		
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("4:12233114", 2))
 		C = BlowupConstruction(Flag("4:1223344111223344", 2))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		
 		P.add_zero_eigenvectors(0, 0, matrix(QQ,[[1, 0, 0, '1/2', '31/70'],
 			[0, 1, '49/106', '7/108', '-17/20']]))
@@ -379,7 +378,7 @@ def example(prob):
 		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0,0,-5,0,8],[0,0,10,8,0]]))
 		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[0,0,0,5,-2],[0,1,0,0,0]]))
 		P._sharp_graphs.extend([0,4,11,18,19,24, 27])
-		P.set_new_bases()
+		P.change_problem_bases()
 		
 		P.calculate_product_densities()
 		P._force_sharps = True
@@ -394,11 +393,11 @@ def example(prob):
 
 		P = Problem(2, oriented=True)
 		P.n = 3
-		#P.create_block_bases()
+		#
 		P.set_density_graph(Flag("3:1213", 2, oriented=True))
 		C = AdHocConstruction("maxs3")
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver(True)
@@ -411,11 +410,11 @@ def example(prob):
 		P = Problem(2, oriented=True)
 		P.n = 4
 		P.remove_types([0])
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("4:121314", 2, oriented=True))
 		C = AdHocConstruction("maxs4")
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -429,17 +428,17 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_edge_number(4, 0)
 		P.n = 5
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("3:121323",2))
 		C = BlowupConstruction(Flag("3:112233", 2))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 
 		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0, 2, 1, 0, 0]]))
 		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[1, 0, 1, 1, 0, 0]]))
 		P.add_zero_eigenvectors(3, 1, matrix(QQ,[[1, -1]]))
 		P._sharp_graphs.extend([2, 3, 4, 16, 20])
-		P.set_new_bases()
+		P.change_problem_bases()
 
 		P.calculate_product_densities()
 		P._minimize=True
@@ -456,11 +455,11 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("4:121314232434",2))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
@@ -476,7 +475,7 @@ def example(prob):
 		P.forbid_induced_edge_number(4, 0)
 		P.n = 8
 		P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("4:121314232434",2))
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
@@ -485,7 +484,7 @@ def example(prob):
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.use_construction(C)
 		return P, C
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
@@ -501,11 +500,11 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
-		P.create_block_bases()
+		
 		P.set_density_graph(Flag("5:12131415232425343545",2))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
@@ -521,11 +520,11 @@ def example(prob):
 		P.forbid_induced_edge_number(3, 3)
 		P.n = 7
 		P.remove_types([1,2,4,7,9])
-		#P.create_block_bases()
+		#
 		P.set_density_graph(Flag("6:",2))
 		C = SymmetricBlowupConstruction(ClebschGraph())
 		P.use_construction(C)
-		P.set_new_bases()
+		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
@@ -540,11 +539,11 @@ def example(prob):
 		P.forbid_induced_edge_number(3, 3)
 		P.n = 8
 		P.remove_types([1,3,4,5,6,7,8,10])
-#		P.create_block_bases()
+#		
 		P.set_density_graph(Flag("7:",2))
 		C = SymmetricBlowupConstruction(ClebschGraph())
  		P.use_construction(C)
- 		P.set_new_bases()
+ 		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
@@ -561,10 +560,10 @@ def example(prob):
 		P.n = 5
 		P.clear_axioms()
 		P.add_out_degree_axiom(Integer(34)/100)
-		P.create_block_bases()
+		
 		#C = BlowupConstruction(Flag("3:121323",2,True))
  		#P.use_construction(C)
- 		P.set_new_bases()
+ 		P.change_problem_bases()
 		P.calculate_product_densities()
 		#P._force_sharps = True
 		P.write_sdp_input_file()

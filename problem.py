@@ -275,14 +275,6 @@ class Problem(SageObject):
 			self._block_bases = [self._block_bases[i] for i in remaining]
 
 
-	def create_block_bases(self):
-
-		self._block_bases = []
-		for ti in range(len(self._types)):
-			B = flag_basis(self._types[ti], self._flags[ti])
-			self._block_bases.append(B)
-
-
 	def use_construction(self, c):
 
 		num_graphs = len(self._graphs)
@@ -326,23 +318,8 @@ class Problem(SageObject):
 		self._zero_eigenvectors = []
 		
 		for ti in range(len(self._types)):
-		
-			if len(self._block_bases) != 0:
 
-				row_div = self._block_bases[ti].subdivisions()[0]
-				div_sizes = row_div + [len(self._flags[ti])]
-				for i in range(1, len(div_sizes)):
-					div_sizes[i] -= div_sizes[i - 1]
-	
-				M = []
-				for i in range(len(div_sizes)):
-					M.append(c.zero_eigenvectors(self._types[ti], self._flags[ti],
-						self._block_bases[ti].subdivision(i,0)))
-				self._zero_eigenvectors.append(block_diagonal_matrix(M))
-
-			else:
-
-				self._zero_eigenvectors.append(c.zero_eigenvectors(self._types[ti], self._flags[ti]))
+			self._zero_eigenvectors.append(c.zero_eigenvectors(self._types[ti], self._flags[ti]))
 		
 			sys.stdout.write("Found %d zero eigenvectors for type %d.\n" % (
 				self._zero_eigenvectors[ti].nrows(), ti))
@@ -376,47 +353,98 @@ class Problem(SageObject):
 		self._zero_eigenvectors[ti] = block_diagonal_matrix(B)
 
 
-	# TODO: Handle the case where the zero eigenvectors span the whole space
+	def change_problem_bases(self, use_blocks=True):
 
-	def set_new_bases(self):
+		self._flag_bases = self._create_new_bases(use_blocks)
 
-		# If there are no zero eigenvectors, just use the block bases
-		if len(self._zero_eigenvectors) == 0:
-			for ti in range(len(self._types)):
-				self._flag_bases[ti] = self._block_bases[ti]
-			return
 
+	def change_solution_bases(self, use_blocks=True):
+
+		self._solution_bases = self._create_new_bases(use_blocks)
+
+
+
+	def create_block_bases(self):
+
+		self._block_bases = []
 		for ti in range(len(self._types)):
-	
-			col_div = self._zero_eigenvectors[ti].subdivisions()[1]
-			num_M = len(col_div) + 1
-			div_sizes = col_div + [self._zero_eigenvectors[ti].ncols()]
-			for i in range(1, len(div_sizes)):
-				div_sizes[i] -= div_sizes[i - 1]
+			B = flag_basis(self._types[ti], self._flags[ti])
+			self._block_bases.append(B)
 
-			M = [self._zero_eigenvectors[ti].subdivision(i,i) for i in range(num_M)]
+
+	def _create_new_bases(self, use_blocks=True):
+
+		num_types = len(self._types)
+
+		if len(self._zero_eigenvectors) == 0:
+
+			sys.stdout.write("No zero eigenvectors found.\n")
 			
-			for i in range(num_M):
-				nzev = M[i].nrows()
-				if nzev == 0:
-					M[i] = identity_matrix(QQ, div_sizes[i])
+			if use_blocks:
+				return [self._block_bases[ti] for ti in range(num_types)]
+			else:
+				return [identity_matrix(QQ, len(self._flags[ti])) for ti in range(num_types)]
+
+		if use_blocks and len(self._block_bases) == 0:
+			self.create_block_bases()
+
+		new_bases = []
+
+		for ti in range(num_types):
+	
+			if use_blocks:
+			
+				row_div = self._block_bases[ti].subdivisions()[0]
+				div_sizes = row_div + [len(self._flags[ti])]
+				for bi in range(1, len(div_sizes)):
+					div_sizes[bi] -= div_sizes[bi - 1]
+			
+			else:
+		
+				div_sizes = [len(self._flags[ti])]
+				
+			BS = []
+			
+			for bi in range(len(div_sizes)):	
+			
+				if use_blocks:
+					B = self._zero_eigenvectors[ti] * self._block_bases[ti].subdivision(bi, 0).T
 				else:
-					M[i] = M[i].stack(M[i].right_kernel().basis_matrix())
+					B = copy(self._zero_eigenvectors[ti])		
+				
+				B = B.echelon_form()	
+				nzev = B.rank()
+				B = B[:nzev, :]
+			
+				if nzev == 0:
+					B = identity_matrix(QQ, div_sizes[bi])
+				
+				elif nzev == div_sizes[bi]:
+					B = matrix(QQ, 0, div_sizes[bi])
+				
+				else:
+					B = B.stack(B.right_kernel().basis_matrix())
 
 					if self._field == RationalField():
-						M[i], mu = M[i].gram_schmidt()
-						M[i] = M[i][nzev:,:] # delete rows corresponding to zero eigenvectors
+					
+						B, mu = B.gram_schmidt()
+						B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
 
 					else: # .gram_schmidt is broken for number fields in 4.8 !
-						rows, mu = gram_schmidt(M[i].rows())
-						M[i] = matrix(self._field, rows[nzev:])
+						rows, mu = gram_schmidt(B.rows())
+						B = matrix(self._field, rows[nzev:])
 
-			if len(self._block_bases) != 0:
-				self._flag_bases[ti] = block_diagonal_matrix(M) * self._block_bases[ti]
+				BS.append(B)
+
+			if use_blocks:
+				M = block_diagonal_matrix(BS) * self._block_bases[ti]
 			else:
-				self._flag_bases[ti] = block_diagonal_matrix(M)
-			self._flag_bases[ti].set_immutable()
-
+				M = block_diagonal_matrix(BS)
+				
+			M.set_immutable()
+			new_bases.append(M)
+	
+		return new_bases
 
 
  	def calculate_product_densities(self):
