@@ -433,17 +433,18 @@ def example(prob):
 		C = BlowupConstruction(Flag("3:112233", 2))
 		P.use_construction(C)
 		P.change_problem_bases()
-
+		
 		P.add_zero_eigenvectors(2, 0, matrix(QQ,[[0, 2, 1, 0, 0]]))
 		P.add_zero_eigenvectors(3, 0, matrix(QQ,[[1, 0, 1, 1, 0, 0]]))
-		P.add_zero_eigenvectors(3, 1, matrix(QQ,[[1, -1]]))
+		#P.add_zero_eigenvectors(3, 1, matrix(QQ,[[1, -1]]))
 		P._sharp_graphs.extend([2, 3, 4, 16, 20])
+		#return P,C
 		P.change_problem_bases()
-
+		
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.run_sdp_solver(True)
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()

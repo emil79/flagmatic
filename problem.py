@@ -331,26 +331,32 @@ class Problem(SageObject):
 	# TODO: make this work if _block_bases == [].
 
 	def add_zero_eigenvectors(self, ti, bi, M):
-	
-		OM = self._flag_bases[ti].subdivision(bi,0).solve_right(M.T)
-		MM = OM.T * self._block_bases[ti].subdivision(bi,0).T
-		
-		row_div = self._block_bases[ti].subdivisions()[0]
-		div_sizes = row_div + [len(self._flags[ti])]
-		for i in range(1, len(div_sizes)):
-			div_sizes[i] -= div_sizes[i - 1]
-		
-		B = []
-		for i in range(len(row_div) + 1):
-			BL = self._zero_eigenvectors[ti].subdivision(i, i)
-			if BL.nrows() == 0:
-				BL = matrix(QQ, 0, div_sizes[i])
-			if i == bi:
-				B.append(BL.stack(MM))
-			else:
-				B.append(BL)
 
-		self._zero_eigenvectors[ti] = block_diagonal_matrix(B)
+		NZ = self._flag_bases[ti].subdivision(bi,0).solve_right(M.T)
+		
+		self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(
+			NZ.T)
+		
+
+# 		OM = self._flag_bases[ti].subdivision(bi,0).solve_right(M.T)
+# 		MM = OM.T * self._block_bases[ti].subdivision(bi,0).T
+		
+# 		row_div = self._block_bases[ti].subdivisions()[0]
+# 		div_sizes = row_div + [len(self._flags[ti])]
+# 		for i in range(1, len(div_sizes)):
+# 			div_sizes[i] -= div_sizes[i - 1]
+# 		
+# 		B = []
+# 		for i in range(len(row_div) + 1):
+# 			BL = self._zero_eigenvectors[ti].subdivision(i, i)
+# 			if BL.nrows() == 0:
+# 				BL = matrix(QQ, 0, div_sizes[i])
+# 			if i == bi:
+# 				B.append(BL.stack(MM))
+# 			else:
+# 				B.append(BL)
+# 
+# 		self._zero_eigenvectors[ti] = block_diagonal_matrix(B)
 
 
 	def change_problem_bases(self, use_blocks=True):
@@ -417,11 +423,12 @@ class Problem(SageObject):
 				B = B[:nzev, :]
 			
 				if nzev == 0:
-					B = identity_matrix(QQ, div_sizes[bi])
+					B = identity_matrix(self._field, div_sizes[bi])
 				
 				elif nzev == div_sizes[bi]:
-					B = matrix(QQ, 0, div_sizes[bi])
-				
+					#B = matrix(self._field, 0, div_sizes[bi])
+					pass
+					
 				else:
 					B = B.stack(B.right_kernel().basis_matrix())
 
@@ -436,6 +443,7 @@ class Problem(SageObject):
 
 				BS.append(B)
 
+			print block_diagonal_matrix(BS)
 			if use_blocks:
 				M = block_diagonal_matrix(BS) * self._block_bases[ti]
 			else:
