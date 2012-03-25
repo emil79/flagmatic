@@ -45,6 +45,22 @@ def example(prob):
 		P.make_exact()
 		P.check_exact_bound()
 	
+	elif prob == "ff83n":
+	
+		P = Problem()
+		P.forbid_subgraph(Flag("5:123124345"))
+		P.n = 6
+		C = BlowupConstruction(Flag("3:123"))
+		P.use_construction(C)
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.change_solution_bases()
+		P.make_exact()
+		#P.check_exact_bound()
+	
+	
 	elif prob == "k4-":
 
 		P = Problem()

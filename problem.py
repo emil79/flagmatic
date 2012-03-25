@@ -71,6 +71,8 @@ class Problem(SageObject):
 		self._flags = []
 		self._block_bases = []
 		self._flag_bases = []
+		self._solution_bases = []
+		
 		self._target_bound = None
 		self._sharp_graphs = []
 		self._zero_eigenvectors = []
@@ -347,7 +349,7 @@ class Problem(SageObject):
 	def change_solution_bases(self, use_blocks=True):
 
 		self._solution_bases = self._create_new_bases(use_blocks)
-
+		self._inverse_solution_bases = self._create_new_bases(use_blocks, keep_rows=True)
 
 
 	def create_block_bases(self):
@@ -358,7 +360,7 @@ class Problem(SageObject):
 			self._block_bases.append(B)
 
 
-	def _create_new_bases(self, use_blocks=True):
+	def _create_new_bases(self, use_blocks=True, keep_rows=False):
 
 		num_types = len(self._types)
 
@@ -398,7 +400,7 @@ class Problem(SageObject):
 				else:
 					B = self._zero_eigenvectors[ti]		
 				
-				B = B.echelon_form()	
+				B = B.echelon_form()
 				nzev = B.rank()
 				B = B[:nzev, :]
 			
@@ -406,7 +408,6 @@ class Problem(SageObject):
 					B = identity_matrix(self._field, div_sizes[bi])
 				
 				elif nzev == div_sizes[bi]:
-					#B = matrix(self._field, 0, div_sizes[bi])
 					pass
 					
 				else:
@@ -415,11 +416,14 @@ class Problem(SageObject):
 					if self._field == RationalField():
 					
 						B, mu = B.gram_schmidt()
-						B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
+						if not keep_rows:
+							B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
 
 					else: # .gram_schmidt is broken for number fields in 4.8 !
 						rows, mu = gram_schmidt(B.rows())
-						B = matrix(self._field, rows[nzev:])
+						if not keep_rows:
+							rows = rows[nzev:]
+						B = matrix(self._field, rows)
 
 				BS.append(B)
 
@@ -434,7 +438,7 @@ class Problem(SageObject):
 		return new_bases
 
 
- 	def calculate_product_densities(self):
+	def calculate_product_densities(self):
  	
  		graph_block = make_graph_block(self._graphs, self.n)
 		
@@ -471,7 +475,7 @@ class Problem(SageObject):
 			
 			self._product_densities_dumps.append(this_type_dumps)
 
-	
+
 	def write_blocks(self, f, write_sizes=False):
 
 		num_graphs = len(self._graphs)
@@ -875,17 +879,36 @@ class Problem(SageObject):
 		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
 
-		q_sizes = [self._sdp_Q_matrices[ti].nrows() for ti in range(num_types)]
+		if len(self._solution_bases) > 0:
+		
+			self._sdp_Qdash_matrices = []
+
+			for ti in range(num_types):
+				
+				B = self._solution_bases[ti]
+				row_div = B.subdivisions()[0]
+				M = B * self._sdp_Q_matrices[ti] * B.T
+				M.subdivide(row_div, row_div)
+				# zero out bits that should be zero. Note the copy() seems to be needed.
+				M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
+				M.set_immutable()
+				self._sdp_Qdash_matrices.append(M)
+		
+		else:
+		
+			self._sdp_Qdash_matrices = self._sdp_Q_matrices
+
+		q_sizes = [self._sdp_Qdash_matrices[ti].nrows() for ti in range(num_types)]
 
 		def rationalize (f):
 			return Integer(round(f * denominator)) / denominator
 
-		self._exact_Q_matrices = []
+		self._exact_Qdash_matrices = []
 		for ti in range(num_types):
 			
 			if ti in cholesky:
 				try:
-					LF = numpy.linalg.cholesky(self._sdp_Q_matrices[ti])
+					LF = numpy.linalg.cholesky(self._sdp_Qdash_matrices[ti])
 				except numpy.linalg.linalg.LinAlgError:
 					sys.stdout.write("Could not compute Cholesky decomposition for type %d.\n" % ti)
 					return
@@ -897,16 +920,16 @@ class Problem(SageObject):
 			
 			else:
 				M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
-				row_div = self._flag_bases[ti].subdivisions()[0]
-				M.subdivide(row_div, row_div)
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
-						value = rationalize(self._sdp_Q_matrices[ti][j, k])
+						value = rationalize(self._sdp_Qdash_matrices[ti][j, k])
 						if value != 0:
 							M[j, k] = value
 							M[k, j] = value
 			
-			self._exact_Q_matrices.append(matrix(self._field, M))
+			row_div = self._sdp_Qdash_matrices[ti].subdivisions()[0]
+			M.subdivide(row_div, row_div)
+			self._exact_Qdash_matrices.append(matrix(self._field, M))
 
 		if num_densities == 1:
 			self._exact_density_coeffs = [Integer(1)]
@@ -922,10 +945,15 @@ class Problem(SageObject):
 
 		R = matrix(self._field, num_sharps, num_triples, sparse=True)
 
+		# TODO: make ti outermost loop
+
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
 			for ti in range(num_types):
 				D = loads(self._product_densities_dumps[ti][gi])
+				if len(self._solution_bases) > 0:
+					B = self._solution_bases[ti]
+					D = B * D * B.T
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -1010,7 +1038,7 @@ class Problem(SageObject):
 			for i in range(num_triples):
 				if not i in cols_to_use:
 					ti, j, k = triples[i]
-					T[si, 0] -= self._exact_Q_matrices[ti][j, k] * R[si, i]
+					T[si, 0] -= self._exact_Qdash_matrices[ti][j, k] * R[si, i]
 
 		FDR = matrix(self._field, DR.T)
 		X = FDR.solve_right(T)
@@ -1023,15 +1051,15 @@ class Problem(SageObject):
 
 		for i in range(len(density_cols_to_use), X.nrows()):
 			ti, j, k = triples[cols_to_use[i - len(density_cols_to_use)]]
-			RX[i, 0] = self._sdp_Q_matrices[ti][j, k]
-			self._exact_Q_matrices[ti][j, k] = X[i, 0]
-			self._exact_Q_matrices[ti][k, j] = X[i, 0]
+			RX[i, 0] = self._sdp_Qdash_matrices[ti][j, k]
+			self._exact_Qdash_matrices[ti][j, k] = X[i, 0]
+			self._exact_Qdash_matrices[ti][k, j] = X[i, 0]
 		
-		for i in range(X.nrows()):
-			print "%s : %s" % (RX[i,0], RDF(X[i,0]))
+		#for i in range(X.nrows()):
+		#	print "%s : %s" % (RX[i,0], RDF(X[i,0]))
 
 		for ti in range(num_types):
-			self._exact_Q_matrices[ti].set_immutable()
+			self._exact_Qdash_matrices[ti].set_immutable()
 	
 	
 
@@ -1039,8 +1067,8 @@ class Problem(SageObject):
 	
 		for ti in range(len(self._types)):
 			sys.stdout.write("Type %d:\n" % ti)
-			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Q_matrices[ti]))
-			new_eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Q_matrices[ti]))
+			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Qdash_matrices[ti]))
+			new_eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
 			for i in range(len(original_eigvals)):
 				sys.stdout.write("%s : %s\n" % (original_eigvals[i], RDF(new_eigvals[i])))
 
