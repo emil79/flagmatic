@@ -349,8 +349,19 @@ class Problem(SageObject):
 	def change_solution_bases(self, use_blocks=True):
 
 		self._solution_bases = self._create_new_bases(use_blocks)
-		self._inverse_solution_bases = self._create_new_bases(use_blocks, keep_rows=True)
-
+		self._full_solution_bases = self._create_new_bases(use_blocks, keep_rows=True)
+		self._inverse_solution_bases = []
+		self._full_inverse_solution_bases = []
+		
+		for ti in range(len(self._types)):
+			M = self._full_solution_bases[ti].T
+			for j in range(M.ncols()):
+				M[:, j] /= sum([x**2 for x in M.column(j)])
+			nzev = self._solution_bases[ti].ncols() - self._solution_bases[ti].nrows()
+			self._full_inverse_solution_bases.append(M)
+			M = M[:, nzev:]
+			self._inverse_solution_bases.append(M)
+			
 
 	def create_block_bases(self):
 
@@ -1078,6 +1089,14 @@ class Problem(SageObject):
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
+		
+		self._exact_Q_matrices = []
+		
+		for ti in range(num_types):
+			B = self._inverse_solution_bases[ti]
+			M = B * self._exact_Qdash_matrices[ti] * B.T
+			self._exact_Q_matrices.append(M)
+				
 		
 		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 		
