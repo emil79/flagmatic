@@ -76,7 +76,9 @@ class Problem(SageObject):
 		self._target_bound = None
 		self._sharp_graphs = []
 		self._zero_eigenvectors = []
-		self._product_densities_dumps = {}
+		
+		self._product_densities = []
+		self._product_densities_dumps = []
 	
 		self._obj_value_factor = -1
 		self._minimize = False
@@ -85,8 +87,10 @@ class Problem(SageObject):
 		self._sdp_output_filename = None
 	
 		self._sdp_Q_matrices = []
+		self._sdp_Qdash_matrices = []
 		self._sdp_density_coeffs = []
 		self._exact_Q_matrices = []
+		self._exact_Qdash_matrices = []	
 		self._exact_density_coeffs = []
 		self._bounds = []
 
@@ -382,7 +386,7 @@ class Problem(SageObject):
 			if use_blocks:
 				return [self._block_bases[ti] for ti in range(num_types)]
 			else:
-				return [identity_matrix(QQ, len(self._flags[ti])) for ti in range(num_types)]
+				return [identity_matrix(QQ, len(self._flags[ti]), sparse=True) for ti in range(num_types)]
 
 		if use_blocks and len(self._block_bases) == 0:
 			self.create_block_bases()
@@ -416,7 +420,7 @@ class Problem(SageObject):
 				B = B[:nzev, :]
 			
 				if nzev == 0:
-					B = identity_matrix(self._field, div_sizes[bi])
+					B = identity_matrix(QQ, div_sizes[bi], sparse=True)
 				
 				elif nzev == div_sizes[bi]:
 					pass
@@ -429,12 +433,14 @@ class Problem(SageObject):
 						B, mu = B.gram_schmidt()
 						if not keep_rows:
 							B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
+						# .gram_schmidt doesn't appear to preserve sparsity
+						B = matrix(self._field, B.rows(), sparse=True)
 
 					else: # .gram_schmidt is broken for number fields in 4.8 !
 						rows, mu = gram_schmidt(B.rows())
 						if not keep_rows:
 							rows = rows[nzev:]
-						B = matrix(self._field, rows)
+						B = matrix(self._field, rows, sparse=True)
 
 				BS.append(B)
 
@@ -442,29 +448,27 @@ class Problem(SageObject):
 				M = block_diagonal_matrix(BS) * self._block_bases[ti]
 			else:
 				M = block_diagonal_matrix(BS)
-				
+			
+			
 			M.set_immutable()
 			new_bases.append(M)
 	
 		return new_bases
 
 
-	def calculate_product_densities(self):
+	def calculate_product_densities(self, compress=False):
  	
  		graph_block = make_graph_block(self._graphs, self.n)
 		
+		self._product_densities = []
 		self._product_densities_dumps = []
+ 		
  		sys.stdout.write("Calculating product densities...\n")
 
  		for ti in range(len(self._types)):
 
 			B = self._flag_bases[ti]
 			row_div = B.subdivisions()[0]
-			try:
-				inv_rows = row_div[0]
-				is_subdivided = True
-			except IndexError:
-				is_subdivided = False
 
  			tg = self._types[ti]
  			s = tg.n
@@ -476,16 +480,22 @@ class Problem(SageObject):
 		
 			sys.stdout.write("Transforming...\n")
 		
-			this_type_dumps = []
+			pds = []
 			for gi in range(len(self._graphs)):
 				D = DL[gi]
 				ND = B * D * B.T
-				if is_subdivided:
-					ND.subdivide(inv_rows, inv_rows)
-				this_type_dumps.append(dumps(ND))
+				ND.subdivide(row_div, row_div)
+				ND.set_immutable()
+				if compress:
+					pds.append(dumps(ND))
+				else:
+					pds.append(ND)
 			
-			self._product_densities_dumps.append(this_type_dumps)
-
+			if compress:
+				self._product_densities_dumps.append(pds)
+			else:
+				self._product_densities.append(pds)
+	
 
 	def write_blocks(self, f, write_sizes=False):
 
@@ -513,7 +523,10 @@ class Problem(SageObject):
 
 		for i in range(num_graphs):
 			for j in range(num_types):
-				D = loads(self._product_densities_dumps[j][i])
+				if len(self._product_densities) > 0:
+					D = self._product_densities[j][i]
+				else:
+					D = loads(self._product_densities_dumps[j][i])
 				for key, value in D.dict().iteritems():
 					row, col = key
 					if row < col: # only print upper triangle
@@ -544,6 +557,8 @@ class Problem(SageObject):
 		
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")
+		
+		sys.stdout.write("Writing SDP input file...\n")
 		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
@@ -782,6 +797,105 @@ class Problem(SageObject):
 			self._sdp_Q_matrices[ti].set_immutable()
 
 
+	def import_solution(self, directory):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._densities)
+
+		if num_densities > 1:
+			raise NotImplementedError
+
+		sys.path.insert(0, directory)
+		dont_write_bytecode = sys.dont_write_bytecode 
+		sys.dont_write_bytecode = True
+		
+		try:
+			import flags
+		except ImportError:
+			sys.stdout.write("Cannot find flags.py in directory provided.\n")
+			return
+
+		# TODO: check admissible graphs, target bound, (sharps?).
+
+		if not ("%d-graph" % self.r) in flags.description:
+			raise ValueError
+	
+		if flags.n != self.n:
+			raise ValueError
+
+		if flags.num_H != num_graphs:
+			raise ValueError
+
+		if flags.num_types != num_types:
+			raise ValueError
+
+		ttr = []
+		ftrs = []
+	
+		for ti in range(num_types):
+			tg = Flag(flags.types[ti], self.r, self.oriented)
+			for tj in range(num_types):
+				if tg.is_equal(self._types[tj]):
+					ttr.append(tj)
+					break
+			else:
+				raise ValueError
+		
+			num_flags = len(self._flags[tj])
+			ftr = []
+			
+			for fi in range(num_flags):
+				fg = Flag(flags.flags[ti][fi], self.r, self.oriented)
+				fg.t = tg.n
+				for fj in range(num_flags):
+					if fg.is_equal(self._flags[tj][fj]):
+						ftr.append(fj)
+						break
+				else:
+					raise ValueError
+					
+			ftrs.append(ftr)
+		
+		print ttr
+		print ftrs
+		
+		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
+			for i in range(num_types)]
+
+		try:
+			f = open(directory + "/" + flags.out_filename, "r")
+		except IOError:
+			try:
+				f = gzip.open(directory + "/" + flags.out_filename + ".gz", "rb")
+			except IOError:
+				print "Could not open %s or %s.gz" % (flags.out_filename,
+					flags.out_filename)
+				return
+
+		for line in f:
+			numbers = line.split()
+			if numbers[0] != "2":
+				continue
+			ti = int(numbers[1]) - 2
+			if ti >= 0 and ti < num_types:
+				tj = ttr[ti]
+				j = ftrs[ti][int(numbers[2]) - 1]
+				k = ftrs[ti][int(numbers[3]) - 1]
+				self._sdp_Q_matrices[tj][j, k] = numbers[4]
+				self._sdp_Q_matrices[tj][k, j] = self._sdp_Q_matrices[tj][j, k]
+
+		f.close()
+
+		self._sdp_density_coeffs = [1.0]
+
+		for ti in range(num_types):
+			self._sdp_Q_matrices[ti].set_immutable()
+
+		sys.path.remove(directory)
+		sys.dont_write_bytecode = dont_write_bytecode
+
+
 	def show_zero_eigenvalues(self, tolerance = 0.00001):
 	
 		num_types = len(self._types)
@@ -843,7 +957,10 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = loads(self._product_densities_dumps[ti][gi])
+				if len(self._product_densities) > 0:
+					D = self._product_densities[ti][gi]
+				else:
+					D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._sdp_Q_matrices[ti][j, k]
@@ -961,10 +1078,14 @@ class Problem(SageObject):
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
 			for ti in range(num_types):
-				D = loads(self._product_densities_dumps[ti][gi])
+				if len(self._product_densities) > 0:
+					D = self._product_densities[ti][gi]
+				else:
+					D = loads(self._product_densities_dumps[ti][gi])
 				if len(self._solution_bases) > 0:
-					B = self._solution_bases[ti]
-					D = B * D * B.T
+					B = self._inverse_solution_bases[ti]
+					D = B.T * D * B
+				#print D
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -985,7 +1106,7 @@ class Problem(SageObject):
 		if num_densities > 1:
 			
 			for j in range(num_densities):
-				new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]])
+				new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
 				if new_row.is_zero():
 					continue
 				try:
@@ -1035,7 +1156,7 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 		sys.stdout.write("DR matrix has rank %d.\n" % DR.nrows())
 		
-		T = matrix(self._field, num_sharps, 1, sparse=True)
+		T = matrix(self._field, num_sharps, 1)
 				
 		for si in range(num_sharps):
 		
@@ -1066,8 +1187,8 @@ class Problem(SageObject):
 			self._exact_Qdash_matrices[ti][j, k] = X[i, 0]
 			self._exact_Qdash_matrices[ti][k, j] = X[i, 0]
 		
-		#for i in range(X.nrows()):
-		#	print "%s : %s" % (RX[i,0], RDF(X[i,0]))
+		for i in range(X.nrows()):
+			print "%s : %s" % (RX[i,0], RDF(X[i,0]))
 
 		for ti in range(num_types):
 			self._exact_Qdash_matrices[ti].set_immutable()
@@ -1092,18 +1213,23 @@ class Problem(SageObject):
 		
 		self._exact_Q_matrices = []
 		
-		for ti in range(num_types):
-			B = self._inverse_solution_bases[ti]
-			M = B * self._exact_Qdash_matrices[ti] * B.T
-			self._exact_Q_matrices.append(M)
-				
+		if len(self._solution_bases) > 0:
+			for ti in range(num_types):
+				B = self._inverse_solution_bases[ti]
+				M = B * self._exact_Qdash_matrices[ti] * B.T
+				self._exact_Q_matrices.append(M)
+		else:
+			self._exact_Q_matrices = self._exact_Qdash_matrices
 		
 		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 		
 		for ti in range(num_types):
 			num_flags = len(self._flags[ti])
 			for gi in range(num_graphs):
-				D = loads(self._product_densities_dumps[ti][gi])
+				if len(self._product_densities) > 0:
+					D = self._product_densities[ti][gi]
+				else:
+					D = loads(self._product_densities_dumps[ti][gi])
 				for j in range(D.nrows()):
 					for k in range(j, D.nrows()):
 						value = self._exact_Q_matrices[ti][j, k]

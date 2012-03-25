@@ -56,9 +56,9 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
-		P.change_solution_bases()
-		P.make_exact()
-		#P.check_exact_bound()
+		P.change_solution_bases(use_blocks=False)
+		P.make_exact(1024)
+		P.check_exact_bound()
 	
 	
 	elif prob == "k4-":
@@ -117,7 +117,6 @@ def example(prob):
 		P.forbid_edge_number(5, 10)
 		P.forbid_induced_edge_number(5, 8)
 		P.n = 6
-		#
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
 		P.change_problem_bases()
@@ -189,7 +188,6 @@ def example(prob):
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.forbid_subgraph(Flag("5:123124125134135145"))
 		P.n = 6
-		
 		C = BlowupConstruction(Flag("4:123124134234"))
 		P.use_construction(C)
 		P.change_problem_bases()
@@ -198,6 +196,23 @@ def example(prob):
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
+		P.check_exact_bound()
+
+
+	elif prob == "38n":
+	
+		P = Problem()
+		P.forbid_subgraph(Flag("5:123124125345"))
+		P.forbid_subgraph(Flag("5:123124125134135145"))
+		P.n = 6
+		C = BlowupConstruction(Flag("4:123124134234"))
+		P.use_construction(C)
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.change_solution_bases(use_blocks=False)
+		P.make_exact(1024)
 		P.check_exact_bound()
 		
 
@@ -224,11 +239,16 @@ def example(prob):
 		P.forbid_edge_number(4, 3)
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 7
-		
+		P.remove_types([3,4,5,6])
 		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
 		P.use_construction(C)
-		P.change_problem_bases()
 		P.calculate_product_densities()
+		return P, C
+		P.import_solution("../output/k4-f32")
+		P.check_floating_point_bound()
+		P.change_solution_bases(use_blocks=False)
+		P.make_exact(1024*1024)
+		P.check_exact_bound()
 		
 
 	elif prob == "cod6":
@@ -500,7 +520,7 @@ def example(prob):
 		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
-		P.write_sdp_input_file()
+		#P.write_sdp_input_file()
 		#P.run_sdp_solver()
 		#P.check_floating_point_bound()
 		#P.make_exact()
