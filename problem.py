@@ -76,6 +76,7 @@ class Problem(SageObject):
 		self._sharp_graphs = []
 		self._zero_eigenvectors = []
 		
+		self._product_densities_arrays = []
 		self._product_densities = []
 		self._product_densities_dumps = []
 	
@@ -167,10 +168,9 @@ class Problem(SageObject):
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
 
-		self._flag_bases = [identity_matrix(QQ, len(self._flags[ti]), sparse=True) for ti in range(len(self._types))]
-
-		for ti in range(len(self._types)):
-			self._flag_bases[ti].set_immutable()
+		#self._flag_bases = [identity_matrix(QQ, len(self._flags[ti]), sparse=True) for ti in range(len(self._types))]
+		#for ti in range(len(self._types)):
+		#	self._flag_bases[ti].set_immutable()
 
 
 	@property
@@ -262,6 +262,8 @@ class Problem(SageObject):
 		self._forbidden_induced_graphs.append(h)
 
 
+	# TODO: warn if already solved
+
 	def remove_types(self, indices):
 	
 		num_types = len(self._types)
@@ -338,10 +340,13 @@ class Problem(SageObject):
 
 	def add_zero_eigenvectors(self, ti, M):
 
-		NZ = (self._flag_bases[ti].T).solve_left(M)
-		
-		self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(NZ)		
+		if len(self._flag_bases) > 0:
+			NZ = (self._flag_bases[ti].T).solve_left(M)
+		else:
+			NZ = M
 
+		self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(NZ)
+		self._zero_eigenvectors[ti].set_immutable()
 
 
 	def change_problem_bases(self, use_blocks=True):
@@ -460,43 +465,59 @@ class Problem(SageObject):
 
 	def calculate_product_densities(self, compress=False):
  	
- 		graph_block = make_graph_block(self._graphs, self.n)
+		graph_block = make_graph_block(self._graphs, self.n)
 		
+		self._product_densities_arrays = []
 		self._product_densities = []
 		self._product_densities_dumps = []
  		
- 		sys.stdout.write("Calculating product densities...\n")
+		sys.stdout.write("Calculating product densities...\n")
 
- 		for ti in range(len(self._types)):
+		for ti in range(len(self._types)):
 
-			B = self._flag_bases[ti]
-			row_div = B.subdivisions()[0]
+			tg = self._types[ti]
+			s = tg.n
+			m = (self._n + s) / 2
+			nf = len(self._flags[ti])
 
- 			tg = self._types[ti]
- 			s = tg.n
- 			m = (self._n + s) / 2
+			sys.stdout.write("Doing type %d (order %d; flags %d)...\n" % (ti, s, m))
 
- 			sys.stdout.write("Doing type %d (order %d; flags %d)...\n" % (ti, s, m))
- 			flags_block = make_graph_block(self._flags[ti], m)
-			DL = flag_products(graph_block, tg, flags_block, None)
-		
-			sys.stdout.write("Transforming...\n")
-		
-			pds = []
-			for gi in range(len(self._graphs)):
-				D = DL[gi]
-				ND = B * D * B.T
-				ND.subdivide(row_div, row_div)
-				ND.set_immutable()
-				if compress:
-					pds.append(dumps(ND))
-				else:
-					pds.append(ND)
+			flags_block = make_graph_block(self._flags[ti], m)
+			rarray = flag_products(graph_block, tg, flags_block, None)
+
+			if len(self._flag_bases) > 0:
+
+				sys.stdout.write("Transforming...\n")
+
+				B = self._flag_bases[ti]
+				row_div = B.subdivisions()[0]
 			
-			if compress:
-				self._product_densities_dumps.append(pds)
+				pds = []
+				for gi in range(len(self._graphs)):
+				
+					D = matrix(QQ, nf, nf)
+					for row in rarray:
+						if row[0] == gi:
+							j = row[1]
+							k = row[2]
+							value = Integer(row[3]) / Integer(row[4])
+							D[j, k] = value
+							D[k, j] = value
+					ND = B * D * B.T
+					ND.subdivide(row_div, row_div)
+					ND.set_immutable()
+					if compress:
+						pds.append(dumps(ND))
+					else:
+						pds.append(ND)
+				
+				if compress:
+					self._product_densities_dumps.append(pds)
+				else:
+					self._product_densities.append(pds)
+
 			else:
-				self._product_densities.append(pds)
+				self._product_densities_arrays.append(rarray)
 	
 
 	def write_blocks(self, f, write_sizes=False):
@@ -506,13 +527,19 @@ class Problem(SageObject):
 		
 		inv_block_sizes = []
 		anti_inv_block_sizes = []
-		for i in range(num_types):
-			row_div = self._flag_bases[i].subdivisions()[0]
-			if len(row_div) > 0:
-				inv_block_sizes.append(row_div[0])
-				anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
-			else:
-				inv_block_sizes.append(self._flag_bases[i].nrows())
+		
+		if len(self._flag_bases) > 0:
+			for ti in range(num_types):
+				row_div = self._flag_bases[ti].subdivisions()[0]
+				if len(row_div) > 0:
+					inv_block_sizes.append(row_div[0])
+					anti_inv_block_sizes.append(self._flag_bases[ti].nrows() - row_div[0])
+				else:
+					inv_block_sizes.append(self._flag_bases[ti].nrows())
+					anti_inv_block_sizes.append(1)
+		else:
+			for ti in range(num_types):
+				inv_block_sizes.append(len(self._flags[ti]))
 				anti_inv_block_sizes.append(1)
 
 		if write_sizes:
@@ -523,24 +550,44 @@ class Problem(SageObject):
 
 			return
 
-		for i in range(num_graphs):
-			for j in range(num_types):
-				if len(self._product_densities) > 0:
-					D = self._product_densities[j][i]
-				else:
-					D = loads(self._product_densities_dumps[j][i])
-				for key, value in D.dict().iteritems():
-					row, col = key
-					if row < col: # only print upper triangle
-						continue
-					if row < inv_block_sizes[j]:
-						block = 2 * j + 2
+		if len(self._product_densities) > 0:
+			mode = "matrices"
+		elif len(self._product_densities_dumps) > 0:
+			mode = "dumps"
+		else:
+			mode = "arrays"		
+
+		if mode == "arrays":
+
+			for ti in range(num_types):
+				for row in self._product_densities_arrays[ti]:
+					value = Integer(row[3]) / Integer(row[4])
+					# Note that the arrays only have one block
+					f.write("%d %d %d %d %s\n" % (row[0] + 1, 2 * ti + 2, row[1] + 1, row[2] + 1,
+							value.n(digits=64)))
+		
+		else:
+
+			for i in range(num_graphs):
+				for j in range(num_types):
+	
+					if mode == "matrices":
+						D = self._product_densities[j][i]
 					else:
-						block = 2 * j + 3
-						row -= inv_block_sizes[j]
-						col -= inv_block_sizes[j]
-					f.write("%d %d %d %d %s\n" % (i + 1, block, row + 1, col + 1,
-						value.n(digits=64)))
+						D = loads(self._product_densities_dumps[j][i])
+									
+					for key, value in D.dict().iteritems():
+						row, col = key
+						if row < col: # only print upper triangle
+							continue
+						if row < inv_block_sizes[j]:
+							block = 2 * j + 2
+						else:
+							block = 2 * j + 3
+							row -= inv_block_sizes[j]
+							col -= inv_block_sizes[j]
+						f.write("%d %d %d %d %s\n" % (i + 1, block, row + 1, col + 1,
+							value.n(digits=64)))
 
 
 	# TODO: helpful error message if product densities have not been computed.
@@ -752,22 +799,34 @@ class Problem(SageObject):
 		
 			inv_block_sizes = []
 			anti_inv_block_sizes = []
-			for i in range(num_types):
-				row_div = self._flag_bases[i].subdivisions()[0]
-				if len(row_div) > 0:
-					inv_block_sizes.append(row_div[0])
-					anti_inv_block_sizes.append(self._flag_bases[i].nrows() - row_div[0])
-				else:
-					inv_block_sizes.append(self._flag_bases[i].nrows())
-					anti_inv_block_sizes.append(1)	
+
+			if len(self._flag_bases) > 0:
+
+				for ti in range(num_types):
+					row_div = self._flag_bases[ti].subdivisions()[0]
+					if len(row_div) > 0:
+						inv_block_sizes.append(row_div[0])
+						anti_inv_block_sizes.append(self._flag_bases[ti].nrows() - row_div[0])
+					else:
+						inv_block_sizes.append(self._flag_bases[ti].nrows())
+						anti_inv_block_sizes.append(1)
+
+				self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[ti].nrows(), self._flag_bases[ti].nrows())
+					for ti in range(num_types)]
+				
+				for ti in range(num_types):
+					B = self._flag_bases[ti]
+					row_div = B.subdivisions()[0]
+					self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
+
+			else:
+
+				for ti in range(num_types):
+					inv_block_sizes.append(len(self._flags[ti]))
+					anti_inv_block_sizes.append(1)
 	
-			self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
-				for i in range(num_types)]
-			
-			for ti in range(num_types):
-				B = self._flag_bases[ti]
-				row_div = B.subdivisions()[0]
-				self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
+				self._sdp_Q_matrices = [matrix(RDF, len(self._flags[ti]), len(self._flags[ti]))
+					for ti in range(num_types)]
 			
 			self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
 			
@@ -788,7 +847,7 @@ class Problem(SageObject):
 					ti = (ti - 1) / 2
 					j += inv_block_sizes[ti]
 					k += inv_block_sizes[ti]
-					if j >= self._flag_bases[ti].nrows():
+					if j >= self._sdp_Q_matrices[ti].nrows():
 						continue # Might be 'dummy' block for types with no anti-inv space
 				else:
 					ti /= 2
@@ -862,8 +921,8 @@ class Problem(SageObject):
 		print ttr
 		print ftrs
 		
-		self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[i].nrows(), self._flag_bases[i].nrows())
-			for i in range(num_types)]
+		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[ti]), len(self._flags[ti]))
+			for ti in range(num_types)]
 
 		try:
 			f = open(directory + "/" + flags.out_filename, "r")
@@ -933,10 +992,12 @@ class Problem(SageObject):
 
 	def check_construction(self, C, tolerance = 0.00001):
 	
+		# TODO: transform with _flag_bases if present.
+		
 		num_types = len(self._types)
 
 		for ti in range(num_types):
-			M = C.zero_eigenvectors(self._types[ti], self._flags[ti], self._flag_bases[ti])
+			M = C.zero_eigenvectors(self._types[ti], self._flags[ti]) 
 			if M.nrows() == 0:
 				sys.stdout.write("Type %d. None.\n" % ti)
 			else:
@@ -955,25 +1016,50 @@ class Problem(SageObject):
 		sys.stdout.write("Checking numerical bound...\n")
 		
 		fbounds = [sum([self._densities[j][i] * self._sdp_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
-		
-		for ti in range(num_types):
-			num_flags = len(self._flags[ti])
-			for gi in range(num_graphs):
-				if len(self._product_densities) > 0:
-					D = self._product_densities[ti][gi]
-				else:
-					D = loads(self._product_densities_dumps[ti][gi])
-				for j in range(D.nrows()):
-					for k in range(j, D.nrows()):
-						value = self._sdp_Q_matrices[ti][j, k]
-						if j != k:
-							value *= 2
-						d = D[j, k]
-						if d != 0:
-							if not self._minimize:
-								fbounds[gi] += d * value
-							else:
-								fbounds[gi] -= d * value
+
+		if len(self._product_densities) > 0:
+			mode = "matrices"
+		elif len(self._product_densities_dumps) > 0:
+			mode = "dumps"
+		else:
+			mode = "arrays"		
+
+		if mode == "arrays":
+
+			for ti in range(num_types):
+				for row in self._product_densities_arrays[ti]:
+					gi, j, k, numer, denom = row
+					d = Integer(numer) / Integer(denom)
+					value = self._sdp_Q_matrices[ti][j, k]
+					if j != k:
+						d *= 2
+					if not self._minimize:
+						fbounds[gi] += d * value
+					else:
+						fbounds[gi] -= d * value
+
+		else:
+
+			for ti in range(num_types):
+				num_flags = len(self._flags[ti])
+				for gi in range(num_graphs):
+				
+					if mode == "matrices":
+						D = self._product_densities[ti][gi]
+					else:
+						D = loads(self._product_densities_dumps[ti][gi])
+
+					for j in range(D.nrows()):
+						for k in range(j, D.nrows()):
+							value = self._sdp_Q_matrices[ti][j, k]
+							if j != k:
+								value *= 2
+							d = D[j, k]
+							if d != 0:
+								if not self._minimize:
+									fbounds[gi] += d * value
+								else:
+									fbounds[gi] -= d * value
 
 		if not self._minimize:
 			bound = max(fbounds)
@@ -1075,19 +1161,39 @@ class Problem(SageObject):
 
 		R = matrix(self._field, num_sharps, num_triples, sparse=True)
 
+		if len(self._product_densities) > 0:
+			mode = "matrices"
+		elif len(self._product_densities_dumps) > 0:
+			mode = "dumps"
+		else:
+			mode = "arrays"		
+
 		# TODO: make ti outermost loop
 
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
+			
 			for ti in range(num_types):
-				if len(self._product_densities) > 0:
+
+				if mode == "arrays":
+					D = matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
+					for row in self._product_densities_arrays[ti]:
+						if row[0] == gi:
+							j = row[1]
+							k = row[2]
+							value = Integer(row[3]) / Integer(row[4])
+							D[j, k] = value
+							D[k, j] = value
+				
+				elif mode == "matrices":
 					D = self._product_densities[ti][gi]
+
 				else:
 					D = loads(self._product_densities_dumps[ti][gi])
+
 				if len(self._solution_bases) > 0:
 					B = self._inverse_solution_bases[ti]
 					D = B.T * D * B
-				#print D
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
@@ -1224,25 +1330,48 @@ class Problem(SageObject):
 			self._exact_Q_matrices = self._exact_Qdash_matrices
 		
 		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
+
+		if len(self._product_densities) > 0:
+			mode = "matrices"
+		elif len(self._product_densities_dumps) > 0:
+			mode = "dumps"
+		else:
+			mode = "arrays"
+
+		if mode == "arrays":
+
+			for ti in range(num_types):
+				for row in self._product_densities_arrays[ti]:
+					gi, j, k, numer, denom = row
+					d = Integer(numer) / Integer(denom)
+					value = self._exact_Q_matrices[ti][j, k]
+					if j != k:
+						value *= 2
+					if not self._minimize:
+						bounds[gi] += d * value
+					else:
+						bounds[gi] -= d * value
+
+		else:
 		
-		for ti in range(num_types):
-			num_flags = len(self._flags[ti])
-			for gi in range(num_graphs):
-				if len(self._product_densities) > 0:
-					D = self._product_densities[ti][gi]
-				else:
-					D = loads(self._product_densities_dumps[ti][gi])
-				for j in range(D.nrows()):
-					for k in range(j, D.nrows()):
-						value = self._exact_Q_matrices[ti][j, k]
-						if j != k:
-							value *= 2
-						d = D[j, k]
-						if d != 0:
-							if not self._minimize:
-								bounds[gi] += d * value
-							else:
-								bounds[gi] -= d * value
+			for ti in range(num_types):
+				num_flags = len(self._flags[ti])
+				for gi in range(num_graphs):
+					if mode == "matrices":
+						D = self._product_densities[ti][gi]
+					else:
+						D = loads(self._product_densities_dumps[ti][gi])
+					for j in range(D.nrows()):
+						for k in range(j, D.nrows()):
+							value = self._exact_Q_matrices[ti][j, k]
+							if j != k:
+								value *= 2
+							d = D[j, k]
+							if d != 0:
+								if not self._minimize:
+									bounds[gi] += d * value
+								else:
+									bounds[gi] -= d * value
 
 		if self._field == RationalField():
 

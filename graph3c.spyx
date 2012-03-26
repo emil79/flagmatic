@@ -39,6 +39,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from libc.stdlib cimport malloc, calloc, realloc, free
 from libc.string cimport memset
 
+import numpy
+cimport numpy
+
 from sage.all import binomial, falling_factorial, \
 	Tuples, Permutations, Combinations, \
 	Integer, QQ, matrix, \
@@ -1321,10 +1324,12 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 	cdef int n, s, m1, m2, ne, i, j, k, gi
 	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
-	cdef int f1index, f2index, *grb, equal_flags_mode
+	cdef int f1index, f2index, *grb, equal_flags_mode, nzcount, row
 	cdef Flag g, t, f1, f2
 	
-	results = []
+	#results = []
+	rarray = numpy.zeros([0, 5], dtype=numpy.int)
+	row = 0
 	
 	sig_on()
 	
@@ -1421,34 +1426,79 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 		# TODO: Maybe get this into pure C somehow.
 		#
 
-		resarray = matrix(QQ, flags1.len, flags2.len, sparse=True)
+# 		resarray = matrix(QQ, flags1.len, flags2.len, sparse=True)
+# 
+# 		if equal_flags_mode:
+# 		
+# 			npd = Integer(np * 2)
+# 			for i in range(flags1.len):
+# 				for j in range(i, flags1.len):
+# 					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
+# 					if k != 0:
+# 						resarray[i, j] = k / npd
+# 						resarray[j, i] = resarray[i, j]
+# 		else:
+# 		
+# 			npd = Integer(np)
+# 			for i in range(flags1.len):
+# 				for j in range(flags2.len):
+# 					k = grb[(i * flags1.len) + j]
+# 					if k != 0:
+# 						resarray[i, j] = k / npd		
+# 		
+# 		results.append(resarray)
 
 		if equal_flags_mode:
-		
-			npd = Integer(np * 2)
+	
+			nzcount = 0
 			for i in range(flags1.len):
 				for j in range(i, flags1.len):
 					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
 					if k != 0:
-						resarray[i, j] = k / npd
-						resarray[j, i] = resarray[i, j]
+						nzcount += 1
+
+			rarray.resize([row + nzcount, 5], refcheck=False)
+			
+			for i in range(flags1.len):
+				for j in range(i, flags1.len):
+					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
+					if k != 0:
+						rarray[row, 0] = gi
+						rarray[row, 1] = i
+						rarray[row, 2] = j
+						rarray[row, 3] = k
+						rarray[row, 4] = np * 2
+						row += 1
+
 		else:
-		
-			npd = Integer(np)
+	
+			nzcount = 0
 			for i in range(flags1.len):
 				for j in range(flags2.len):
 					k = grb[(i * flags1.len) + j]
 					if k != 0:
-						resarray[i, j] = k / npd		
-		
-		results.append(resarray)
+						nzcount += 1
+
+			rarray.resize([row + nzcount, 5], refcheck=False)
+			
+			for i in range(flags1.len):
+				for j in range(flags2.len):
+					k = grb[(i * flags1.len) + j]
+					if k != 0:
+						rarray[row, 0] = gi
+						rarray[row, 1] = i
+						rarray[row, 2] = j
+						rarray[row, 3] = k
+						rarray[row, 4] = np
+						row += 1
 
 	free(cur_edges)
 	free(pf1)
 	free(pf2)
 	free(grb)
 	
-	return results
+	#return results, rarray
+	return rarray
 
 
 def new_flag_products (Flag g, int s, int m1, int m2):
