@@ -77,11 +77,14 @@ class AxiomsProblem(Problem):
 
 		for i in range(len(flags)):
 			flags_block = make_graph_block([flags[i]], flags[i].n)
-			DL = flag_products(graph_block, tg, flags_block, axiom_flags_block)
-			for j in range(num_graphs):
-				M = DL[j]
-				for k in range(num_densities):
-					quantum_graphs[k][j] += M[0, k] * flag_coeffs[i]
+			rarray = flag_products(graph_block, tg, flags_block, axiom_flags_block)
+			print rarray
+			for row in rarray:
+				gi = row[0]
+				j = row[1] # always 0
+				k = row[2]
+				value = Integer(row[3]) / Integer(row[4])
+				quantum_graphs[k][gi] += value * flag_coeffs[i]
 		
 		self._densities.extend(quantum_graphs)
 	

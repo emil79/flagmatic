@@ -530,10 +530,10 @@ def example(prob):
 		C = UnbalancedBlowupConstruction(Flag("8:122886633447755156781122334455667788",2),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.use_construction(C)
-		return P, C
-		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
+		return P, C
+
 		#P.write_sdp_input_file()
 		#P.run_sdp_solver()
 		#P.check_floating_point_bound()
