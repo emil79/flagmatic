@@ -243,11 +243,13 @@ def example(prob):
 		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		return P, C
 		P.import_solution("../output/k4-f32")
+		P.save("k4-f32")
 		P.check_floating_point_bound()
 		P.change_solution_bases(use_blocks=False)
-		P.make_exact(1024*1024)
+		P.save("k4-f32")
+		P.make_exact(9*1024*1024)
+		P.save("k4-f32")
 		P.check_exact_bound()
 		
 

@@ -27,7 +27,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import base64
 import gzip
 import json
 import numpy
@@ -349,6 +348,8 @@ class Problem(SageObject):
 
 		self._flag_bases = self._create_new_bases(use_blocks)
 
+	
+	# TODO: fix the use_blocks option.
 
 	def change_solution_bases(self, use_blocks=True):
 
