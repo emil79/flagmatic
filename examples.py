@@ -509,7 +509,7 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_edge_number(4, 0)
 		P.n = 8
-		P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
+		#P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
 		
 		P.set_density_graph(Flag("4:121314232434",2))
 		x = polygen(QQ)

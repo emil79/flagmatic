@@ -350,6 +350,7 @@ class Problem(SageObject):
 
 	
 	# TODO: fix the use_blocks option.
+	# TODO: get rid of the _full variants.
 
 	def change_solution_bases(self, use_blocks=True):
 
