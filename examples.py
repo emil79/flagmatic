@@ -56,7 +56,7 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
-		P.change_solution_bases(use_blocks=False)
+		P.change_solution_bases()
 		P.make_exact(1024)
 		P.check_exact_bound()
 	
@@ -78,11 +78,9 @@ def example(prob):
 		P = Problem()
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 6
-		#
-		#C = BlowupConstruction(Flag("3:122123133"))
 		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
 		P.use_construction(C)
-		P.change_problem_bases()
+		P.change_problem_bases(use_blocks=True)
 		P.calculate_product_densities()
 		P._force_sharps = True
 		P.write_sdp_input_file()
@@ -91,6 +89,22 @@ def example(prob):
 		P.make_exact()
 		P.check_exact_bound()
 
+	elif prob == "f32n":
+
+		P = Problem()
+		P.forbid_subgraph(Flag("5:123124125345"))
+		P.n = 6
+		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
+		P.use_construction(C)
+		P.calculate_product_densities()
+		P._force_sharps = True
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.change_solution_bases()
+		P.make_exact()
+		P.check_exact_bound()
+		
 
 	elif prob == "razb":
 	
@@ -246,9 +260,9 @@ def example(prob):
 		P.import_solution("../output/k4-f32")
 		P.save("k4-f32")
 		P.check_floating_point_bound()
-		P.change_solution_bases(use_blocks=False)
+		P.change_solution_bases()
 		P.save("k4-f32")
-		P.make_exact(9*1024*1024)
+		P.make_exact(10000000,protect=[2])
 		P.save("k4-f32")
 		P.check_exact_bound()
 		
@@ -367,14 +381,13 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_edge_number(3, 3)
 		P.n = 5
-		
 		P.set_density_graph(Flag("5:1223344551", 2))
 		C = SymmetricBlowupConstruction(Flag("5:1223344551", 2))
 		P.use_construction(C)
 		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.run_sdp_solver(True)
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -384,7 +397,6 @@ def example(prob):
 
 		P = Problem(2)
 		P.n = 7
-		
 		P.set_density_graph(Flag("4:1223241314", 2))
 		C = BlowupConstruction(Flag("5:12131415232425343545", 2))
 		P.use_construction(C)

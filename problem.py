@@ -357,21 +357,36 @@ class Problem(SageObject):
 	# TODO: fix the use_blocks option.
 	# TODO: get rid of the _full variants.
 
-	def change_solution_bases(self, use_blocks=True):
+	def change_solution_bases(self, use_blocks=True, use_smaller=False):
 
 		self._solution_bases = self._create_new_bases(use_blocks)
-		self._full_solution_bases = self._create_new_bases(use_blocks, keep_rows=True)
 		self._inverse_solution_bases = []
-		self._full_inverse_solution_bases = []
-		
+
 		for ti in range(len(self._types)):
-			M = self._full_solution_bases[ti].T
-			for j in range(M.ncols()):
-				M[:, j] /= sum([x**2 for x in M.column(j)])
-			nzev = self._solution_bases[ti].ncols() - self._solution_bases[ti].nrows()
-			self._full_inverse_solution_bases.append(M)
-			M = M[:, nzev:]
-			self._inverse_solution_bases.append(M)
+			M = copy(self._solution_bases[ti])
+			if use_smaller:
+				self._inverse_solution_bases.append(M.T)
+				for j in range(M.nrows()):
+					M[j, :] /= sum([x**2 for x in M.row(j)])
+				self._solution_bases[ti] = M
+			else:
+				for j in range(M.nrows()):
+					M[j, :] /= sum([x**2 for x in M.row(j)])
+				self._inverse_solution_bases.append(M.T)
+
+# 		self._solution_bases = self._create_new_bases(use_blocks)
+# 		self._full_solution_bases = self._create_new_bases(use_blocks, keep_rows=True)
+# 		self._inverse_solution_bases = []
+# 		self._full_inverse_solution_bases = []
+# 		
+# 		for ti in range(len(self._types)):
+# 			M = self._full_solution_bases[ti].T
+# 			for j in range(M.ncols()):
+# 				M[:, j] /= sum([x**2 for x in M.column(j)])
+# 			nzev = self._solution_bases[ti].ncols() - self._solution_bases[ti].nrows()
+# 			self._full_inverse_solution_bases.append(M)
+# 			M = M[:, nzev:]
+# 			self._inverse_solution_bases.append(M)
 			
 
 	def create_block_bases(self):
@@ -418,14 +433,15 @@ class Problem(SageObject):
 			for bi in range(len(div_sizes)):	
 			
 				if use_blocks:
-					B = self._zero_eigenvectors[ti] * self._block_bases[ti].subdivision(bi, 0).T
+					B = (self._block_bases[ti].subdivision(bi, 0) * self._zero_eigenvectors[ti].T).T
 				else:
-					B = self._zero_eigenvectors[ti]		
+					B = self._zero_eigenvectors[ti]
 				
 				B = B.echelon_form()
+
 				nzev = B.rank()
 				B = B[:nzev, :]
-			
+
 				if nzev == 0:
 					B = identity_matrix(QQ, div_sizes[bi], sparse=True)
 				
@@ -435,27 +451,29 @@ class Problem(SageObject):
 				else:
 					B = B.stack(B.right_kernel().basis_matrix())
 
-					if self._field == RationalField():
-					
-						B, mu = B.gram_schmidt()
-						if not keep_rows:
-							B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
-						# .gram_schmidt doesn't appear to preserve sparsity
-						B = matrix(self._field, B.rows(), sparse=True)
+				if use_blocks:
+					B = B * self._block_bases[ti].subdivision(bi, 0)
 
-					else: # .gram_schmidt is broken for number fields in 4.8 !
-						rows, mu = gram_schmidt(B.rows())
-						if not keep_rows:
-							rows = rows[nzev:]
-						B = matrix(self._field, rows, sparse=True)
+				if not keep_rows:
+					B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
 
-				BS.append(B)
+				if B.nrows() > 0:
+					BS.append(B)
 
-			if use_blocks:
-				M = block_diagonal_matrix(BS) * self._block_bases[ti]
-			else:
-				M = block_diagonal_matrix(BS)
+			M = block_matrix([[B] for B in BS], subdivide=True)
+			div = M.subdivisions()
+
+			if self._field == RationalField():
+				
+				M, mu = M.gram_schmidt()
+				# .gram_schmidt doesn't appear to preserve sparsity
+				M = matrix(self._field, M.rows(), sparse=True)
+
+			else: # .gram_schmidt is broken for number fields in 4.8 !
+				rows, mu = gram_schmidt(M.rows())
+				M = matrix(self._field, rows, sparse=True)
 			
+			M.subdivide(div)
 			
 			M.set_immutable()
 			new_bases.append(M)
@@ -1303,13 +1321,17 @@ class Problem(SageObject):
 	
 	
 
-	def compare_eigenvalues(self):
+	def compare_eigenvalues(self, only_smallest=True):
 	
 		for ti in range(len(self._types)):
 			sys.stdout.write("Type %d:\n" % ti)
 			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Qdash_matrices[ti]))
 			new_eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
-			for i in range(len(original_eigvals)):
+			if only_smallest:
+				num = 1
+			else:
+				num = len(original_eigvals)
+			for i in range(num):
 				sys.stdout.write("%s : %s\n" % (original_eigvals[i], RDF(new_eigvals[i])))
 
 

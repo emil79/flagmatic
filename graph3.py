@@ -237,5 +237,3 @@ def flag_basis(tg, flags, orthogonalize=True):
 		AntiInv = matrix(QQ, AntiInvRows, sparse=True)
 
 	return block_matrix([[Inv],[AntiInv]])
-
-	
