@@ -888,6 +888,8 @@ class Problem(SageObject):
 						ftr.append(fj)
 						break
 				else:
+					print ti
+					print ftr
 					raise ValueError
 					
 			ftrs.append(ftr)

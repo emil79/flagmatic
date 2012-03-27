@@ -519,11 +519,11 @@ def example(prob):
 	elif prob == "44":
 
 		P = Problem(2)
-		P.forbid_induced_edge_number(4, 0)
+		P.forbid_edge_number(4, 6)
 		P.n = 8
 		#P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
 		
-		P.set_density_graph(Flag("4:121314232434",2))
+		P.set_density_graph(Flag("4:",2))
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
 		x = K.gen()
