@@ -1049,37 +1049,6 @@ class Problem(SageObject):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
-	def check_density_rank(self):
-	
-		num_sharps = len(self._sharp_graphs)
-		num_densities = len(self._densities)
-	
-		density_cols_to_use = []
-		DR = matrix(self._field, 0, num_sharps, sparse=True)
-		EDR = matrix(self._field, 0, num_sharps, sparse=True)
-		
-		sys.stdout.write("Constructing DR matrix")
-		
-		for j in range(num_densities):
-			new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
-			if new_row.is_zero():
-				continue
-			try:
-				X = EDR.solve_left(new_row)
-				continue
-			except ValueError:
-				DR = DR.stack(new_row)
-				EDR = EDR.stack(new_row)
-				EDR.echelonize()
-				density_cols_to_use.append(j)
-				sys.stdout.write(".")
-				sys.stdout.flush()
-			
-		sys.stdout.write("\n")
-		sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.nrows())
-
-
-
 	def make_exact(self, denominator=1024, cholesky=[], protect=[]):
 	
 		num_types = len(self._types)
@@ -1390,22 +1359,80 @@ class Problem(SageObject):
 		return new_problem
 
 
-	def lose_small_densities(self, larger_than):
+
+
+	def get_large_densities(self, larger_than=0.0):
+
+		densities_to_use = []
+		for j in range(num_densities):
+			if self._sdp_density_coeffs[j] > larger_than:
+				densities_to_use.append(j)
+
+		sys.stdout.write("Densities: %s\n" % (densities_to_use,))
+
+		sys.stdout.write("Coefficients: %s\n" % ([self._sdp_density_coeffs[j] for j in densities_to_use],))
+
+
+	def get_independent_densities(self):
+	
+		num_sharps = len(self._sharp_graphs)
+		num_densities = len(self._densities)
+	
+		densities_to_use = []
+		
+		if len(self._sdp_density_coeffs) > 0:
+			density_indices = sorted(range(num_densities), key = lambda i : -self._sdp_density_coeffs[i])
+			print density_indices
+		else:
+			density_indices = range(num_densities)
+		
+		DR = matrix(self._field, 0, num_sharps, sparse=True)
+		EDR = matrix(self._field, 0, num_sharps, sparse=True)
+				
+		sys.stdout.write("Constructing DR matrix")
+		
+		for j in density_indices:
+			new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
+			if new_row.is_zero():
+				continue
+			try:
+				X = EDR.solve_left(new_row)
+				continue
+			except ValueError:
+				DR = DR.stack(new_row)
+				EDR = EDR.stack(new_row)
+				EDR.echelonize()
+				densities_to_use.append(j)
+				sys.stdout.write(".")
+				sys.stdout.flush()
+			
+		sys.stdout.write("\n")
+		sys.stdout.write("Rank is %d.\n" % DR.nrows())
+
+		sys.stdout.write("Densities: %s\n" % (densities_to_use,))
+
+		sys.stdout.write("Coefficients: %s\n" % ([self._sdp_density_coeffs[j] for j in densities_to_use],))
+
+
+	def problem_with_densities(self, densities_to_use):
+	
+		if len(densities_to_use) == 0:
+			raise ValueError
 	
 		num_densities = len(self._densities)
 
 		new_densities = []
-		for j in range(num_densities):
-			if self._sdp_density_coeffs[j] > larger_than:
-				new_densities.append(self._densities[j])
+		for j in densities_to_use:
+			new_densities.append(self._densities[j])
 		
 		new_problem = copy(self)
 		new_problem._sdp_Q_matrices = []
+		new_problem._sdp_Qdash_matrices = []
 		new_problem._exact_Q_matrices = []
+		new_problem._exact_Qdash_matrices = []
 		new_problem._sdp_density_coeffs = []
 		new_problem._exact_density_coeffs = []
 		new_problem._bounds = []
 		new_problem._densities = new_densities
 
 		return new_problem
-
