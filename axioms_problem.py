@@ -78,7 +78,6 @@ class AxiomsProblem(Problem):
 		for i in range(len(flags)):
 			flags_block = make_graph_block([flags[i]], flags[i].n)
 			rarray = flag_products(graph_block, tg, flags_block, axiom_flags_block)
-			print rarray
 			for row in rarray:
 				gi = row[0]
 				j = row[1] # always 0

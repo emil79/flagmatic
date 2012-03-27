@@ -983,7 +983,8 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in norms)))
 
 
-	def check_floating_point_bound(self, tolerance = 0.00001):
+
+	def check_floating_point_bound(self, tolerance = 0.00001, show_all=False):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -1018,18 +1019,65 @@ class Problem(SageObject):
 				
 		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
 
-		sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
-		for gi in apparently_sharp_graphs:
-			sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
+		if show_all:
 		
+			sorted_indices = sorted(range(num_graphs), key = lambda i : fbounds[i])
+
+			for gi in sorted_indices:
+				sys.stdout.write("%s : graph %d (%s) " % (fbounds[gi], gi, self._graphs[gi]))
+				if gi in self._sharp_graphs:
+					sys.stdout.write("S")
+				if gi in apparently_sharp_graphs:
+					sys.stdout.write("*")
+				sys.stdout.write("\n")	
+
+		else:
+	
+			sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
+			for gi in apparently_sharp_graphs:
+				sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
+			
 		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
 		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
-		
-		for gi in extra_sharp_graphs:
-			sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
-
+			
+		#for gi in extra_sharp_graphs:
+		#	sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
+	
+		sys.stdout.write("Warning: additional sharp graphs: %s\n" % (extra_sharp_graphs,))	
+	
 		for gi in missing_sharp_graphs:
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
+
+
+	def check_density_rank(self):
+	
+		num_sharps = len(self._sharp_graphs)
+		num_densities = len(self._densities)
+	
+		density_cols_to_use = []
+		DR = matrix(self._field, 0, num_sharps, sparse=True)
+		EDR = matrix(self._field, 0, num_sharps, sparse=True)
+		
+		sys.stdout.write("Constructing DR matrix")
+		
+		for j in range(num_densities):
+			new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
+			if new_row.is_zero():
+				continue
+			try:
+				X = EDR.solve_left(new_row)
+				continue
+			except ValueError:
+				DR = DR.stack(new_row)
+				EDR = EDR.stack(new_row)
+				EDR.echelonize()
+				density_cols_to_use.append(j)
+				sys.stdout.write(".")
+				sys.stdout.flush()
+			
+		sys.stdout.write("\n")
+		sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.nrows())
+
 
 
 	def make_exact(self, denominator=1024, cholesky=[], protect=[]):

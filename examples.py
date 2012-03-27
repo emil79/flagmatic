@@ -527,7 +527,9 @@ def example(prob):
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
 		x = K.gen()
-		C = UnbalancedBlowupConstruction(Flag("8:122886633447755156781122334455667788",2),
+		#C = UnbalancedBlowupConstruction(Flag("8:122886633447755156781122334455667788",2),
+		#	weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
+		C = UnbalancedBlowupConstruction(Flag("8:131416171823242526273537384546485867",2),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.use_construction(C)
 		P.calculate_product_densities()
