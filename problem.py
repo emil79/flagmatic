@@ -1363,6 +1363,8 @@ class Problem(SageObject):
 
 	def get_large_densities(self, larger_than=0.0):
 
+		num_densities = len(self._densities)
+
 		densities_to_use = []
 		for j in range(num_densities):
 			if self._sdp_density_coeffs[j] > larger_than:
@@ -1382,7 +1384,6 @@ class Problem(SageObject):
 		
 		if len(self._sdp_density_coeffs) > 0:
 			density_indices = sorted(range(num_densities), key = lambda i : -self._sdp_density_coeffs[i])
-			print density_indices
 		else:
 			density_indices = range(num_densities)
 		
