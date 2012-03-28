@@ -1123,6 +1123,7 @@ class Problem(SageObject):
 		R = matrix(self._field, num_sharps, num_triples, sparse=True)
 
 		# TODO: make ti outermost loop
+		# TODO: only use triples that correspond to middle blocks.
 
 		for si in range(num_sharps):
 			gi = self._sharp_graphs[si]
@@ -1207,6 +1208,10 @@ class Problem(SageObject):
 				cols_to_use.append(i)
 				sys.stdout.write(".")
 				sys.stdout.flush()
+				# TODO: add this check to density cols loop
+				if DR.nrows() == num_sharps:
+					sys.stdout.write(" got enough.")
+					break
 		
 		sys.stdout.write("\n")
 		sys.stdout.write("DR matrix has rank %d.\n" % DR.nrows())

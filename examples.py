@@ -323,6 +323,22 @@ def example(prob):
 		P.make_exact(1024*1024)
 		P.check_exact_bound()
 
+	elif prob == "cod6":
+
+		P = AxiomsProblem()
+		P.forbid_edge_number(4, 3)
+		P.forbid_subgraph(Flag("6:612623634645651"))
+		P.n = 6
+		P.clear_axioms()
+		P.add_codegree_axiom(Rational("1/4"))
+		C = RandomTournamentConstruction()
+		P.use_construction(C)
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
+
+
+
 	elif prob == "k4-cod":
 	
 		P = AxiomsProblem()
@@ -349,6 +365,8 @@ def example(prob):
 		P.save("k4-cod")
 		#P.make_exact(1024*1024)
 		#P.check_exact_bound()
+
+#L=[0, 1, 2, 4, 5, 8, 9, 11, 16, 17, 18, 19, 25, 26, 28, 30, 33, 36, 37, 43, 44, 46, 49, 55, 56, 58, 61, 65, 66, 68, 73, 75, 79, 81, 83, 89, 90, 91, 94, 95, 99, 116, 118, 120, 127, 128, 131, 133, 136, 146, 168, 177, 183, 202, 209, 211, 214, 216, 218, 227, 229, 232, 245, 246, 247, 252, 260, 261, 262, 263, 268, 270, 277, 278, 285, 289, 301, 303, 314, 315, 322, 330, 331, 334, 337, 344, 346, 347, 462, 467, 469, 484, 488, 490, 491, 494, 503, 511, 520, 521, 529, 549, 565, 572, 575, 578, 579, 580, 582, 586, 591, 601, 607, 609, 615, 617, 618, 620, 621, 622, 624, 797, 815, 820, 821, 822, 825, 833, 834, 836, 838, 851, 852, 853, 872, 878, 879, 882, 883, 884, 887, 889, 975, 978, 981, 983, 1046, 1048, 1052, 1053, 1061, 1062, 1131, 1133, 1190, 1201, 1206, 1212, 1213, 1216, 1230, 1235, 1260, 1269, 1284, 1288, 1289, 1357, 1397, 1408, 1419, 1420, 1516, 1517, 1573, 1581, 1610, 1628, 1640]
 
 
 	elif prob == "marchant":
@@ -541,6 +559,13 @@ def example(prob):
 		#P.check_floating_point_bound()
 		#P.make_exact()
 		#P.check_exact_bound()
+
+		#P.remove_types([110,132])
+		#P._sdp_Q_matrices = P._sdp_Q_matrices[0:110] + P._sdp_Q_matrices[111:132] + P._sdp_Q_matrices[133:]
+		#P._solution_bases = P._solution_bases[0:110] + P._solution_bases[111:132] + P._solution_bases[133:]
+		#P._inverse_solution_bases = P._inverse_solution_bases[0:110] + P._inverse_solution_bases[111:132] + P._inverse_solution_bases[133:]
+		#P.make_exact(1024*1024)
+
 
 
 	elif prob == "53":
