@@ -267,7 +267,7 @@ def example(prob):
 		P.check_exact_bound()
 		
 
-	elif prob == "cod6":
+	elif prob == "k4-cod-inexact":
 	
 		P = AxiomsProblem()
 		C = None
@@ -336,6 +336,10 @@ def example(prob):
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
+		P.check_floating_point_bound()
+		P.change_solution_bases()
+		P.make_exact(1024*1024)
+		P.check_exact_bound()
 
 
 

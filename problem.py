@@ -1049,7 +1049,7 @@ class Problem(SageObject):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
-	def make_exact(self, denominator=1024, cholesky=[], protect=[]):
+	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -1057,6 +1057,8 @@ class Problem(SageObject):
 		num_densities = len(self._densities)
 
 		if len(self._solution_bases) > 0:
+
+			sys.stdout.write("Transforming matrices")
 		
 			self._sdp_Qdash_matrices = []
 
@@ -1070,6 +1072,10 @@ class Problem(SageObject):
 				M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
 				M.set_immutable()
 				self._sdp_Qdash_matrices.append(M)
+				sys.stdout.write(".")
+				sys.stdout.flush()
+		
+			sys.stdout.write("\n")
 		
 		else:
 		
@@ -1079,6 +1085,8 @@ class Problem(SageObject):
 
 		def rationalize (f):
 			return Integer(round(f * denominator)) / denominator
+
+		sys.stdout.write("Rounding matrices")
 
 		self._exact_Qdash_matrices = []
 		for ti in range(num_types):
@@ -1107,6 +1115,10 @@ class Problem(SageObject):
 			row_div = self._sdp_Qdash_matrices[ti].subdivisions()[0]
 			M.subdivide(row_div, row_div)
 			self._exact_Qdash_matrices.append(matrix(self._field, M))
+			sys.stdout.write(".")
+			sys.stdout.flush()
+
+		sys.stdout.write("\n")
 
 		if num_densities == 1:
 			self._exact_density_coeffs = [Integer(1)]
@@ -1122,35 +1134,45 @@ class Problem(SageObject):
 
 		R = matrix(self._field, num_sharps, num_triples, sparse=True)
 
-		# TODO: make ti outermost loop
+		sys.stdout.write("Constructing R matrix")
+
 		# TODO: only use triples that correspond to middle blocks.
 
-		for si in range(num_sharps):
-			gi = self._sharp_graphs[si]
-			
-			for ti in range(num_types):
+		for ti in range(num_types):
 
-				D = matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
-				for row in self._product_densities_arrays[ti]:
-					if row[0] == gi:
-						j = row[1]
-						k = row[2]
-						value = Integer(row[3]) / Integer(row[4])
-						D[j, k] = value
-						D[k, j] = value
-				
-				if len(self._solution_bases) > 0:
-					B = self._inverse_solution_bases[ti]
-					D = B.T * D * B
+			Ds = [matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
+				for si in range(num_sharps)]
+
+			for row in self._product_densities_arrays[ti]:
+					gi = row[0]
+					if not gi in self._sharp_graphs:
+						continue
+					si = self._sharp_graphs.index(gi)
+					j = row[1]
+					k = row[2]
+					value = Integer(row[3]) / Integer(row[4])
+					Ds[si][j, k] = value
+					Ds[si][k, j] = value
+
+			if len(self._solution_bases) > 0:
+				B = self._inverse_solution_bases[ti]
+				for si in range(num_sharps):
+					Ds[si] = B.T * Ds[si] * B
+
+			for si in range(num_sharps):
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
 						trip = (ti, j, k)
-						value = D[j, k]
+						value = Ds[si][j, k]
 						if j != k:
 							value *= 2
 						if self._minimize:
 							value *= -1
 						R[si, triple_to_index[trip]] = value
+
+			sys.stdout.write(".")
+			sys.stdout.flush()
+		sys.stdout.write("\n")
 		
 		density_cols_to_use = []
 		DR = matrix(self._field, 0, num_sharps, sparse=True)
@@ -1209,7 +1231,7 @@ class Problem(SageObject):
 				sys.stdout.write(".")
 				sys.stdout.flush()
 				# TODO: add this check to density cols loop
-				if DR.nrows() == num_sharps:
+				if DR.nrows() == num_sharps - 1:
 					sys.stdout.write(" got enough.")
 					break
 		
@@ -1247,12 +1269,16 @@ class Problem(SageObject):
 			self._exact_Qdash_matrices[ti][j, k] = X[i, 0]
 			self._exact_Qdash_matrices[ti][k, j] = X[i, 0]
 		
-		for i in range(X.nrows()):
-			print "%s : %s" % (RX[i,0], RDF(X[i,0]))
+		if show_changes:
+			for i in range(X.nrows()):
+				sys.stdout.write("%.11s -> %.11s " % (RX[i,0], RDF(X[i,0])))
+				if i < len(density_cols_to_use):
+					sys.stdout.write("(density %d)\n" % i)
+				else:
+					sys.stdout.write("(matrix %d, entry [%d, %d])\n" % triples[cols_to_use[i - len(density_cols_to_use)]])
 
 		for ti in range(num_types):
 			self._exact_Qdash_matrices[ti].set_immutable()
-	
 	
 
 	def compare_eigenvalues(self, only_smallest=True):
