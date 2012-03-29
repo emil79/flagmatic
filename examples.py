@@ -39,8 +39,9 @@ def example(prob):
 		P.use_construction(C)
 		P.change_problem_bases()
 		P.calculate_product_densities()
+		P._approximate_field = RealField(113)
 		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.run_sdp_solver(sdpa="qd")
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -435,7 +436,7 @@ def example(prob):
 
 		P = Problem(2)
 		P.n = 5
-		P.remove_types([4])		
+		P.remove_types([4])
 		
 		P.set_density_graph(Flag("4:12233114", 2))
 		C = BlowupConstruction(Flag("4:1223344111223344", 2))
@@ -445,20 +446,37 @@ def example(prob):
 		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, '1/2', '31/70'],
 			[0, 1, '49/106', '7/108', '-17/20']]))
 		
-		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]))
-		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
-		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,5,-2,0,0],[0,1,0,0,0,0,0]]))
+		#P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]))
+		#P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
+		#P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,5,-2,0,0],[0,1,0,0,0,0,0]]))
 		P._sharp_graphs.extend([0,4,11,18,19,24, 27])
 		P.change_problem_bases()
 		
 		P.calculate_product_densities()
 		P._force_sharps = True
+		P._approximate_field = RealField(113)
 		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.run_sdp_solver(True, sdpa="qd")
 		P.check_floating_point_bound()
-		P.make_exact(1024, cholesky=range(4))
+		P.make_exact(2**30)
 		P.check_exact_bound()
 
+	elif prob == "paw2":
+		
+		P = Problem(2)
+		P.n = 5
+		P.remove_types([4])
+		P.set_density_graph(Flag("4:12233114", 2))
+		C = BlowupConstruction(Flag("4:1223344111223344", 2))
+		P.use_construction(C)
+		P.calculate_product_densities()
+		P._approximate_field = RealField(113)
+		P.write_sdp_input_file()
+		P.run_sdp_solver(True, sdpa="qd")
+		P._sharp_graphs.extend([24, 27])
+		P.check_floating_point_bound()
+		P.make_exact(2**30)
+		
 
 	elif prob == "maxs3":
 
