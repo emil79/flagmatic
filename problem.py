@@ -50,47 +50,32 @@ sdpa_qd_cmd = "sdpa_qd"
 class Problem(SageObject):
 
 	def __init__(self, r=3, oriented=False):
-	
+
+		# Set some defaults...
+		
 		self._n = 0
 		self._r = r
 		self._oriented = oriented
 		self._field = RationalField()
+		self._approximate_field = RDF
 
 		self._forbidden_edge_numbers = []
 		self._forbidden_graphs = []
 		self._forbidden_induced_graphs = []
-		self._graphs = []
-		self._densities = []
 		
 		edge_graph = Flag("%d:" % r, r, oriented)
 		edge_graph.add_edge(range(1, r + 1))
 		self._density_graphs = [edge_graph]
 
-		self._types = []
-		self._flags = []
-		self._block_bases = []
-		self._flag_bases = []
-		self._solution_bases = []
-		
-		self._target_bound = None
-		self._sharp_graphs = []
-		self._zero_eigenvectors = []
-		
-		self._product_densities_arrays = []
-	
 		self._obj_value_factor = -1
 		self._minimize = False
 		self._force_sharps = False
-		self._sdp_input_filename = None
-		self._sdp_output_filename = None
-	
-		self._sdp_Q_matrices = []
-		self._sdp_Qdash_matrices = []
-		self._sdp_density_coeffs = []
-		self._exact_Q_matrices = []
-		self._exact_Qdash_matrices = []	
-		self._exact_density_coeffs = []
-		self._bounds = []
+
+		# Set these to be empty, as length is tested
+		# TODO: get rid of them if not used
+		self._block_bases = []
+		self._flag_bases = []
+		self._solution_bases = []
 
 
 	def save(self, filename):
@@ -707,9 +692,9 @@ class Problem(SageObject):
 				p.expect("\r\n")
 				line = p.before.strip() + "\n"
 				if "Primal objective value:" in line: # CSDP
-					obj_val = RDF(line.split()[-1]) * self._obj_value_factor
+					obj_val = self._approximate_field(line.split()[-1]) * self._obj_value_factor
 				elif "objValPrimal" in line: # SDPA
-					obj_val = RDF(line.split()[-1]) * self._obj_value_factor
+					obj_val = self._approximate_field(line.split()[-1]) * self._obj_value_factor
 				if show_output:
 					sys.stdout.write(line)
 			except pexpect.EOF:
@@ -756,7 +741,7 @@ class Problem(SageObject):
 						for a in line.split(","):
 							try:
 								v = a.strip()
-								vf = float(v)
+								vf = float(v) # only done to see if we get ValueError
 								if diagonal:
 									f.write("2 %d %d %d %s\n" % (t, row, col, v))
 									row += 1
@@ -785,7 +770,8 @@ class Problem(SageObject):
 						inv_block_sizes.append(self._flag_bases[ti].nrows())
 						anti_inv_block_sizes.append(1)
 
-				self._sdp_Q_matrices = [matrix(RDF, self._flag_bases[ti].nrows(), self._flag_bases[ti].nrows())
+				self._sdp_Q_matrices = [matrix(self._approximate_field,
+					self._flag_bases[ti].nrows(), self._flag_bases[ti].nrows())
 					for ti in range(num_types)]
 				
 				for ti in range(num_types):
@@ -799,10 +785,10 @@ class Problem(SageObject):
 					inv_block_sizes.append(len(self._flags[ti]))
 					anti_inv_block_sizes.append(1)
 	
-				self._sdp_Q_matrices = [matrix(RDF, len(self._flags[ti]), len(self._flags[ti]))
-					for ti in range(num_types)]
+				self._sdp_Q_matrices = [matrix(self._approximate_field,
+					len(self._flags[ti]), len(self._flags[ti])) for ti in range(num_types)]
 			
-			self._sdp_density_coeffs = [0.0 for i in range(num_densities)]
+			self._sdp_density_coeffs = [self._approximate_field(0) for i in range(num_densities)]
 			
 			for line in f:
 				numbers = line.split()
@@ -811,7 +797,7 @@ class Problem(SageObject):
 				ti = int(numbers[1]) - 2
 				if ti == 2 * num_types + 1:
 					j = int(numbers[2]) - 1
-					self._sdp_density_coeffs[j] = RDF(numbers[4])
+					self._sdp_density_coeffs[j] = self._approximate_field(numbers[4])
 					continue
 				if ti < 0 or ti >= 2 * num_types:
 					continue
@@ -897,8 +883,8 @@ class Problem(SageObject):
 		print ttr
 		print ftrs
 		
-		self._sdp_Q_matrices = [matrix(RDF, len(self._flags[ti]), len(self._flags[ti]))
-			for ti in range(num_types)]
+		self._sdp_Q_matrices = [matrix(self._approximate_field, len(self._flags[ti]),
+			len(self._flags[ti])) for ti in range(num_types)]
 
 		try:
 			f = open(directory + "/" + flags.out_filename, "r")
@@ -938,7 +924,7 @@ class Problem(SageObject):
 		num_types = len(self._types)
 
 		for ti in range(num_types):
-			eigvals = self._sdp_Q_matrices[ti].eigenvalues()
+			eigvals = numpy.linalg.eigvalsh(self._sdp_Q_matrices[ti])
 			zero_eigvals = sorted([e for e in eigvals if e < tolerance])
 			if len(zero_eigvals) == 0:
 				sys.stdout.write("Type %d. None.\n" % ti)
@@ -958,11 +944,11 @@ class Problem(SageObject):
 		for i in range(ns):
 			QB = self._sdp_Q_matrices[ti].subdivision(i, i)
 			eigvals, T = numpy.linalg.eigh(QB)
-			M = matrix(RDF, 0, QB.ncols())
+			M = matrix(self._approximate_field, 0, QB.ncols())
 			for ei in range(len(eigvals)):
 				if eigvals[ei] < tolerance:
 					M = M.stack(matrix(numpy.matrix(T[:, ei])))
-			B.append(M)								
+			B.append(M)
 		return block_diagonal_matrix(B)
 
 
@@ -1012,7 +998,7 @@ class Problem(SageObject):
 			bound = min(fbounds)
 		
 		if not self._target_bound is None:
-			if abs(bound - RDF(self._target_bound)) < tolerance:
+			if abs(bound - self._approximate_field(self._target_bound)) < tolerance:
 				sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
 			else:
 				sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
@@ -1043,7 +1029,8 @@ class Problem(SageObject):
 		#for gi in extra_sharp_graphs:
 		#	sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
 	
-		sys.stdout.write("Warning: additional sharp graphs: %s\n" % (extra_sharp_graphs,))	
+		if len(extra_sharp_graphs) > 0:
+			sys.stdout.write("Warning: additional sharp graphs: %s\n" % (extra_sharp_graphs,))	
 	
 		for gi in missing_sharp_graphs:
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
@@ -1231,7 +1218,7 @@ class Problem(SageObject):
 				sys.stdout.write(".")
 				sys.stdout.flush()
 				# TODO: add this check to density cols loop
-				if DR.nrows() == num_sharps - 1:
+				if DR.nrows() == num_sharps:
 					sys.stdout.write(" got enough.")
 					break
 		
@@ -1256,7 +1243,7 @@ class Problem(SageObject):
 
 		FDR = matrix(self._field, DR.T)
 		X = FDR.solve_right(T)
-		RX = matrix(RDF, X.nrows(), 1)
+		RX = matrix(self._approximate_field, X.nrows(), 1)
 	
 		for i in range(len(density_cols_to_use)):
 			di = density_cols_to_use[i]
@@ -1292,7 +1279,7 @@ class Problem(SageObject):
 			else:
 				num = len(original_eigvals)
 			for i in range(num):
-				sys.stdout.write("%s : %s\n" % (original_eigvals[i], RDF(new_eigvals[i])))
+				sys.stdout.write("%.11f : %.11f\n" % (original_eigvals[i], new_eigvals[i]))
 
 
 	def check_exact_bound(self):
