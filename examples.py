@@ -289,10 +289,8 @@ def example(prob):
 		P.forbid_edge_number(4, 3)
 		P.forbid_subgraph(Flag("6:612623634645651"))
 		P.n = 6
-		tg = Flag("2:")
-		f1 = Flag("3:123", tg)
-		f2 = Flag("2:", tg)
-		P.add_axiom(tg, [f1, f2], [1, Rational("-1/4")])
+		P.clear_axioms()
+		P.add_codegree_axiom(Rational("1/4"))
 		C = RandomTournamentConstruction()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
