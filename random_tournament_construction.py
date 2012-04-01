@@ -35,7 +35,13 @@ from sage.structure.sage_object import SageObject
 
 class RandomTournamentConstruction(Construction):
 
-		
+
+	def __init__(self, variant=False):
+
+		self._variant = variant	
+		self._field = RationalField()
+
+
 	def subgraph_densities(self, n):
 
 		tg = Flag()
@@ -99,9 +105,14 @@ class RandomTournamentConstruction(Construction):
 			ig.t = tg.n
 			
 			for s in Combinations(range(1, n + 1), 3):
-				if ((s[0], s[1]) in edges and (s[1], s[2]) in edges and (s[2], s[0]) in edges) or (
-					(s[0], s[2]) in edges and (s[2], s[1]) in edges and (s[1], s[0]) in edges):
-					ig.add_edge(s)
+				if self._variant:
+					if ((s[1], s[0]) in edges and (s[0], s[2]) in edges) or (
+						(s[2], s[0]) in edges and (s[0], s[1]) in edges):
+						ig.add_edge(s)			
+				else:
+					if ((s[0], s[1]) in edges and (s[1], s[2]) in edges and (s[2], s[0]) in edges) or (
+						(s[0], s[2]) in edges and (s[2], s[1]) in edges and (s[1], s[0]) in edges):
+						ig.add_edge(s)
 			
 			it = ig.induced_subgraph(range(1, tg.n + 1))
 			if tg.is_equal(it):
@@ -117,4 +128,3 @@ class RandomTournamentConstruction(Construction):
 			total += 1
 		
 		return [(f, flag_counts[hash(f)] / Integer(total)) for f in flags]
-		

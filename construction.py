@@ -42,9 +42,6 @@ class Construction(SageObject):
 	def field(self):
 		return self._field
 
-	def edge_density(self):
-		return 0
-
 	def subgraph_densities(self, n):
 		return None
 
@@ -167,18 +164,9 @@ class BlowupConstruction(Construction):
 			raise NotImplementedException("degenerate oriented graphs not supported.")
 	
 		self._graph = g
-		self._field = RationalField()
+		self._field = RationalField()	
 	
-	def edge_density(self):
-	
-		den_pairs = self.subgraph_densities(self._graph.r)
 
-		for pair in den_pairs:
-			g, den = pair
-			if g.ne == 1:
-				return den		
-	
-		
 	def subgraph_densities(self, n):
 
 		cn = self._graph.n
@@ -250,17 +238,7 @@ class UnbalancedBlowupConstruction(Construction):
 		else:
 			self._field = field
 	
-		
-	def edge_density(self):
 	
-		den_pairs = self.subgraph_densities(self._graph.r)
-
-		for pair in den_pairs:
-			g, den = pair
-			if g.ne == 1:
-				return den
-	
-		
 	def subgraph_densities(self, n):
 
 		cn = self._graph.n
