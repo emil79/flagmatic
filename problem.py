@@ -1455,3 +1455,33 @@ class Problem(SageObject):
 		new_problem._densities = new_densities
 
 		return new_problem
+
+
+	def diagonalize(self):
+		
+		def LDLdecomposition(M):
+	
+			MS = M.parent()
+			D = MS.matrix()
+			L = copy(MS.identity_matrix())
+			for i in xrange(M.nrows()):
+				for j in xrange(i):
+					L[i, j] = (Integer(1) / D[j, j]) * (M[i, j] - sum(L[i, k] * L[j, k] * D[k, k] for k in xrange(j)))
+				D[i, i] = M[i, i] - sum(L[i, k]**2 * D[k, k]
+					for k in xrange(i))
+			return L, D
+
+		self._exact_diagonal_matrices = []
+		self._exact_r_matrices = []
+
+		sys.stdout.write("Diagonalizing")
+
+		for ti in range(len(self._types)):
+			R, M = LDLdecomposition(self._exact_Qdash_matrices[ti])
+			self._exact_diagonal_matrices.append(M)
+			self._exact_r_matrices.append(R)			
+			sys.stdout.write(".")
+			sys.stdout.flush()
+		
+		sys.stdout.write("\n")
+		
