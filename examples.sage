@@ -377,24 +377,38 @@ def example(prob):
 		P = AxiomsProblem()
 		P.forbid_subgraph(Flag("5:123124125345"))
 		P.n = 6
-		P.remove_types([0,2])
+		P.remove_types([0,1,2,4])
+		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/3"))
-		#
-		P._force_sharps = True
 		C = BlowupConstruction(Flag("3:112223331"))
 		P.use_construction(C)
-		P._target_bound = 0
-		P.change_problem_bases()
-		
 		P._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
-		P.change_problem_bases()
-		
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
-		P.make_exact(1024*1024)
+		P.change_solution_bases()
+		P.make_exact(2**20)
 		P.check_exact_bound()
+
+
+	elif prob == "gammak4":
+	
+		P = AxiomsProblem()
+		P.forbid_edge_number(4, 4)
+		P.n = 6
+		P.clear_axioms()
+		P.add_codegree_axiom(Rational("1/2"))
+		C = VariantRandomTournamentConstruction()
+		P.use_construction(C)
+		#._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver(True)
+		#P.check_floating_point_bound()
+		#P.change_solution_bases()
+		#P.make_exact(2**20)
+		#P.check_exact_bound()
 
 
 	elif prob == "grzesik":
@@ -570,7 +584,7 @@ def example(prob):
 		C = UnbalancedBlowupConstruction(Flag("8:131416171823242526273537384546485867",2),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.use_construction(C)
-		P.calculate_product_densities()
+		#P.calculate_product_densities()
 		P._minimize=True
 		return P, C
 
@@ -614,7 +628,6 @@ def example(prob):
 		P.forbid_induced_edge_number(3, 3)
 		P.n = 7
 		P.remove_types([1,2,4,7,9])
-		#
 		P.set_density_graph(Flag("6:",2))
 		C = SymmetricBlowupConstruction(ClebschGraph())
 		P.use_construction(C)

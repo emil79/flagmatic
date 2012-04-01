@@ -34,10 +34,14 @@ import os
 import pexpect
 import sys
 
-from sage.all import Integer, QQ, matrix
 from sage.structure.sage_object import SageObject
+from sage.rings.all import Integer, QQ, RationalField, RDF
+from sage.matrix.all import matrix, identity_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
+from sage.misc.misc import SAGE_TMP 
 
+from flag import *
+from flag_misc import *
 
 # pexpect in Sage has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
@@ -360,6 +364,11 @@ class Problem(SageObject):
 		self._block_bases = []
 		for ti in range(len(self._types)):
 			B = flag_basis(self._types[ti], self._flags[ti])
+			row_div = B.subdivisions()[0]
+			div_sizes = row_div + [len(self._flags[ti])]
+			for bi in range(1, len(div_sizes)):
+				div_sizes[bi] -= div_sizes[bi - 1]
+			sys.stdout.write("Type %d (%d flags) blocks: %s \n" % (ti, len(self._flags[ti]), div_sizes))
 			self._block_bases.append(B)
 
 

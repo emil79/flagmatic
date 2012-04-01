@@ -29,8 +29,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-from sage.all import Integer, QQ, matrix, factorial, identity_matrix, binomial, Combinations
-from sage.structure.sage_object import SageObject
+from sage.structure.sage_object import SageObject       
+from sage.rings.arith import factorial, binomial
+from sage.combinat.all import Combinations
+from sage.rings.all import Integer, QQ
+from sage.matrix.all import matrix, identity_matrix
+
+from construction import *
+from flag import *
 
 
 class RandomTournamentConstruction(Construction):

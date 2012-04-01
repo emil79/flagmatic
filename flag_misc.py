@@ -31,6 +31,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # TODO: implement a forbidden_induced_edge_numbers.
 # TODO: turn some forbidden graphs into forbidden edge numbers.
 
+from sage.rings.arith import binomial
+from sage.combinat.all import Combinations, Permutations
+from sage.rings.all import Integer, QQ
+from sage.matrix.all import matrix, block_matrix
+from sage.modules.misc import gram_schmidt
+
+from flag import *
 
 def generate_flags(n, tg, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs = [], forbidden_induced_graphs=[]):
 	"""
@@ -194,8 +201,6 @@ def flag_orbits(tg, flags):
 	return sorted(orbs)
 
 
-from sage.modules.misc import gram_schmidt
-
 def flag_basis(tg, flags, orthogonalize=True):
 	"""
 	flags should be a list of flags of the type tg. Returns a basis for the flags
@@ -225,8 +230,8 @@ def flag_basis(tg, flags, orthogonalize=True):
 			AntiInv[row, j] = -1
 			row += 1
 
-	sys.stdout.write("Invariant-anti-invariant split: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
-		len(flags)))
+	#sys.stdout.write("Invariant-anti-invariant split: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
+	#	len(flags)))
 	
 	if orthogonalize:
 	

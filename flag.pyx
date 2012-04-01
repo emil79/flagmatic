@@ -36,17 +36,26 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #
 
+include "sage/ext/interrupt.pxi"
+include "sage/ext/stdsage.pxi"
+include "sage/ext/cdefs.pxi"
+
+
 from libc.stdlib cimport malloc, calloc, realloc, free
 from libc.string cimport memset
 
 import numpy
 cimport numpy
 
-from sage.all import binomial, falling_factorial, \
-	Tuples, Permutations, Combinations, \
-	Integer, QQ, matrix, \
-	Graph, DiGraph
+from copy import copy
+
+from sage.structure.sage_object import SageObject       
 from sage.structure.sage_object cimport SageObject
+from sage.rings.arith import binomial, falling_factorial
+from sage.combinat.all import Combinations, Permutations, Tuples
+from sage.rings.all import Integer, QQ
+from sage.matrix.all import matrix
+from sage.graphs.all import Graph, DiGraph
 
 # 35 + 42 + 7 = 84, 84 * 3 = 252
 DEF MAX_NUMBER_OF_EDGE_INTS = 256

@@ -29,8 +29,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-from sage.all import Integer, QQ, matrix, factorial, identity_matrix
-from sage.structure.sage_object import SageObject
+from sage.structure.sage_object import SageObject       
+from sage.rings.arith import factorial
+from sage.combinat.all import UnorderedTuples, Tuples
+from sage.rings.all import Integer, QQ, polygen, RationalField
+from sage.matrix.all import matrix, identity_matrix
+from sage.misc.all import sage_eval
 
 
 class Construction(SageObject):
@@ -164,7 +168,7 @@ class BlowupConstruction(Construction):
 			raise NotImplementedException("degenerate oriented graphs not supported.")
 	
 		self._graph = g
-		self._field = RationalField()	
+		self._field = RationalField()
 	
 
 	def subgraph_densities(self, n):
