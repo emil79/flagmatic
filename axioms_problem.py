@@ -27,6 +27,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+from sage.rings.all import Integer
+
+from problem import *
+from flag import *
+from flag_misc import *
 
 class AxiomsProblem(Problem):
 	

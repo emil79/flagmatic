@@ -34,10 +34,14 @@ import os
 import pexpect
 import sys
 
-from sage.all import Integer, QQ, matrix
 from sage.structure.sage_object import SageObject
+from sage.rings.all import Integer, QQ, RationalField, RDF
+from sage.matrix.all import matrix, identity_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
+from sage.misc.misc import SAGE_TMP 
 
+from flag import *
+from flag_misc import *
 
 # pexpect in Sage has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
@@ -360,6 +364,11 @@ class Problem(SageObject):
 		self._block_bases = []
 		for ti in range(len(self._types)):
 			B = flag_basis(self._types[ti], self._flags[ti])
+			row_div = B.subdivisions()[0]
+			div_sizes = row_div + [len(self._flags[ti])]
+			for bi in range(1, len(div_sizes)):
+				div_sizes[bi] -= div_sizes[bi - 1]
+			sys.stdout.write("Type %d (%d flags) blocks: %s \n" % (ti, len(self._flags[ti]), div_sizes))
 			self._block_bases.append(B)
 
 
@@ -1132,15 +1141,15 @@ class Problem(SageObject):
 				for si in range(num_sharps)]
 
 			for row in self._product_densities_arrays[ti]:
-					gi = row[0]
-					if not gi in self._sharp_graphs:
-						continue
-					si = self._sharp_graphs.index(gi)
-					j = row[1]
-					k = row[2]
-					value = Integer(row[3]) / Integer(row[4])
-					Ds[si][j, k] = value
-					Ds[si][k, j] = value
+				gi = row[0]
+				if not gi in self._sharp_graphs:
+					continue
+				si = self._sharp_graphs.index(gi)
+				j = row[1]
+				k = row[2]
+				value = Integer(row[3]) / Integer(row[4])
+				Ds[si][j, k] = value
+				Ds[si][k, j] = value
 
 			if len(self._solution_bases) > 0:
 				B = self._inverse_solution_bases[ti]
@@ -1456,3 +1465,33 @@ class Problem(SageObject):
 		new_problem._densities = new_densities
 
 		return new_problem
+
+
+	def diagonalize(self):
+		
+		def LDLdecomposition(M):
+	
+			MS = M.parent()
+			D = MS.matrix()
+			L = copy(MS.identity_matrix())
+			for i in xrange(M.nrows()):
+				for j in xrange(i):
+					L[i, j] = (Integer(1) / D[j, j]) * (M[i, j] - sum(L[i, k] * L[j, k] * D[k, k] for k in xrange(j)))
+				D[i, i] = M[i, i] - sum(L[i, k]**2 * D[k, k]
+					for k in xrange(i))
+			return L, D
+
+		self._exact_diagonal_matrices = []
+		self._exact_r_matrices = []
+
+		sys.stdout.write("Diagonalizing")
+
+		for ti in range(len(self._types)):
+			R, M = LDLdecomposition(self._exact_Qdash_matrices[ti])
+			self._exact_diagonal_matrices.append(M)
+			self._exact_r_matrices.append(R)			
+			sys.stdout.write(".")
+			sys.stdout.flush()
+		
+		sys.stdout.write("\n")
+		

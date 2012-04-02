@@ -29,8 +29,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-from sage.all import Integer, QQ, matrix, factorial, identity_matrix
-from sage.structure.sage_object import SageObject
+from sage.structure.sage_object import SageObject       
+from sage.rings.arith import factorial
+from sage.combinat.all import UnorderedTuples, Tuples
+from sage.rings.all import Integer, QQ, polygen, RationalField
+from sage.matrix.all import matrix, identity_matrix
+from sage.misc.all import sage_eval
 
 
 class Construction(SageObject):
@@ -41,9 +45,6 @@ class Construction(SageObject):
 	@property
 	def field(self):
 		return self._field
-
-	def edge_density(self):
-		return 0
 
 	def subgraph_densities(self, n):
 		return None
@@ -169,16 +170,7 @@ class BlowupConstruction(Construction):
 		self._graph = g
 		self._field = RationalField()
 	
-	def edge_density(self):
-	
-		den_pairs = self.subgraph_densities(self._graph.r)
 
-		for pair in den_pairs:
-			g, den = pair
-			if g.ne == 1:
-				return den		
-	
-		
 	def subgraph_densities(self, n):
 
 		cn = self._graph.n
@@ -250,17 +242,7 @@ class UnbalancedBlowupConstruction(Construction):
 		else:
 			self._field = field
 	
-		
-	def edge_density(self):
 	
-		den_pairs = self.subgraph_densities(self._graph.r)
-
-		for pair in den_pairs:
-			g, den = pair
-			if g.ne == 1:
-				return den
-	
-		
 	def subgraph_densities(self, n):
 
 		cn = self._graph.n
