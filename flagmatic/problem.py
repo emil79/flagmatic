@@ -456,6 +456,8 @@ class Problem(SageObject):
 		return new_bases
 
 
+	# TODO: handle non-rational flag bases?
+
 	def calculate_product_densities(self, compress=False):
  	
 		graph_block = make_graph_block(self._graphs, self.n)

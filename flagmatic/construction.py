@@ -36,6 +36,8 @@ from sage.rings.all import Integer, QQ, polygen, RationalField
 from sage.matrix.all import matrix, identity_matrix
 from sage.misc.all import sage_eval
 
+from flag import *
+
 
 class Construction(SageObject):
 
@@ -98,7 +100,7 @@ class AdHocConstruction(Construction):
 
 		elif self._name == "maxs4":
 		
-			return (1 - 9 * x**2, [0, 5, 8, 16, 24, 27, 29, 31, 37, 38, 41])
+			return (1 - 9 * x**2, [0, 5, 8, 24, 27, 31, 37, 38])
 
 		elif self._name == "max42":
 
@@ -107,7 +109,7 @@ class AdHocConstruction(Construction):
 
 	def zero_eigenvectors(self, tg, flags):
 	
-		x = self._field.gen()		
+		x = self._field.gen()
 		rows = []
 
 		# TODO: should check flags are in the right order!
@@ -165,7 +167,7 @@ class BlowupConstruction(Construction):
 	def __init__(self, g):
 	
 		if g.oriented and g.is_degenerate:
-			raise NotImplementedException("degenerate oriented graphs not supported.")
+			raise NotImplementedError("degenerate oriented graphs not supported.")
 	
 		self._graph = g
 		self._field = RationalField()
@@ -226,7 +228,7 @@ class UnbalancedBlowupConstruction(Construction):
 	def __init__(self, g, weights=None, field=None):
 	
 		if g.oriented and g.is_degenerate:
-			raise NotImplementedException("degenerate oriented graphs not supported.")
+			raise NotImplementedError("degenerate oriented graphs not supported.")
 		
 		self._graph = g
 		

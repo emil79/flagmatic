@@ -40,6 +40,8 @@ from flag import *
 from flag_misc import *
 
 
+# TODO: is this out of place?
+
 def ClebschGraph():
 
 	cleb = Flag("0:",2)
@@ -53,6 +55,8 @@ def ClebschGraph():
 		cleb.add_edge(e)
 	return cleb
 
+
+# TODO: add constructor that disallows 3-graphs
 
 class SymmetricBlowupConstruction (BlowupConstruction):
 

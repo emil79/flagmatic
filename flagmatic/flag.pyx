@@ -178,7 +178,7 @@ cdef class Flag (SageObject):
 		"""
 					
 		if self._r != 2:
-			raise("NotImplementedError")
+			raise NotImplementedError("cannot do this for %d-graphs." % self._r)
 		
 		if self._oriented:
 			return DiGraph([e for e in self.edges])

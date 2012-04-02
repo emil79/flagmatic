@@ -21,7 +21,7 @@ setup(
 	version='2.0',
 	cmdclass = {'build_ext': build_ext},
 	ext_modules = [
-		Extension('flagmatic.flag', sources=['flagmatic/flag.pyx'],
+		Extension('flag', sources=['flagmatic/flag.pyx'],
 		include_dirs = [SAGE_LOCAL + '/lib/python/site-packages/numpy/core/include',
 			SAGE_LOCAL + '/include/csage',
 			SAGE_DEVEL + '/sage/sage/ext',
