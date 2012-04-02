@@ -27,6 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+from flagmatic.all import *
+
 
 def example(prob):
 	
@@ -41,7 +43,7 @@ def example(prob):
 		P.calculate_product_densities()
 		P._approximate_field = RealField(113)
 		P.write_sdp_input_file()
-		P.run_sdp_solver(sdpa="qd")
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.make_exact()
 		P.check_exact_bound()
@@ -58,7 +60,7 @@ def example(prob):
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.change_solution_bases()
-		P.make_exact(1024)
+		P.make_exact()
 		P.check_exact_bound()
 	
 	
@@ -474,40 +476,22 @@ def example(prob):
 		P.use_construction(C)
 		P.change_problem_bases()
 		
-		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, '1/2', '31/70'],
-			[0, 1, '49/106', '7/108', '-17/20']]))
+		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, 1/2, 31/70],
+			[0, 1, 49/106, 7/108, -17/20]]))
+		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]))
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,3,-1,0,0],[0,1,0,0,0,0,0]]))
 		
-		#P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]))
-		#P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
-		#P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,5,-2,0,0],[0,1,0,0,0,0,0]]))
-		P._sharp_graphs.extend([0,4,11,18,19,24, 27])
+		P._sharp_graphs.extend(eval("[0,4,11,18,19,24,27]"))
 		P.change_problem_bases()
 		
 		P.calculate_product_densities()
-		P._force_sharps = True
-		P._approximate_field = RealField(113)
 		P.write_sdp_input_file()
-		P.run_sdp_solver(True, sdpa="qd")
+		P.run_sdp_solver(False, sdpa="dd")
 		P.check_floating_point_bound()
-		P.make_exact(2**30)
+		P.make_exact()
 		P.check_exact_bound()
 
-	elif prob == "paw2":
-		
-		P = Problem(2)
-		P.n = 5
-		P.remove_types([4])
-		P.set_density_graph(Flag("4:12233114", 2))
-		C = BlowupConstruction(Flag("4:1223344111223344", 2))
-		P.use_construction(C)
-		P.calculate_product_densities()
-		P._approximate_field = RealField(113)
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True, sdpa="qd")
-		P._sharp_graphs.extend([24, 27])
-		P.check_floating_point_bound()
-		P.make_exact(2**30)
-		
 
 	elif prob == "maxs3":
 
@@ -516,13 +500,14 @@ def example(prob):
 		P.set_density_graph(Flag("3:1213", 2, oriented=True))
 		C = AdHocConstruction("maxs3")
 		P.use_construction(C)
-		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
-		P.run_sdp_solver(True)
+		P.run_sdp_solver()
 		P.check_floating_point_bound()
+		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
+
 
 	elif prob == "maxs4":
 
@@ -532,11 +517,11 @@ def example(prob):
 		P.set_density_graph(Flag("4:121314", 2, oriented=True))
 		C = AdHocConstruction("maxs4")
 		P.use_construction(C)
-		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
+		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -573,7 +558,6 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
-		
 		P.set_density_graph(Flag("4:121314232434",2))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
 		P.use_construction(C)
@@ -627,16 +611,15 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_edge_number(3, 0)
 		P.n = 6
-		
 		P.set_density_graph(Flag("5:12131415232425343545",2))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
 		P.use_construction(C)
-		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
+		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -659,13 +642,13 @@ def example(prob):
 		P.make_exact()
 		P.check_exact_bound()
 
+
 	elif prob == "73":
 
 		P = Problem(2)
 		P.forbid_induced_edge_number(3, 3)
 		P.n = 8
 		P.remove_types([1,3,4,5,6,7,8,10])
-#		
 		P.set_density_graph(Flag("7:",2))
 		C = SymmetricBlowupConstruction(ClebschGraph())
  		P.use_construction(C)
@@ -677,6 +660,7 @@ def example(prob):
 		P.check_floating_point_bound(tolerance=10e-11)
 		P.make_exact(1024*1024,cholesky=range(40))
 		#P.check_exact_bound()
+
 
 	elif prob == "ch":
 	
