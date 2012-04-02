@@ -36,9 +36,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #
 
-include "sage/ext/interrupt.pxi"
-include "sage/ext/stdsage.pxi"
-include "sage/ext/cdefs.pxi"
+include "interrupt.pxi"
+include "stdsage.pxi"
+include "cdefs.pxi"
 
 
 from libc.stdlib cimport malloc, calloc, realloc, free
@@ -51,6 +51,7 @@ from copy import copy
 
 from sage.structure.sage_object import SageObject       
 from sage.structure.sage_object cimport SageObject
+
 from sage.rings.arith import binomial, falling_factorial
 from sage.combinat.all import Combinations, Permutations, Tuples
 from sage.rings.all import Integer, QQ
