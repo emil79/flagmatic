@@ -1140,15 +1140,15 @@ class Problem(SageObject):
 				for si in range(num_sharps)]
 
 			for row in self._product_densities_arrays[ti]:
-					gi = row[0]
-					if not gi in self._sharp_graphs:
-						continue
-					si = self._sharp_graphs.index(gi)
-					j = row[1]
-					k = row[2]
-					value = Integer(row[3]) / Integer(row[4])
-					Ds[si][j, k] = value
-					Ds[si][k, j] = value
+				gi = row[0]
+				if not gi in self._sharp_graphs:
+					continue
+				si = self._sharp_graphs.index(gi)
+				j = row[1]
+				k = row[2]
+				value = Integer(row[3]) / Integer(row[4])
+				Ds[si][j, k] = value
+				Ds[si][k, j] = value
 
 			if len(self._solution_bases) > 0:
 				B = self._inverse_solution_bases[ti]

@@ -536,7 +536,7 @@ def example(prob):
 		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]))
-		P._sharp_graphs.extend([2, 3, 4, 16, 20])
+		P._sharp_graphs.extend(eval("[2, 3, 4, 16, 20]"))
 		P.change_problem_bases()
 		
 		P.calculate_product_densities()
