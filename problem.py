@@ -1036,7 +1036,8 @@ class Problem(SageObject):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
-	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False):
+	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False,
+		use_densities=True):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -1168,7 +1169,7 @@ class Problem(SageObject):
 		sys.stdout.write("Constructing DR matrix")
 		
 		# Only if there is more than one density
-		if num_densities > 1:
+		if num_densities > 1 and use_densities:
 			
 			for j in range(num_densities):
 				new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
