@@ -343,6 +343,25 @@ def example(prob):
 
 
 
+	elif prob == "new-cod-1":
+	
+		P = AxiomsProblem()
+		P.forbid_edge_number(4, 3)
+		P.n = 7
+		P.remove_types([3,4])
+		P.clear_axioms()
+		P.add_codegree_axiom(Rational("1/4"))
+		P.calculate_product_densities()
+		P.save("new-cod-1")
+		C = RandomTournamentConstruction()
+		P.use_construction(C)
+		P._force_sharps = True
+		P.save("new-cod-1")
+		P.write_sdp_input_file()
+		P.run_sdp_solver(True)
+		P.save("new-cod-1")
+
+
 	elif prob == "k4-cod":
 	
 		P = AxiomsProblem()
