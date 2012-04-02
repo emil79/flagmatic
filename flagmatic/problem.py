@@ -1294,6 +1294,9 @@ class Problem(SageObject):
 				sys.stdout.write("%.11f : %.11f\n" % (original_eigvals[i], new_eigvals[i]))
 
 
+	# TODO: check numerically for negative (and zero) eigenvalues
+	# TODO: check for negative density coefficients 
+
 	def check_exact_bound(self):
 	
 		num_types = len(self._types)
