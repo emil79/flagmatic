@@ -574,8 +574,7 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_edge_number(4, 6)
 		P.n = 8
-		#P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
-		
+		P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
 		P.set_density_graph(Flag("4:",2))
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
@@ -587,6 +586,7 @@ def example(prob):
 		P.use_construction(C)
 		#P.calculate_product_densities()
 		P._minimize=True
+		P.run_sdp_solver(True, "dd")
 		return P, C
 
 		#P.write_sdp_input_file()
