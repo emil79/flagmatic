@@ -663,19 +663,12 @@ def example(prob):
 	
 		P = AxiomsProblem(2, True)
 		P.forbid_subgraph(Flag("3:122331",2,True))
-		#P.forbid_subgraph(Flag("4:122334",2,True))
-		P.n = 5
+		P.n = 6
 		P.clear_axioms()
-		P.add_out_degree_axiom(Integer(34)/100)
-		
-		#C = BlowupConstruction(Flag("3:121323",2,True))
- 		#P.use_construction(C)
- 		P.change_problem_bases()
-		P.calculate_product_densities()
-		#P._force_sharps = True
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True,sdpa="qd")
+		P.add_out_degree_axiom(1/3)
 		C = None
-
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver(True)
 
 	return P,C
