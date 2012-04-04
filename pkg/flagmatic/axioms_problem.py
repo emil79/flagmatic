@@ -59,12 +59,14 @@ class AxiomsProblem(Problem):
 
 	def clear_axioms(self):
 		
+		self._axioms = []
+		self._axiom_flags = []
 		self._densities = []
 
 
-	def add_axiom(self, tg, flags, flag_coeffs):
+	def add_axiom(self, tg, terms):
 
-		m = self.n - max([f.n for f in flags]) + tg.n
+		m = self.n - max([t[0].n for t in terms]) + tg.n
 
 		axiom_flags = generate_flags(m, tg, self._r, self._oriented,
 			forbidden_edge_numbers=self._forbidden_edge_numbers,
@@ -80,16 +82,19 @@ class AxiomsProblem(Problem):
 		axiom_flags_block = make_graph_block(axiom_flags, m)
 		graph_block = make_graph_block(self._graphs, self.n)
 
-		for i in range(len(flags)):
-			flags_block = make_graph_block([flags[i]], flags[i].n)
+		for i in range(len(terms)):
+			fg = terms[i][0]
+			flags_block = make_graph_block([fg], fg.n)
 			rarray = flag_products(graph_block, tg, flags_block, axiom_flags_block)
 			for row in rarray:
 				gi = row[0]
 				j = row[1] # always 0
 				k = row[2]
 				value = Integer(row[3]) / Integer(row[4])
-				quantum_graphs[k][gi] += value * flag_coeffs[i]
+				quantum_graphs[k][gi] += value * terms[i][1]
 		
+		self._axioms.append((tg, terms))
+		self._axiom_flags.append(axiom_flags)
 		self._densities.extend(quantum_graphs)
 	
 	
@@ -101,7 +106,7 @@ class AxiomsProblem(Problem):
 		tg = Flag("2:")
 		f1 = Flag("3:123(2)")
 		f2 = Flag("2:(2)")
-		self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 
 
 	def add_degree_axiom(self, value):
@@ -114,14 +119,14 @@ class AxiomsProblem(Problem):
 			tg = Flag("1:")
 			f1 = Flag("3:123(1)")
 			f2 = Flag("1:(1)")
-			self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 
 		elif self.r == 2:
 
 			tg = Flag("1:", 2)
 			f1 = Flag("2:12(1)", 2)
 			f2 = Flag("1:(1)", 2)
-			self.add_axiom(tg, [f1, f2], [Integer(1), -value])
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 		
 	
 	def add_out_degree_axiom(self, value):
@@ -132,7 +137,7 @@ class AxiomsProblem(Problem):
 		tg = Flag("1:", 2, True)
 		f1 = Flag("2:12(1)", 2, True)
 		f2 = Flag("1:(1)", 2, True)
-		self.add_axiom(tg, [f1, f2], [Integer(1), -value])		
+		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 
 
 	def add_in_degree_axiom(self, value):
@@ -143,5 +148,5 @@ class AxiomsProblem(Problem):
 		tg = Flag("1:", 2, True)
 		f1 = Flag("2:21(1)", 2, True)
 		f2 = Flag("1:(1)", 2, True)
-		self.add_axiom(tg, [f1, f2], [Integer(1), -value])		
+		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])	
 		
