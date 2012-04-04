@@ -34,7 +34,7 @@ import os
 import pexpect
 import sys
 
-from sage.structure.sage_object import SageObject
+from sage.structure.sage_object import SageObject, dumps, loads
 from sage.rings.all import Integer, QQ, RationalField, RDF
 from sage.matrix.all import matrix, identity_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt

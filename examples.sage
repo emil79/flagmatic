@@ -285,18 +285,6 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 
-	elif prob == "codn":
-	
-		P = AxiomsProblem()
-		P.forbid_edge_number(4, 3)
-		P.forbid_subgraph(Flag("6:612623634645651"))
-		P.n = 6
-		P.clear_axioms()
-		P.add_codegree_axiom(Rational("1/4"))
-		C = RandomTournamentConstruction()
-		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
 
 
 	elif prob == "codr":
@@ -331,7 +319,7 @@ def example(prob):
 		P.forbid_subgraph(Flag("6:612623634645651"))
 		P.n = 6
 		P.clear_axioms()
-		P.add_codegree_axiom(Rational("1/4"))
+		P.add_codegree_axiom(1/4)
 		C = RandomTournamentConstruction()
 		P.use_construction(C)
 		P.calculate_product_densities()
@@ -339,9 +327,8 @@ def example(prob):
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
 		P.change_solution_bases()
-		P.make_exact(1024*1024)
+		P.make_exact(2^20)
 		P.check_exact_bound()
-
 
 
 	elif prob == "new-cod-1":
@@ -351,11 +338,13 @@ def example(prob):
 		P.n = 7
 		P.remove_types([3,4])
 		P.clear_axioms()
-		P.add_codegree_axiom(Rational("1/4"))
+		P.add_codegree_axiom(1/4)
+		C = RandomTournamentConstruction()
+		return P, C
+
+		P.use_construction(C)
 		P.calculate_product_densities()
 		P.save("new-cod-1")
-		C = RandomTournamentConstruction()
-		P.use_construction(C)
 		P._force_sharps = True
 		P.save("new-cod-1")
 		P.write_sdp_input_file()

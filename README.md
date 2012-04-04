@@ -5,7 +5,7 @@ A package for the Sage system.
 
 To install, type:
 
-    $ sage -python setup.py install
+    $ cd pkg; sage -python setup.py install
 
 Then, from the Sage prompt, type:
 
