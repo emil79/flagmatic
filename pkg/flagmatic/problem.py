@@ -128,7 +128,7 @@ class Problem(SageObject):
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
-		self.calculate_densities()
+		self._calculate_densities()
 	
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
@@ -177,77 +177,104 @@ class Problem(SageObject):
 		return self._density_graphs
 
 
-	def calculate_densities(self):
+	def _calculate_densities(self):
 	
 		self._densities = [[sum(g.subgraph_density(dg) for dg in self._density_graphs)
 			for g in self._graphs]]
-	
-	
-	def set_density_graph(self, dg):
-
-		self._density_graphs = [dg]
-		self.calculate_densities()
 
 
-	def set_density_graphs(self, dgs):
+	def set_density(self, *args):
 
-		self._density_graphs = dgs
-		self.calculate_densities()
+		density_graphs = []
+		orders = []
 
-
-	def set_density_edge_number(self, k, ne):
-
-		if k < self._r:
-			raise ValueError
-
-		max_e = binomial(k, self._r)
-		if not ne in range(max_e + 1):
-			raise ValueError
-
-		graphs = generate_graphs(k, self._r, self._oriented,
-			forbidden_edge_numbers=self._forbidden_edge_numbers,
-			forbidden_graphs=self._forbidden_graphs,
-			forbidden_induced_graphs=self._forbidden_induced_graphs)
+		for h in args:
 		
-		dgs = [g for g in graphs if g.ne == ne]
+			if type(h) == str and "." in h:
+				h = tuple(map(int, h.split(".")))
+		
+			if type(h) == tuple:
+				k, ne = h
+				if k < self._r:
+					raise ValueError
+				max_e = binomial(k, self._r)
+				if not ne in range(max_e + 1):
+					raise ValueError
+		
+				# Don't forbid anything - if we do, we'll have to keep list
+				# updated whenever forbidden things change
+				graphs = generate_graphs(k, self._r, self._oriented)
+				for g in graphs:
+					if g.ne == ne:
+						density_graphs.append(g)
+				orders.append(k)
+				continue
+			
+			if type(h) == str:
+				h = Flag(h, self._r, self._oriented)			
+				
+			if type(h) != Flag:
+				raise ValueError
 
-		self.set_density_graphs(dgs)
+			if h.r != self._r or h.oriented != self._oriented:
+				raise ValueError
+
+			density_graphs.append(h)
+			orders.append(h.n)
+		
+		if len(density_graphs) == 0:
+			raise ValueError
+		
+		if len(set(orders)) > 1:
+			raise ValueError("Density graphs must all contain the same number of vertices.")
+		
+		self._density_graphs = density_graphs
+		self._calculate_densities()
 
 
-	def forbid_edge_number(self, k, ne):
+	def _forbid_graph(self, h, induced):
 
-		if k < self._r: 
+		if type(h) == str and "." in h:
+			h = tuple(map(int, h.split(".")))
+		
+		if type(h) == tuple:
+			k, ne = h
+			if k < self._r:
+				raise ValueError
+			max_e = binomial(k, self._r)
+			if not ne in range(max_e + 1):
+				raise ValueError
+			if induced:
+				self._forbidden_edge_numbers.append((k, ne))
+			else:
+				for i in range(ne, max_e + 1):
+					self._forbidden_edge_numbers.append((k, i))
+			return
+		
+		if type(h) == str:
+			h = Flag(h, self._r, self._oriented)
+		
+		if type(h) != Flag:
 			raise ValueError
 
-		max_e = binomial(k, self._r)
-		if not ne in range(max_e + 1):
+		if h.r != self._r or h.oriented != self._oriented:
 			raise ValueError
 
-		for i in range(ne, max_e + 1):
-			self._forbidden_edge_numbers.append((k, i))
+		if induced:
+			self._forbidden_induced_graphs.append(h)		
+		else:
+			self._forbidden_graphs.append(h)
 
 
-	def forbid_induced_edge_number(self, k, ne):
-
-		if k < self._r:
-			raise ValueError
-
-		max_e = binomial(k, self._r)
-		if not ne in range(max_e + 1):
-			raise ValueError
-	
-		self._forbidden_edge_numbers.append((k, ne))
+	def forbid_subgraph(self, *args):
+		for h in args:
+			self._forbid_graph(h, False)
 
 
-	def forbid_subgraph(self, h):
-
-		self._forbidden_graphs.append(h)
-
-
-	def forbid_induced_subgraph(self, h):
-
-		self._forbidden_induced_graphs.append(h)
-
+	def forbid_induced_subgraph(self, *args):
+		for h in args:
+			self._forbid_graph(h, True)
+		
 
 	# TODO: warn if already solved
 
@@ -664,6 +691,7 @@ class Problem(SageObject):
 			self.write_blocks(f)
 
 
+	# TODO: add option for forcing sharps, and report error if problem unfeasible
 
 	def run_sdp_solver(self, show_output=False, sdpa=False):
 	
