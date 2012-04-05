@@ -29,6 +29,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from flagmatic.all import *
 
+def test_graphs():
+
+	gsl = ["6:", "6:123", "6:123124", "6:123124", "6:123124", "6:123124", "6:123124125",
+		"6:123124135145", "6:123124125126", "6:123124125136", "6:123124125136146",
+		"6:123124125136146156", "6:123124125136146156", "6:123124",
+		"6:123124125136146156345", "6:123124135245345", "6:123124135146345346",
+		"6:123124125136146356456", "6:123124125136146256356456"]
+		
+	for gs in gsl:
+		print gs
+		P = Problem()
+		P.forbid_edge_number(4,3)
+		P.forbid_induced_subgraph(Flag(gs))
+		P.n = 6
+		P.calculate_product_densities()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
 
 def example(prob):
 	
