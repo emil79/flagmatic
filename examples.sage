@@ -193,27 +193,9 @@ def example(prob):
 
 
 	elif prob == "38":
-
-		P = Problem()
-		P.forbid_subgraph(Flag("5:123124125345"))
-		P.forbid_subgraph(Flag("5:123124125134135145"))
-		P.n = 6
-		C = BlowupConstruction(Flag("4:123124134234"))
-		P.use_construction(C)
-		P.change_problem_bases()
-		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
-		P.make_exact()
-		P.check_exact_bound()
-
-
-	elif prob == "38n":
 	
 		P = Problem()
-		P.forbid_subgraph(Flag("5:123124125345"))
-		P.forbid_subgraph(Flag("5:123124125134135145"))
+		P.forbid_subgraph("5:123124125345", "5:123124125134135145")
 		P.n = 6
 		C = BlowupConstruction(Flag("4:123124134234"))
 		P.use_construction(C)
@@ -221,8 +203,8 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
-		P.change_solution_bases(use_blocks=False)
-		P.make_exact(1024)
+		P.change_solution_bases()
+		P.make_exact()
 		P.check_exact_bound()
 		
 
@@ -231,14 +213,14 @@ def example(prob):
 		P = Problem()
 		P.n = 5
 		P.remove_types([0])
-		P.set_density_graph(Flag("4:123124"))
+		P.set_density("4.2")
 		C = AdHocConstruction("max42")
 		P.use_construction(C)
-		P.change_problem_bases()
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 		P.check_floating_point_bound()
+		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
 	
