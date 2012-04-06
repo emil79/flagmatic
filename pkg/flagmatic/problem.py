@@ -162,19 +162,82 @@ class Problem(SageObject):
 
 	@property
 	def graphs(self):
-		return self._graphs
+		"""
+		Read-only. A (copy) of the list of admissible graphs. Modifying the list will have
+		no effect on the Problem.
+		 
+		"""
+		return copy(self._graphs)
 
 	@property
 	def types(self):
-		return self._types
+		"""
+		Read-only. A (copy) of the list of types. Modifying the list will have
+		no effect on the Problem.
+		 
+		"""
+		return copy(self._types)
 
 	@property
 	def flags(self):
-		return self._flags
+		"""
+		Read-only. A (copy) of the flags, as a list of lists. The flags are listed by
+		type, in the same order as the types appear in the types list. Modifying the lists
+		will have no effect on the Problem.
+		 
+		"""
+		return copy(self._flags)
 
 	@property
 	def density_graphs(self):
-		return self._density_graphs
+		"""
+		Read-only. A (copy) of the list of density graphs. Modifying the lists
+		will have no effect on the Problem.
+		 
+		"""
+		return copy(self._density_graphs)
+
+
+	@property
+	def minimize(self):
+		"""
+		If minimize is set to True, then the problem is a "minimization" problem;
+		this means that the SDP should be set up so that the largest possible lower bound
+		on the density is found.
+		
+		The minimize property is always the negation of the maximize property.
+		
+		By default, minimize is False.
+		
+		"""
+		return self._minimize
+
+	@minimize.setter
+	def minimize(self, value):
+		if not type(value) == bool:
+			raise ValueError
+		self._minimize = value
+
+	@property
+	def maximize(self):
+		"""
+		If maximize is set to True, then the problem is a "maximization" problem;
+		this means that the SDP should be set up so that the smallest possible upper bound
+		on the density is found.
+		
+		The maximize property is always the negation of the minimize property.
+		
+		By default, maximize is True.
+		
+		"""
+
+		return not self._minimize
+
+	@maximize.setter
+	def maximize(self, value):
+		if not type(value) == bool:
+			raise ValueError
+		self._minimize = not value
 
 
 	def _calculate_densities(self):
@@ -857,6 +920,88 @@ class Problem(SageObject):
 			self._sdp_Q_matrices[ti].set_immutable()
 
 
+	def check_floating_point_bound(self, tolerance = 0.00001, show_all=False):
+	
+		num_types = len(self._types)
+		num_graphs = len(self._graphs)
+		num_densities = len(self._densities)
+		
+		sys.stdout.write("Checking numerical bound...\n")
+		
+		fbounds = [sum([self._densities[j][i] * self._sdp_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
+
+		for ti in range(num_types):
+			for row in self._product_densities_arrays[ti]:
+				gi, j, k, numer, denom = row
+				d = Integer(numer) / Integer(denom)
+				value = self._sdp_Q_matrices[ti][j, k]
+				if j != k:
+					d *= 2
+				if not self._minimize:
+					fbounds[gi] += d * value
+				else:
+					fbounds[gi] -= d * value
+
+		if not self._minimize:
+			bound = max(fbounds)
+		else:
+			bound = min(fbounds)
+		
+		if not self._target_bound is None:
+			if abs(bound - self._approximate_field(self._target_bound)) < tolerance:
+				sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
+			else:
+				sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
+				
+		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
+
+		if show_all:
+		
+			sorted_indices = sorted(range(num_graphs), key = lambda i : fbounds[i])
+
+			for gi in sorted_indices:
+				sys.stdout.write("%s : graph %d (%s) " % (fbounds[gi], gi, self._graphs[gi]))
+				if gi in self._sharp_graphs:
+					sys.stdout.write("S")
+				if gi in apparently_sharp_graphs:
+					sys.stdout.write("*")
+				sys.stdout.write("\n")	
+
+		else:
+	
+			sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
+			for gi in apparently_sharp_graphs:
+				sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
+			
+		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
+		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
+			
+		#for gi in extra_sharp_graphs:
+		#	sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
+	
+		if len(extra_sharp_graphs) > 0:
+			sys.stdout.write("Warning: additional sharp graphs: %s\n" % (extra_sharp_graphs,))	
+	
+		for gi in missing_sharp_graphs:
+			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
+
+
+
+	def solve_sdp(self, show_output=False, sdpa=False, tolerance=0.00001, show_all=False):
+		"""
+		Creates and solves the semi-definite program corresponding to the problem.
+		
+		Equivalent to calling write_sdp_input_file, followed by run_sdp_solver,
+		followed by check_floating_point_bound.
+		
+		"""
+	
+		self.write_sdp_input_file()
+		self.run_sdp_solver(show_output=show_output, sdpa=sdpa)
+		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
+
+
+
 	def import_solution(self, directory):
 	
 		num_graphs = len(self._graphs)
@@ -1006,73 +1151,6 @@ class Problem(SageObject):
 				norms = [R[i,:].norm() for i in range(R.nrows())]
 				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(norms),
 					" ".join("%s" % e for e in norms)))
-
-
-
-	def check_floating_point_bound(self, tolerance = 0.00001, show_all=False):
-	
-		num_types = len(self._types)
-		num_graphs = len(self._graphs)
-		num_densities = len(self._densities)
-		
-		sys.stdout.write("Checking numerical bound...\n")
-		
-		fbounds = [sum([self._densities[j][i] * self._sdp_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
-
-		for ti in range(num_types):
-			for row in self._product_densities_arrays[ti]:
-				gi, j, k, numer, denom = row
-				d = Integer(numer) / Integer(denom)
-				value = self._sdp_Q_matrices[ti][j, k]
-				if j != k:
-					d *= 2
-				if not self._minimize:
-					fbounds[gi] += d * value
-				else:
-					fbounds[gi] -= d * value
-
-		if not self._minimize:
-			bound = max(fbounds)
-		else:
-			bound = min(fbounds)
-		
-		if not self._target_bound is None:
-			if abs(bound - self._approximate_field(self._target_bound)) < tolerance:
-				sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
-			else:
-				sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
-				
-		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
-
-		if show_all:
-		
-			sorted_indices = sorted(range(num_graphs), key = lambda i : fbounds[i])
-
-			for gi in sorted_indices:
-				sys.stdout.write("%s : graph %d (%s) " % (fbounds[gi], gi, self._graphs[gi]))
-				if gi in self._sharp_graphs:
-					sys.stdout.write("S")
-				if gi in apparently_sharp_graphs:
-					sys.stdout.write("*")
-				sys.stdout.write("\n")	
-
-		else:
-	
-			sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
-			for gi in apparently_sharp_graphs:
-				sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
-			
-		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
-		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
-			
-		#for gi in extra_sharp_graphs:
-		#	sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
-	
-		if len(extra_sharp_graphs) > 0:
-			sys.stdout.write("Warning: additional sharp graphs: %s\n" % (extra_sharp_graphs,))	
-	
-		for gi in missing_sharp_graphs:
-			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
 	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False,

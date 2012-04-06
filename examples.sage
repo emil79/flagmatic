@@ -49,7 +49,7 @@ def test_graphs():
 
 def example(prob):
 	
-	if prob == "ff83":
+	if prob == "ff83-cpb":
 	
 		P = Problem()
 		P.forbid_subgraph("5:123124345")
@@ -58,14 +58,12 @@ def example(prob):
 		P.use_construction(C)
 		P.change_problem_bases()
 		P.calculate_product_densities()
-		P._approximate_field = RealField(113)
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P._approximate_field = RealField(113) # for testing - not needed.
+		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
 	
-	elif prob == "ff83n":
+	elif prob == "ff83":
 	
 		P = Problem()
 		P.forbid_subgraph("5:123124345")
@@ -73,9 +71,7 @@ def example(prob):
 		C = BlowupConstruction(Flag("3:123"))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -85,12 +81,11 @@ def example(prob):
 
 		P = Problem()
 		P.forbid_subgraph((4, 3))
-		P.n = 7
-		#
+		P.n = 6
 		C = None
 		P.calculate_product_densities()
-		#P.write_sdp_input_file()
-		#P.run_sdp_solver()
+		P.write_sdp_input_file()
+		P.run_sdp_solver()
 
 
 	elif prob == "f32":
@@ -101,9 +96,7 @@ def example(prob):
 		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -118,9 +111,7 @@ def example(prob):
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -136,9 +127,7 @@ def example(prob):
 		P.use_construction(C)
 		P.change_problem_bases()
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
 		
@@ -152,9 +141,7 @@ def example(prob):
 		C = BlowupConstruction(Flag("3:112223331123"))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -168,9 +155,7 @@ def example(prob):
 		C = BlowupConstruction(Flag("2:112122"))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -185,9 +170,7 @@ def example(prob):
 		P.use_construction(C)
 		P.change_problem_bases()
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -200,9 +183,7 @@ def example(prob):
 		C = BlowupConstruction(Flag("4:123124134234"))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -217,9 +198,7 @@ def example(prob):
 		C = AdHocConstruction("max42")
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -254,7 +233,6 @@ def example(prob):
 		f1 = Flag("3:123", tg)
 		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-264/1000")])
-		
 		P.calculate_product_densities()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
@@ -286,6 +264,7 @@ def example(prob):
 		P.make_exact(1024*1024)
 		P.check_exact_bound()
 
+
 	elif prob == "cod6":
 
 		P = AxiomsProblem()
@@ -297,9 +276,7 @@ def example(prob):
 		C = RandomTournamentConstruction()
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact(2^20)
 		P.check_exact_bound()
@@ -366,9 +343,7 @@ def example(prob):
 		P.use_construction(C)
 		P._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact(2**20)
 		P.check_exact_bound()
@@ -402,9 +377,7 @@ def example(prob):
 		C = SymmetricBlowupConstruction(Flag("5:1223344551", 2))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -418,9 +391,7 @@ def example(prob):
 		C = BlowupConstruction(Flag("5:12131415232425343545", 2))
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -447,9 +418,7 @@ def example(prob):
 		P.change_problem_bases()
 		
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver(False, sdpa="dd")
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -462,9 +431,7 @@ def example(prob):
 		C = AdHocConstruction("maxs3")
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -479,9 +446,7 @@ def example(prob):
 		C = AdHocConstruction("maxs4")
 		P.use_construction(C)
 		P.calculate_product_densities()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -505,9 +470,7 @@ def example(prob):
 		
 		P.calculate_product_densities()
 		P._minimize=True
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True)
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -523,9 +486,7 @@ def example(prob):
 		P.use_construction(C)
 		P.calculate_product_densities()
 		P._minimize=True
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -576,9 +537,7 @@ def example(prob):
 		P.use_construction(C)
 		P.calculate_product_densities()
 		P._minimize=True
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
-		P.check_floating_point_bound()
+		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -590,15 +549,13 @@ def example(prob):
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 7
 		P.remove_types([1,2,4,7,9])
-		P.set_density_graph(Flag("6:",2))
+		P.set_density((6, 0))
 		C = SymmetricBlowupConstruction(ClebschGraph())
 		P.use_construction(C)
 		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True)
-		P.check_floating_point_bound()
+		P.solve_sdp(show_output=True)
 		P.make_exact()
 		P.check_exact_bound()
 
@@ -609,17 +566,17 @@ def example(prob):
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 8
 		P.remove_types([1,3,4,5,6,7,8,10])
-		P.set_density_graph(Flag("7:",2))
+		P.set_density((7, 0))
 		C = SymmetricBlowupConstruction(ClebschGraph())
  		P.use_construction(C)
- 		P.change_problem_bases()
 		P.calculate_product_densities()
 		P._minimize=True
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True, True)
-		P.check_floating_point_bound(tolerance=10e-11)
-		P.make_exact(1024*1024,cholesky=range(40))
-		#P.check_exact_bound()
+		P.save("73")
+		P.solve_sdp(show_output=True, sdpa="dd", tolerance=1e-12)
+		P.save("73")
+ 		P.change_solution_bases()
+		P.make_exact(2**30)
+		P.check_exact_bound()
 
 
 	elif prob == "ch":
