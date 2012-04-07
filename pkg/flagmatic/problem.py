@@ -128,7 +128,7 @@ class Problem(SageObject):
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
-		self._calculate_densities()
+		self._compute_densities()
 	
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
@@ -155,9 +155,7 @@ class Problem(SageObject):
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
 
-		#self._flag_bases = [identity_matrix(QQ, len(self._flags[ti]), sparse=True) for ti in range(len(self._types))]
-		#for ti in range(len(self._types)):
-		#	self._flag_bases[ti].set_immutable()
+		self._active_types = range(len(self._types))
 
 
 	@property
@@ -240,7 +238,7 @@ class Problem(SageObject):
 		self._minimize = not value
 
 
-	def _calculate_densities(self):
+	def _compute_densities(self):
 	
 		self._densities = [[sum(g.subgraph_density(dg) for dg in self._density_graphs)
 			for g in self._graphs]]
@@ -292,7 +290,7 @@ class Problem(SageObject):
 			raise ValueError("Density graphs must all contain the same number of vertices.")
 		
 		self._density_graphs = density_graphs
-		self._calculate_densities()
+		self._compute_densities()
 
 
 	def _forbid_graph(self, h, induced):
@@ -341,25 +339,37 @@ class Problem(SageObject):
 
 	# TODO: warn if already solved
 
-	def remove_types(self, indices):
+	def set_inactive_types(self, *args):
 	
 		num_types = len(self._types)
-		remaining = [i for i in range(num_types) if not i in indices]
-
-		sys.stdout.write("%d types removed.\n" % (num_types - len(remaining)))
-
-		if num_types > 0:
-			self._types = [self._types[i] for i in remaining]
-		if len(self._flags) > 0:
-			self._flags = [self._flags[i] for i in remaining]
-			sys.stdout.write("Remaining types have %s flags.\n" % [len(flags) for flags in self._flags])
-		if len(self._flag_bases) > 0:
-			self._flag_bases = [self._flag_bases[i] for i in remaining]
-		if len(self._block_bases) > 0:
-			self._block_bases = [self._block_bases[i] for i in remaining]
+		
+		for arg in args:
+			ti = int(arg)
+			if not ti in range(num_types):
+				raise ValueError
+			if ti in self._active_types:
+				self._active_types.remove(ti)
+			else:
+				sys.stdout.write("Warning: type %d is already inactive.\n" % ti)
 
 
-	def use_construction(self, c):
+	def add_sharp_graphs(self, *args):
+	
+		num_graphs = len(self._graphs)
+	
+		for arg in args:
+			si = int(arg)
+			if not si in range(num_graphs):
+				raise ValueError
+			if not si in self._sharp_graphs:
+				self._sharp_graphs.append(si)
+			else:
+				sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
+
+
+
+
+	def set_extremal_construction(self, c):
 
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -425,10 +435,69 @@ class Problem(SageObject):
 		self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(NZ)
 		self._zero_eigenvectors[ti].set_immutable()
 
+	
+	def add_sharp_graphs(self, *args):
+	
+		num_graphs = len(self._graphs)
+	
+		for arg in args:
+			si = int(arg)
+			if not si in range(num_graphs):
+				raise ValueError
+			if not si in self._sharp_graphs:
+				self._sharp_graphs.append(si)
+			else:
+				sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
 
-	def change_problem_bases(self, use_blocks=True):
+
+	# TODO: handle non-rational flag bases?
+
+	def change_problem_bases(self, use_blocks=True, transform_products=True):
 
 		self._flag_bases = self._create_new_bases(use_blocks)
+
+		if not transform_products:
+			return
+
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+
+		for ti in range(num_types):
+
+			sys.stdout.write("Transforming type %d products...\n" % ti)
+
+			nf = len(self._flags[ti])
+			B = self._flag_bases[ti]
+
+			rarray = self._product_densities_arrays[ti]
+			new_rarray = numpy.zeros([0, 5], dtype=numpy.int)
+			row_num = 0
+
+			for gi in range(num_graphs):
+			
+				D = matrix(QQ, nf, nf, sparse=True)
+				for row in rarray:
+					if row[0] == gi:
+						j = row[1]
+						k = row[2]
+						value = Integer(row[3]) / Integer(row[4])
+						D[j, k] = value
+						D[k, j] = value
+				ND = B * D * B.T
+				# Only want upper triangle
+				NDD = dict((pair, value) for pair, value in ND.dict().iteritems()
+					if pair[0] <= pair[1])
+				new_rarray.resize([row_num + len(NDD), 5], refcheck=False)
+				for pair, value in NDD.iteritems():
+					new_rarray[row_num, 0] = gi
+					new_rarray[row_num, 1] = pair[0]
+					new_rarray[row_num, 2] = pair[1]
+					new_rarray[row_num, 3] = value.numerator()
+					new_rarray[row_num, 4] = value.denominator()
+					row_num += 1
+			
+			self._product_densities_arrays[ti] = new_rarray
+
 
 	
 	def change_solution_bases(self, use_blocks=True, use_smaller=False):
@@ -546,63 +615,25 @@ class Problem(SageObject):
 		return new_bases
 
 
-	# TODO: handle non-rational flag bases?
-
-	def calculate_product_densities(self, compress=False):
+	def compute_products(self):
  	
 		graph_block = make_graph_block(self._graphs, self.n)
 		
 		self._product_densities_arrays = []
  		
-		sys.stdout.write("Calculating product densities...\n")
+		sys.stdout.write("Calculating product densities:\n")
 
 		for ti in range(len(self._types)):
 
 			tg = self._types[ti]
 			s = tg.n
 			m = (self._n + s) / 2
-			nf = len(self._flags[ti])
-
+			
 			sys.stdout.write("Doing type %d (order %d; flags %d)...\n" % (ti, s, m))
 
 			flags_block = make_graph_block(self._flags[ti], m)
 			rarray = flag_products(graph_block, tg, flags_block, None)
-			row_num = 0
-
-			if len(self._flag_bases) > 0:
-
-				sys.stdout.write("Transforming...\n")
-
-				B = self._flag_bases[ti]
-				new_rarray = numpy.zeros([0, 5], dtype=numpy.int)
-
-				for gi in range(len(self._graphs)):
-				
-					D = matrix(QQ, nf, nf, sparse=True)
-					for row in rarray:
-						if row[0] == gi:
-							j = row[1]
-							k = row[2]
-							value = Integer(row[3]) / Integer(row[4])
-							D[j, k] = value
-							D[k, j] = value
-					ND = B * D * B.T
-					# Only want upper triangle
-					NDD = dict((pair, value) for pair, value in ND.dict().iteritems()
-						if pair[0] <= pair[1])
-					new_rarray.resize([row_num + len(NDD), 5], refcheck=False)
-					for pair, value in NDD.iteritems():
-						new_rarray[row_num, 0] = gi
-						new_rarray[row_num, 1] = pair[0]
-						new_rarray[row_num, 2] = pair[1]
-						new_rarray[row_num, 3] = value.numerator()
-						new_rarray[row_num, 4] = value.denominator()
-						row_num += 1
-				
-				self._product_densities_arrays.append(new_rarray)
-
-			else:
-				self._product_densities_arrays.append(rarray)
+			self._product_densities_arrays.append(rarray)
 	
 
 	def write_blocks(self, f, write_sizes=False):

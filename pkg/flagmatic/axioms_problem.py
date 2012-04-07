@@ -34,26 +34,20 @@ from flag import *
 from flag_misc import *
 
 class AxiomsProblem(Problem):
+
 	
 	def __init__(self, r=3, oriented=False):
 	
 		Problem.__init__(self, r, oriented)
 		self._density_graphs = []
+		self.clear_axioms()
 
 
-	def calculate_densities(self):
+	def _compute_densities(self):
 		pass
-	
+		
 
-	def set_density_graph(self, dg):
-		pass
-
-	
-	def set_density_graphs(self, dgs):
-		pass
-
-
-	def set_density_edge_number(self, k, ne):
+	def set_density(self, *args):	
 		pass
 
 

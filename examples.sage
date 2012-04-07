@@ -43,7 +43,7 @@ def test_graphs():
 		P.forbid_subgraph((4, 3))
 		P.forbid_induced_subgraph(Flag(gs))
 		P.n = 6
-		P.calculate_product_densities()
+		P.compute_products()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 
@@ -55,9 +55,9 @@ def example(prob):
 		P.forbid_subgraph("5:123124345")
 		P.n = 6
 		C = BlowupConstruction(Flag("3:123"))
-		P.use_construction(C)
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.change_problem_bases()
-		P.calculate_product_densities()
 		P._approximate_field = RealField(113) # for testing - not needed.
 		P.solve_sdp()
 		P.make_exact()
@@ -69,8 +69,8 @@ def example(prob):
 		P.forbid_subgraph("5:123124345")
 		P.n = 6
 		C = BlowupConstruction(Flag("3:123"))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -83,7 +83,7 @@ def example(prob):
 		P.forbid_subgraph((4, 3))
 		P.n = 6
 		C = None
-		P.calculate_product_densities()
+		P.compute_products()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 
@@ -94,8 +94,8 @@ def example(prob):
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
 		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -109,8 +109,8 @@ def example(prob):
 		P.forbid_induced_subgraph((4, 1))
 		P.n = 6
 		C = BlowupConstruction(Flag("3:112223331123"))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -124,9 +124,9 @@ def example(prob):
 		P.forbid_induced_subgraph((5, 8))
 		P.n = 6
 		C = BlowupConstruction(Flag("2:112122"))
-		P.use_construction(C)
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.change_problem_bases()
-		P.calculate_product_densities()
 		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
@@ -139,8 +139,8 @@ def example(prob):
 		P.n = 6
 		P.set_density((4,3))
 		C = BlowupConstruction(Flag("3:112223331123"))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -153,8 +153,8 @@ def example(prob):
 		P.n = 6
 		P.set_density((5, 9))
 		C = BlowupConstruction(Flag("2:112122"))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -167,9 +167,9 @@ def example(prob):
 		P.n = 6
 		P.set_density_edge_number(5, 6)
 		C = BlowupConstruction(Flag("3:112223331122233311"))
-		P.use_construction(C)
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.change_problem_bases()
-		P.calculate_product_densities()
 		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
@@ -181,8 +181,8 @@ def example(prob):
 		P.forbid_subgraph("5:123124125345", "5:123124125134135145")
 		P.n = 6
 		C = BlowupConstruction(Flag("4:123124134234"))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -196,8 +196,8 @@ def example(prob):
 		P.remove_types([0])
 		P.set_density("4.2")
 		C = AdHocConstruction("max42")
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -211,8 +211,8 @@ def example(prob):
 		P.n = 7
 		P.remove_types([3,4,5,6])
 		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.import_solution("../output/k4-f32")
 		P.save("k4-f32")
 		P.check_floating_point_bound()
@@ -233,7 +233,7 @@ def example(prob):
 		f1 = Flag("3:123", tg)
 		f2 = Flag("2:", tg)
 		P.add_axiom(tg, [f1, f2], [1, Rational("-264/1000")])
-		P.calculate_product_densities()
+		P.compute_products()
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 
@@ -249,9 +249,9 @@ def example(prob):
 		P1.add_codegree_axiom(Rational("1/4"))
 		P1._force_sharps = True
 		C = RandomTournamentConstruction()
-		P1.use_construction(C)
+		P1.set_extremal_construction(C)
+		P1.compute_products()
 		P1.change_problem_bases()
-		P1.calculate_product_densities()
 		P1.write_sdp_input_file()
 		P1.run_sdp_solver(True)
 		P2 = P1.lose_small_densities(0.05)
@@ -268,14 +268,12 @@ def example(prob):
 	elif prob == "cod6":
 
 		P = AxiomsProblem()
-		P.forbid_subgraph((4, 3))
-		P.forbid_subgraph(Flag("6:612623634645651"))
+		P.forbid_subgraph((4, 3), "6:612623634645651")
 		P.n = 6
-		P.clear_axioms()
 		P.add_codegree_axiom(1/4)
 		C = RandomTournamentConstruction()
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact(2^20)
@@ -293,8 +291,8 @@ def example(prob):
 		C = RandomTournamentConstruction()
 		return P, C
 
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.save("new-cod-1")
 		P._force_sharps = True
 		P.save("new-cod-1")
@@ -316,10 +314,9 @@ def example(prob):
 		P.add_codegree_axiom(Rational("1/4"))
 		P._force_sharps = True
 		C = RandomTournamentConstruction()
-		P.use_construction(C)
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.change_problem_bases()
-		P.save("k4-cod")
-		P.calculate_product_densities()
 		P.save("k4-cod")
 		P.write_sdp_input_file()
 		P.save("k4-cod")
@@ -334,18 +331,18 @@ def example(prob):
 	elif prob == "marchant":
 	
 		P = AxiomsProblem()
-		P.forbid_subgraph(Flag("5:123124125345"))
+		P.forbid_subgraph("5:123124125345")
 		P.n = 6
 		P.remove_types([0,1,2,4])
 		P.clear_axioms()
-		P.add_codegree_axiom(Rational("1/3"))
+		P.add_codegree_axiom(1/3)
 		C = BlowupConstruction(Flag("3:112223331"))
-		P.use_construction(C)
-		P._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
-		P.calculate_product_densities()
-		P.solve_sdp()
+		P.set_extremal_construction(C)
+		P.add_sharp_graphs(25, 27, 286, 289, 304, 389, 425)
+		P.compute_products()
+		P.solve_sdp(sdpa="dd", tolerance=1e-10)
 		P.change_solution_bases()
-		P.make_exact(2**20)
+		P.make_exact(2^20)
 		P.check_exact_bound()
 
 
@@ -357,9 +354,8 @@ def example(prob):
 		P.clear_axioms()
 		P.add_codegree_axiom(Rational("1/2"))
 		C = VariantRandomTournamentConstruction()
-		P.use_construction(C)
-		#._sharp_graphs.extend([25, 27, 286, 289, 304, 389, 425])
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.write_sdp_input_file()
 		P.run_sdp_solver(True)
 		#P.check_floating_point_bound()
@@ -375,8 +371,8 @@ def example(prob):
 		P.n = 5
 		P.set_density("5:1223344551")
 		C = SymmetricBlowupConstruction(Flag("5:1223344551", 2))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -389,8 +385,8 @@ def example(prob):
 		P.n = 7
 		P.set_density("4:1223241314")
 		C = BlowupConstruction(Flag("5:12131415232425343545", 2))
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -405,7 +401,9 @@ def example(prob):
 		
 		P.set_density("4:12233114")
 		C = BlowupConstruction(Flag("4:1223344111223344", 2))
-		P.use_construction(C)
+		P.set_extremal_construction(C)
+		P.compute_products()
+		
 		P.change_problem_bases()
 		
 		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, 1/2, 31/70],
@@ -417,7 +415,6 @@ def example(prob):
 		P._sharp_graphs.extend(eval("[0,4,11,18,19,24,27]"))
 		P.change_problem_bases()
 		
-		P.calculate_product_densities()
 		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
@@ -429,8 +426,8 @@ def example(prob):
 		P.n = 3
 		P.set_density("3:1213")
 		C = AdHocConstruction("maxs3")
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -444,8 +441,8 @@ def example(prob):
 		P.remove_types([0])
 		P.set_density("4:121314")
 		C = AdHocConstruction("maxs4")
-		P.use_construction(C)
-		P.calculate_product_densities()
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -459,17 +456,17 @@ def example(prob):
 		P.n = 5
 		P.set_density((3, 3))
 		C = BlowupConstruction(Flag("3:112233", 2))
-		P.use_construction(C)
-		P.change_problem_bases()
-				
+		P.set_extremal_construction(C)
+		P.compute_products()
+		
+		P.change_problem_bases(transform_products=False)		
 		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]))
-		P._sharp_graphs.extend(eval("[2, 3, 4, 16, 20]"))
+		P.add_sharp_graphs(2, 3, 4, 16, 20)
 		P.change_problem_bases()
 		
-		P.calculate_product_densities()
-		P._minimize=True
+		P.minimize=True
 		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
@@ -483,9 +480,9 @@ def example(prob):
 		P.n = 6
 		P.set_density((4, 6))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
-		P.use_construction(C)
-		P.calculate_product_densities()
-		P._minimize=True
+		P.set_extremal_construction(C)
+		P.compute_products()
+		P.minimize=True
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -506,9 +503,9 @@ def example(prob):
 		#	weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		C = UnbalancedBlowupConstruction(Flag("8:131416171823242526273537384546485867",2),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
-		P.use_construction(C)
-		P.calculate_product_densities()
-		P._minimize=True
+		P.set_extremal_construction(C)
+		P.compute_products()
+		P.minimize=True
 		P.write_sdp_input_file()
 		P.run_sdp_solver(True, "dd")
 		return P, C
@@ -534,9 +531,9 @@ def example(prob):
 		P.n = 6
 		P.set_density((5, binomial(5, 2)))
 		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
-		P.use_construction(C)
-		P.calculate_product_densities()
-		P._minimize=True
+		P.set_extremal_construction(C)
+		P.compute_products()
+		P.minimize = True
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact()
@@ -551,10 +548,10 @@ def example(prob):
 		P.remove_types([1,2,4,7,9])
 		P.set_density((6, 0))
 		C = SymmetricBlowupConstruction(ClebschGraph())
-		P.use_construction(C)
+		P.set_extremal_construction(C)
+		P.compute_products()
 		P.change_problem_bases()
-		P.calculate_product_densities()
-		P._minimize=True
+		P.minimize = True
 		P.solve_sdp(show_output=True)
 		P.make_exact()
 		P.check_exact_bound()
@@ -565,12 +562,12 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 8
-		P.remove_types([1,3,4,5,6,7,8,10])
+		P.remove_types([1, 3, 4, 5, 6, 7, 8, 10])
 		P.set_density((7, 0))
 		C = SymmetricBlowupConstruction(ClebschGraph())
- 		P.use_construction(C)
-		P.calculate_product_densities()
-		P._minimize=True
+ 		P.set_extremal_construction(C)
+		P.compute_products()
+		P.minimize = True
 		P.save("73")
 		P.solve_sdp(show_output=True, sdpa="dd", tolerance=1e-12)
 		P.save("73")
@@ -587,7 +584,7 @@ def example(prob):
 		P.clear_axioms()
 		P.add_out_degree_axiom(1/3)
 		C = None
-		P.calculate_product_densities()
+		P.compute_products()
 		P.write_sdp_input_file()
 		P.run_sdp_solver(True)
 
