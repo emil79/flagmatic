@@ -242,3 +242,57 @@ def flag_basis(tg, flags, orthogonalize=True):
 		AntiInv = matrix(QQ, AntiInvRows, sparse=True)
 
 	return block_matrix([[Inv],[AntiInv]])
+
+
+def homomorphic_images(G):
+	"""
+	For an unlabelled Flag G, returns a list of Flags of order at most that of G,
+	that are homomorphic images of G. The first Flag in the list will be a copy of G.
+	
+	"""
+
+	if G.t != 0:
+		raise ValueError
+
+	mg = copy(G)
+	mg.make_minimal_isomorph()
+
+	if G.n <= 1:
+		return [copy(G)]
+
+	graph_hashes = set()
+	graphs = []
+
+	bad_pairs = set()
+	
+	for e in mg.edges:
+		bad_pairs.add((e[0], e[1]))
+		bad_pairs.add((e[0], e[2]))
+		bad_pairs.add((e[1], e[2]))
+
+	for i in range(1, G.n + 1):
+		for j in range(i + 1, G.n + 1):
+			
+			if (i, j) in bad_pairs:
+				continue
+			
+			ig = copy(mg)
+			ig.identify_vertices(i, j)
+			ig.make_minimal_isomorph()
+	
+			ghash = hash(ig)
+			if not ghash in graph_hashes:
+				graph_hashes.add(ghash)
+				graphs.append(ig)
+				s_graphs = homomorphic_images(ig)
+				for sg in s_graphs:
+					sghash = hash(sg)
+					if not sghash in graph_hashes:
+						graph_hashes.add(sghash)
+						graphs.append(sg)
+
+	if len(graphs) == 0:
+		return []
+
+	return [copy(G)] + graphs
+	

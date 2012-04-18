@@ -434,6 +434,8 @@ cdef class Flag (SageObject):
 		return Integer(found) / total
 
 
+	# TODO: mark graph as degenerate if labels are repeated and we get a degenerate edge
+
 	def relabel(self, verts):
 
 		cdef int i
@@ -449,6 +451,59 @@ cdef class Flag (SageObject):
 			self._edges[i] = verts[self._edges[i] - 1]
 
 		self.minimize_edges()
+
+
+	def identify_vertices(self, v1, v2, remove_duplicate_edges=True):
+
+		cdef int i, j, k, v, x, y
+		cdef bint is_dup
+		x = <int ?> v1
+		y = <int ?> v2
+
+		if x < 1 or x > self._n:
+			raise ValueError
+		if y < 1 or y > self._n:
+			raise ValueError
+		if x == y:
+			return ValueError		# TODO: should this be a no-op?
+
+		if x > y:
+			y, x = x, y
+
+		for i in range(self._r * self.ne):
+			v = self._edges[i]
+			if v == y:
+				self._edges[i] = x
+			elif v > y:
+				self._edges[i] = v - 1
+			else:
+				self._edges[i] = v
+
+		self._n -= 1
+		self.minimize_edges()
+		
+		if remove_duplicate_edges:
+			
+			i = 0
+			while i < self.ne - 1:
+
+# 				The following shorter code produces a SIGSEGV
+#  				if all(self._edges[self._r * i + j] == self._edges[self._r * (i + 1) + j] for j in range(self._r)):
+
+				is_dup = True
+				for j in range(self._r):
+					if self._edges[self._r * i + j] != self._edges[self._r * (i + 1) + j]:
+						is_dup = False
+						break
+				
+				if not is_dup:
+					i += 1
+					continue
+				
+				self.ne -= 1
+				for k in range(self._r * i, self._r * self.ne):
+					self._edges[k] = self._edges[k + self._r]
+			
 
 	
 	def minimize_edges(self):
