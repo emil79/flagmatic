@@ -47,6 +47,7 @@ def test_graphs():
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 
+
 def example(prob):
 	
 	if prob == "ff83-cpb":
@@ -494,8 +495,9 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_subgraph((4, 6))
 		P.n = 8
-		P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
-		P.set_density_graph(Flag("4:",2))
+		P.save("44")
+		#P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
+		P.set_density((4, 0))
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
 		x = K.gen()
@@ -504,10 +506,11 @@ def example(prob):
 		C = UnbalancedBlowupConstruction(Flag("8:131416171823242526273537384546485867",2),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.set_extremal_construction(C)
+		P.save("44")
 		P.compute_products()
 		P.minimize=True
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True, "dd")
+		P.save("44")
+		P.import_solution("/Users/emil/Projects/flagmatic/oleg/44")
 		return P, C
 
 		#P.write_sdp_input_file()
