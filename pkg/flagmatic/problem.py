@@ -613,19 +613,24 @@ class Problem(SageObject):
 					BS.append(B)
 
 			M = block_matrix([[B] for B in BS], subdivide=True)
-			div = M.subdivisions()
-
-			if self._field == RationalField():
-				
-				M, mu = M.gram_schmidt()
-				# .gram_schmidt doesn't appear to preserve sparsity
-				M = matrix(self._field, M.rows(), sparse=True)
-
-			else: # .gram_schmidt is broken for number fields in 4.8 !
-				rows, mu = gram_schmidt(M.rows())
-				M = matrix(self._field, rows, sparse=True)
 			
-			M.subdivide(div)
+			if M.nrows() == 0:
+				M = matrix(self._field, 0, len(self._flags[ti]), sparse=True)
+
+			else:
+				div = M.subdivisions()
+	
+				if self._field == RationalField():
+					
+					M, mu = M.gram_schmidt()
+					# .gram_schmidt doesn't appear to preserve sparsity
+					M = matrix(self._field, M.rows(), sparse=True)
+	
+				else: # .gram_schmidt is broken for number fields in 4.8 !
+					rows, mu = gram_schmidt(M.rows())
+					M = matrix(self._field, rows, sparse=True)
+				
+				M.subdivide(div)
 			
 			M.set_immutable()
 			new_bases.append(M)
@@ -1330,8 +1335,8 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 		
 		density_cols_to_use = []
-		DR = matrix(self._field, 0, num_sharps, sparse=True)
-		EDR = matrix(self._field, 0, num_sharps, sparse=True)
+		DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
+		DI = None
 		
 		sys.stdout.write("Constructing DR matrix")
 		
@@ -1339,22 +1344,24 @@ class Problem(SageObject):
 		if num_densities > 1 and use_densities:
 			
 			for j in range(num_densities):
-				new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
-				if new_row.is_zero():
+				new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
+				if new_col.is_zero():
 					continue
-				try:
-					X = EDR.solve_left(new_row)
-					continue
-				except ValueError:
-					DR = DR.stack(new_row)
-					EDR = EDR.stack(new_row)
-					EDR.echelonize()
-					density_cols_to_use.append(j)
-					sys.stdout.write(".")
+				if not DI is None and (DI * new_col).is_zero():
+					sys.stdout.write("'")
 					sys.stdout.flush()
+					continue		
+				
+				DR = DR.augment(new_col)
+				DI = DR * (DR.T * DR).inverse() * DR.T
+				DI -= identity_matrix(self._field, DI.nrows())
+
+				density_cols_to_use.append(j)
+				sys.stdout.write(".")
+				sys.stdout.flush()
 			
 			sys.stdout.write("\n")
-			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.nrows())
+			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.ncols())
 				
 		col_norms = {}
 		for i in range(num_triples):
@@ -1372,26 +1379,24 @@ class Problem(SageObject):
 			ti, j, k = triples[i]
 			if ti in protect: # don't use protected types
 				continue
-			new_row = R[:, i : i + 1].T	
-			if new_row.is_zero():
+			new_col = R[:, i : i + 1]
+			if new_col.is_zero():
 				continue
-			try:
-				X = EDR.solve_left(new_row)
-				continue
-			except ValueError:
-				DR = DR.stack(new_row)
-				EDR = EDR.stack(new_row)
-				EDR.echelonize()
-				cols_to_use.append(i)
-				sys.stdout.write(".")
+			if not DI is None and (DI * new_col).is_zero():
+				sys.stdout.write("'")
 				sys.stdout.flush()
-				# TODO: add this check to density cols loop
-				if DR.nrows() == num_sharps:
-					sys.stdout.write(" got enough.")
-					break
+				continue
+			
+			DR = DR.augment(new_col)
+			DI = DR * (DR.T * DR).inverse() * DR.T
+			DI -= identity_matrix(self._field, DI.nrows())
+
+			cols_to_use.append(i)
+			sys.stdout.write(".")
+			sys.stdout.flush()
 		
 		sys.stdout.write("\n")
-		sys.stdout.write("DR matrix has rank %d.\n" % DR.nrows())
+		sys.stdout.write("DR matrix has rank %d.\n" % DR.ncols())
 		
 		T = matrix(self._field, num_sharps, 1)
 				
@@ -1409,7 +1414,7 @@ class Problem(SageObject):
 					ti, j, k = triples[i]
 					T[si, 0] -= self._exact_Qdash_matrices[ti][j, k] * R[si, i]
 
-		FDR = matrix(self._field, DR.T)
+		FDR = matrix(self._field, DR)
 		X = FDR.solve_right(T)
 		RX = matrix(self._approximate_field, X.nrows(), 1)
 	
