@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from flagmatic.all import *
 
+
 def test_graphs():
 
 	gsl = ["6:", "6:123", "6:123124", "6:123124", "6:123124", "6:123124", "6:123124125",
@@ -76,7 +77,6 @@ def example(prob):
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
-	
 	
 	elif prob == "k4-":
 
@@ -334,7 +334,7 @@ def example(prob):
 		P = AxiomsProblem()
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
-		P.remove_types([0,1,2,4])
+		P.set_inactive_types(0, 1, 2, 4)
 		P.clear_axioms()
 		P.add_codegree_axiom(1/3)
 		C = BlowupConstruction(Flag("3:112223331"))
@@ -398,14 +398,14 @@ def example(prob):
 
 		P = Problem(2)
 		P.n = 5
-		P.remove_types([4])
-		
+		P.set_inactive_types(4)
+			
 		P.set_density("4:12233114")
 		C = BlowupConstruction(Flag("4:1223344111223344", 2))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		
-		P.change_problem_bases()
+		P.change_problem_bases(transform_products=False)
 		
 		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, 1/2, 31/70],
 			[0, 1, 49/106, 7/108, -17/20]]))
@@ -413,8 +413,8 @@ def example(prob):
 		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,3,-1,0,0],[0,1,0,0,0,0,0]]))
 		
-		P._sharp_graphs.extend(eval("[0,4,11,18,19,24,27]"))
 		P.change_problem_bases()
+		P.add_sharp_graphs(0, 4, 11, 18, 19, 24, 27)
 		
 		P.solve_sdp()
 		P.make_exact()
@@ -460,7 +460,7 @@ def example(prob):
 		P.set_extremal_construction(C)
 		P.compute_products()
 		
-		P.change_problem_bases(transform_products=False)		
+		P.change_problem_bases(transform_products=False)	
 		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]))
 		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]))
@@ -510,8 +510,9 @@ def example(prob):
 		P.compute_products()
 		P.minimize=True
 		P.save("44")
+		P._approximate_field = RealField(113)
 		P.import_solution("/Users/emil/Projects/flagmatic/oleg/44")
-		return P, C
+		P.check_floating_point_bound(tolerance=1e-9)
 
 		#P.write_sdp_input_file()
 		#P.run_sdp_solver()
@@ -548,7 +549,24 @@ def example(prob):
 		P = Problem(2)
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 7
-		P.remove_types([1,2,4,7,9])
+		P.set_inactive_types(1, 2, 4, 7, 9)
+		P.set_density((6, 0))
+		C = SymmetricBlowupConstruction(ClebschGraph())
+		P.set_extremal_construction(C)
+		P.compute_products()
+		P.minimize = True
+		P.solve_sdp(show_output=True)
+		P.change_solution_bases()
+		P.make_exact()
+		P.check_exact_bound()
+
+
+	elif prob == "63-cpb":
+
+		P = Problem(2)
+		P.forbid_induced_subgraph((3, 3))
+		P.n = 7
+		P.set_inactive_types(1, 2, 4, 7, 9)
 		P.set_density((6, 0))
 		C = SymmetricBlowupConstruction(ClebschGraph())
 		P.set_extremal_construction(C)
