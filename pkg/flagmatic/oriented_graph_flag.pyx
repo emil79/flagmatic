@@ -33,3 +33,13 @@ cdef class OrientedGraphFlag (HypergraphFlag):
 
 	def __init__(self, string_rep=None, r=3, oriented=False):
 		super(OrientedGraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=True)
+
+	@classmethod
+	def generate_flags(cls, n, tg, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		return HypergraphFlag.generate_flags(n, tg, r=2, oriented=True, forbidden_edge_numbers={},
+			forbidden_graphs=[], forbidden_induced_graphs=[])
+
+	@classmethod
+	def generate_graphs(cls, n, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		return HypergraphFlag.generate_flags(n, cls(), r=2, oriented=True, forbidden_edge_numbers={},
+			forbidden_graphs=[], forbidden_induced_graphs=[])

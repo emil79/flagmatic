@@ -45,7 +45,6 @@ cdef class HypergraphFlag (Flag):
 	cdef HypergraphFlag c_induced_subgraph(self, int *verts, int num_verts)
 	cdef int c_has_subgraph (self, HypergraphFlag h)
 
-	
 cdef class combinatorial_info_block:
 	cdef int np
 	cdef int *p

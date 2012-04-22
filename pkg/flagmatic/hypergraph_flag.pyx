@@ -291,6 +291,8 @@ cdef class HypergraphFlag (Flag):
 	def copy(self):
 	
 		cdef int i
+		cdef HypergraphFlag ng
+		
 		ng = type(self)()
 		ng.n = self._n
 		ng.r = self._r
@@ -339,14 +341,20 @@ cdef class HypergraphFlag (Flag):
 	
 	def __richcmp__(HypergraphFlag self, HypergraphFlag other not None, int op):
 
-		if op == 2: # ==
-			return self.is_equal(other)
-
-		elif op == 3: # !=
-			return not self.is_equal(other)
-
-		else:
+		if not (op == 2 or op == 3):
 			return False
+
+		g1 = copy(self)
+		g1.make_minimal_isomorph()
+		g2 = copy(other)
+		g2.make_minimal_isomorph()
+
+		if op == 2: # ==
+			return g1.is_equal(g2)
+
+		# op == 3 !=
+		return not g1.is_equal(g2)
+
 
 	
 	cpdef is_equal(self, HypergraphFlag other):
@@ -373,6 +381,116 @@ cdef class HypergraphFlag (Flag):
 				return False
 	
 		return True
+
+
+	@classmethod
+	def generate_flags(cls, n, tg, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		"""
+		For an integer n, and a type tg, returns a list of all tg-flags on n
+		vertices, that satisfy certain constraints.
+		
+		forbidden_edge_numbers should be a list of pairs (n, m): this forbids n-sets
+		from spanning exactly m edges.
+		
+		forbidden_graphs should be a list of graphs that are forbidden as subgraphs.
+		
+		forbidden_induced_subgraphs should be a list of graphs that are forbidden as
+		_induced_ subgraphs.
+		
+		EXAMPLES:
+		
+		
+		"""
+	
+		if not (r == 2 or r == 3):
+			raise NotImplementedError
+			
+		if oriented and r != 2:
+			raise NotImplementedError
+	
+		if tg is None:
+			raise ValueError
+	
+		if r != tg.r or oriented != tg.oriented:
+			raise ValueError
+	
+		if tg.t != 0:
+			raise NotImplementedError("type must not contain labelled vertices.")
+	
+		s = tg.n
+	
+		if n < s:
+			return []
+	
+		if n == s:
+			ntg = tg.copy()
+			ntg.t = s
+			return [ntg]
+	
+		max_ne = binomial(n - 1, r - 1)
+		max_e = binomial(n, r)
+		
+		new_graphs = []
+		hashes = set()
+		
+		smaller_graphs = cls.generate_flags(n - 1, tg, r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
+			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
+		
+		possible_edges = []
+	
+		if r == 3:
+			for c in Combinations(range(1, n), 2):
+				possible_edges.append((c[0], c[1], n))
+	
+		elif r == 2:
+			for x in range(1, n):
+				possible_edges.append((x, n))
+				if oriented:
+					possible_edges.append((n, x))
+	
+		for sg in smaller_graphs:
+		
+			pe = sg.ne
+			ds = sg.degrees()
+			maxd = max(ds[s:] + (0,))
+				
+			for ne in range(maxd, max_ne + 1):
+			
+				for nb in Combinations(possible_edges, ne):
+	
+					# For oriented graphs, can't have bidirected edges.
+					# TODO: exclude these in a more efficient way!
+					if oriented:
+						if any(e in nb and (e[1], e[0]) in nb for e in possible_edges):
+							continue
+							
+					ng = sg.copy()
+					ng.n = n
+					for e in nb:
+						ng.add_edge(e)
+	
+					if ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
+						continue
+	
+					if ng.has_forbidden_graphs(forbidden_graphs, must_have_highest=True):
+						continue
+	
+					if ng.has_forbidden_graphs(forbidden_induced_graphs, must_have_highest=True, induced=True):
+						continue
+	
+					ng.make_minimal_isomorph()
+					ng_hash = hash(ng)
+					if not ng_hash in hashes:
+						new_graphs.append(ng)
+						hashes.add(ng_hash)
+	
+		return new_graphs
+
+
+	@classmethod
+	def generate_graphs(cls, n, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		return cls.generate_flags(n, cls(r=r, oriented=oriented), r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
+			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
 
 	# TODO: possibly something different with degenerate graphs?
