@@ -6,6 +6,7 @@
 #print os.path.dirname(os.path.realpath(__file__))
 
 from flag import *
+from hypergraph_flag import *
 from flag_misc import *
 from problem import *
 from axioms_problem import *

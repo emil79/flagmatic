@@ -28,6 +28,15 @@ setup (
 				os.path.join(SAGE_ROOT, 'devel/sage')],
 			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
 			extra_compile_args = ["-O3", "-Wall"]
+		),
+		Extension('flagmatic.hypergraph_flag',
+			sources=['flagmatic/hypergraph_flag.pyx'],
+			include_dirs = [os.path.join(SAGE_ROOT, 'local/lib/python/site-packages/numpy/core/include'),
+				os.path.join(SAGE_ROOT, 'local/include/csage'),
+				os.path.join(SAGE_ROOT, 'devel/sage/sage/ext'),
+				os.path.join(SAGE_ROOT, 'devel/sage')],
+			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
+			extra_compile_args = ["-O3", "-Wall"]
 		)
 	]
 )

@@ -40,6 +40,9 @@ include "interrupt.pxi"
 include "stdsage.pxi"
 include "cdefs.pxi"
 
+# This doesn't seem to be remembered from .pxd file
+# 35 + 42 + 7 = 84, 84 * 3 = 252
+DEF MAX_NUMBER_OF_EDGE_INTS = 256
 
 from libc.stdlib cimport malloc, calloc, realloc, free
 from libc.string cimport memset
@@ -49,30 +52,14 @@ cimport numpy
 
 from copy import copy
 
-from sage.structure.sage_object import SageObject       
-from sage.structure.sage_object cimport SageObject
-
 from sage.rings.arith import binomial, falling_factorial
 from sage.combinat.all import Combinations, Permutations, Tuples
 from sage.rings.all import Integer, QQ
 from sage.matrix.all import matrix
 from sage.graphs.all import Graph, DiGraph
 
-# 35 + 42 + 7 = 84, 84 * 3 = 252
-DEF MAX_NUMBER_OF_EDGE_INTS = 256
 
-# TODO: check that flag contains type
-
-cdef class Flag (SageObject):
-
-	cdef int _n
-	cdef int _r
-	cdef bint _oriented
-	cdef int _t
-	cdef readonly bint is_degenerate
-	cdef readonly int ne
-	cdef int _edges[MAX_NUMBER_OF_EDGE_INTS]
-	cdef public Flag type
+cdef class HypergraphFlag (Flag):
 
 
 	def __init__(self, string_rep=None, r=3, oriented=False):
@@ -314,12 +301,12 @@ cdef class Flag (SageObject):
  	
 	def _latex_(self):
 		return "\\verb|" + self._repr_() + "|"
+ 	 	
  	
-	def __cmp__(self, other):
-		return self.is_equal(other)
+ 	# TODO: check that this is best way to do this.
  	
 	def __reduce__(self):
-		return (Flag, (self._repr_(), self._r, self._oriented))
+		return (type(self), (self._repr_(), self._r, self._oriented))
 
 
 	# TODO: work out how to make sets of these work
@@ -329,9 +316,21 @@ cdef class Flag (SageObject):
 
  	
 
-	# TODO: do this the Cythonic way (__richcmp__ ?)
+	# TODO: Handle < > (subgraph)
 	
-	def is_equal(self, Flag other):
+	def __richcmp__(HypergraphFlag self, HypergraphFlag other not None, int op):
+
+		if op == 2: # ==
+			return self.is_equal(other)
+
+		elif op == 3: # !=
+			return not self.is_equal(other)
+
+		else:
+			return False
+
+	
+	cpdef is_equal(self, HypergraphFlag other):
 	
 		cdef int i
 
@@ -355,7 +354,6 @@ cdef class Flag (SageObject):
 				return False
 	
 		return True
-
 	
 
 	# TODO: maintain vigilance that we have everything...
@@ -363,7 +361,7 @@ cdef class Flag (SageObject):
 	def copy(self):
 	
 		cdef int i
-		ng = Flag()
+		ng = HypergraphFlag()
 		ng.n = self._n
 		ng.r = self._r
 		ng.oriented = self._oriented
@@ -555,14 +553,14 @@ cdef class Flag (SageObject):
 
 	def induced_subgraph(self, verts):
 		"""
-		Returns subgraphs induced by verts. Returned Flag is always unlabelled.
+		Returns subgraphs induced by verts. Returned HypergraphFlag is always unlabelled.
 		"""
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
 	
 		cdef int i, *c_verts, num_verts
-		cdef Flag ig
+		cdef HypergraphFlag ig
 		
 		num_verts = len(verts)
 		c_verts = <int *> malloc(num_verts * sizeof(int))
@@ -574,10 +572,10 @@ cdef class Flag (SageObject):
 		return ig
 
 
-	cdef Flag c_induced_subgraph(self, int *verts, int num_verts):
+	cdef HypergraphFlag c_induced_subgraph(self, int *verts, int num_verts):
 
 		cdef int nm = 0, i, j, *e, got, te[3]
-		cdef Flag ig = Flag()
+		cdef HypergraphFlag ig = HypergraphFlag()
 
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -632,7 +630,7 @@ cdef class Flag (SageObject):
 		return ig
 	
 
-	cdef int c_has_subgraph (self, Flag h):
+	cdef int c_has_subgraph (self, HypergraphFlag h):
 		"""
 		Determines if it contains h as a subgraph. Labels are ignored.
 		"""
@@ -797,7 +795,7 @@ cdef class Flag (SageObject):
 	def has_forbidden_graphs(self, graphs, must_have_highest=False, induced=False):
 	
 		cdef int *c, nc, i, j, k, cne, *cur_edges, *e
-		cdef Flag h, ig
+		cdef HypergraphFlag h, ig
 		
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -806,7 +804,7 @@ cdef class Flag (SageObject):
 		
 		for i in range(len(graphs)):
 	
-			h = <Flag ?> graphs[i]
+			h = <HypergraphFlag ?> graphs[i]
 	
 			if h._n > self._n:
 				continue # vacuous condition
@@ -896,7 +894,7 @@ cdef class Flag (SageObject):
 				cg = cg.split_vertex(x)
 				vertices.append(cg.n)
 		
-		ng = Flag()
+		ng = HypergraphFlag()
 		ng.n = len(vertices)
 		ng.r = self._r
 		ng.oriented = self._oriented
@@ -929,9 +927,9 @@ cdef class Flag (SageObject):
 			raise NotImplementedError
 		
 		if self._r == 3:
-			return self.degenerate_subgraph_density(Flag("3:123"))
+			return self.degenerate_subgraph_density(HypergraphFlag("3:123"))
 		elif self._r == 2:
-			return self.degenerate_subgraph_density(Flag("2:12", 2))
+			return self.degenerate_subgraph_density(HypergraphFlag("2:12", 2))
 		
 
 	def degenerate_subgraph_density(self, h):
@@ -1086,9 +1084,7 @@ cdef void raw_minimize_edges(int *edges, int m, int r, bint oriented):
 
 
 cdef class combinatorial_info_block:
-	cdef int np
-	cdef int *p
-
+	pass
 
 previous_permutations = {}
 
@@ -1353,13 +1349,8 @@ def get_equal_pair_combinations (n, s, m):
 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
 
 
-
-
-
-
 cdef class graph_block:
-	cdef int n, len
-	cdef void **graphs
+	pass
 
 
 def make_graph_block(graphs, n):
@@ -1376,21 +1367,21 @@ def make_graph_block(graphs, n):
 def print_graph_block(graph_block gb):
 
 	for i in range(gb.len):
-		g = <Flag ?> gb.graphs[i]
+		g = <HypergraphFlag ?> gb.graphs[i]
 		print str(g)
 
 #
 # TODO: Make this function accept more than one type on s vertices.
 #
 
-def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flags2):
+def flag_products (graph_block gb, HypergraphFlag tg, graph_block flags1, graph_block flags2):
 
 	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
 	cdef int n, s, m1, m2, ne, i, j, k, gi
 	cdef int cnte, cnf1e, cnf2e
 	cdef int has_type, has_f1
 	cdef int f1index, f2index, *grb, equal_flags_mode, nzcount, row
-	cdef Flag g, t, f1, f2
+	cdef HypergraphFlag g, t, f1, f2
 	
 	rarray = numpy.zeros([0, 5], dtype=numpy.int)
 	row = 0
@@ -1423,7 +1414,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 
 		sig_on()
 	
-		g = <Flag> gb.graphs[gi]
+		g = <HypergraphFlag> gb.graphs[gi]
 	
 		memset(grb, 0, flags1.len * flags2.len * sizeof(int))
 	
@@ -1463,7 +1454,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 				f1.make_minimal_isomorph()
 
 				for j in range(flags1.len):
-					if f1.is_equal(<Flag> flags1.graphs[j]):
+					if f1.is_equal(<HypergraphFlag> flags1.graphs[j]):
 						has_f1 = 1
 						f1index = j
 						break
@@ -1479,7 +1470,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 			f2.make_minimal_isomorph()
 			
 			for j in range(flags2.len):
-				if f2.is_equal(<Flag> flags2.graphs[j]):
+				if f2.is_equal(<HypergraphFlag> flags2.graphs[j]):
 					f2index = j
 					grb[(f1index * flags1.len) + f2index] += 1
 					break
@@ -1538,7 +1529,7 @@ def flag_products (graph_block gb, Flag tg, graph_block flags1, graph_block flag
 	return rarray
 
 
-def new_flag_products (Flag g, int s, int m1, int m2):
+def new_flag_products (HypergraphFlag g, int s, int m1, int m2):
 	"""
 	Experimental function - not used for anything (yet).
 	"""
@@ -1547,7 +1538,7 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 	cdef int n, ne, i, j, k, gi
 	cdef int cnf1e, cnf2e
 	cdef int num_flags1, f1index, num_flags2, f2index, equal_flags_mode
-	cdef Flag f1, f2
+	cdef HypergraphFlag f1, f2
 	cdef void **flags1, **flags2
 
 	sig_on()
@@ -1593,7 +1584,7 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 			f1.make_minimal_isomorph()
 
 			for j in range(num_flags1):
-				if f1.is_equal(<Flag> flags1[j]):
+				if f1.is_equal(<HypergraphFlag> flags1[j]):
 					f1index = j
 					break
 			else:
@@ -1613,7 +1604,7 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 		if equal_flags_mode:
 		
 			for j in range(num_flags1):
-				if f2.is_equal(<Flag> flags1[j]):
+				if f2.is_equal(<HypergraphFlag> flags1[j]):
 					f2index = j
 					break
 			else:
@@ -1626,7 +1617,7 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 		else:			
 
 			for j in range(num_flags2):
-				if f2.is_equal(<Flag> flags2[j]):
+				if f2.is_equal(<HypergraphFlag> flags2[j]):
 					f2index = j
 					break
 			else:
@@ -1637,10 +1628,10 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 				flags2[f2index] = <void *> f2
 
 	for j in range(num_flags1):
-		Py_DECREF(<Flag> flags1[j])
+		Py_DECREF(<HypergraphFlag> flags1[j])
 
 	for j in range(num_flags2):
-		Py_DECREF(<Flag> flags2[j])
+		Py_DECREF(<HypergraphFlag> flags2[j])
 	
 	free(flags1)
 	free(flags2)
@@ -1652,3 +1643,24 @@ def new_flag_products (Flag g, int s, int m1, int m2):
 	sig_off()
 	
 	return
+
+
+
+
+cdef class ThreeGraphFlag (HypergraphFlag):
+
+	def __init__(self, string_rep=None):
+		super(ThreeGraphFlag, self).__init__(string_rep=string_rep, r=3, oriented=False)
+
+
+cdef class GraphFlag (HypergraphFlag):
+
+	def __init__(self, string_rep=None, r=3, oriented=False):
+		super(GraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False)
+
+
+cdef class OrientedGraphFlag (HypergraphFlag):
+
+	def __init__(self, string_rep=None, r=3, oriented=False):
+		super(OrientedGraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=True)
+
