@@ -520,10 +520,12 @@ class Problem(SageObject):
 	
 	def change_solution_bases(self, use_blocks=True, use_smaller=False):
 
+		num_types = len(self._types)
+
 		self._solution_bases = self._create_new_bases(use_blocks)
 		self._inverse_solution_bases = []
 
-		for ti in range(len(self._types)):
+		for ti in range(num_types):
 			M = copy(self._solution_bases[ti])
 			if use_smaller:
 				self._inverse_solution_bases.append(M.T)
@@ -534,6 +536,25 @@ class Problem(SageObject):
 				for j in range(M.nrows()):
 					M[j, :] /= sum([x**2 for x in M.row(j)])
 				self._inverse_solution_bases.append(M.T)
+
+		sys.stdout.write("Transforming matrices")
+		
+		self._sdp_Qdash_matrices = []
+
+		for ti in range(num_types):
+			
+			B = self._solution_bases[ti]
+			row_div = B.subdivisions()[0]
+			M = B * self._sdp_Q_matrices[ti] * B.T
+			M.subdivide(row_div, row_div)
+			# zero out bits that should be zero. Note the copy() seems to be needed.
+			M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
+			M.set_immutable()
+			self._sdp_Qdash_matrices.append(M)
+			sys.stdout.write(".")
+			sys.stdout.flush()
+	
+		sys.stdout.write("\n")
 
 
 	def create_block_bases(self):
@@ -566,6 +587,9 @@ class Problem(SageObject):
 			self.create_block_bases()
 
 		new_bases = []
+
+		sys.stdout.write("Creating bases")
+		sys.stdout.flush()
 
 		for ti in range(num_types):
 	
@@ -634,6 +658,11 @@ class Problem(SageObject):
 			
 			M.set_immutable()
 			new_bases.append(M)
+	
+			sys.stdout.write(".")
+			sys.stdout.flush()
+
+		sys.stdout.write("\n")
 	
 		return new_bases
 
@@ -1174,16 +1203,21 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
-	def get_zero_eigenvectors(self, ti, tolerance = 0.00001):
+	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, new_basis=False):
 	
 		if not ti in self._active_types:
 			raise ValueError
 
-		ns = len(self._sdp_Q_matrices[ti].subdivisions()[0]) + 1
+		if new_basis:
+			QM = self._sdp_Qdash_matrices[ti]
+		else:
+			QM = self._sdp_Q_matrices[ti]
+
+		ns = len(QM.subdivisions()[0]) + 1
 	
 		B = []
 		for i in range(ns):
-			QB = self._sdp_Q_matrices[ti].subdivision(i, i)
+			QB = QM.subdivision(i, i)
 			eigvals, T = numpy.linalg.eigh(QB)
 			M = matrix(self._approximate_field, 0, QB.ncols())
 			for ei in range(len(eigvals)):
@@ -1216,29 +1250,7 @@ class Problem(SageObject):
 		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
 
-		if len(self._solution_bases) > 0:
-
-			sys.stdout.write("Transforming matrices")
-		
-			self._sdp_Qdash_matrices = []
-
-			for ti in range(num_types):
-				
-				B = self._solution_bases[ti]
-				row_div = B.subdivisions()[0]
-				M = B * self._sdp_Q_matrices[ti] * B.T
-				M.subdivide(row_div, row_div)
-				# zero out bits that should be zero. Note the copy() seems to be needed.
-				M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
-				M.set_immutable()
-				self._sdp_Qdash_matrices.append(M)
-				sys.stdout.write(".")
-				sys.stdout.flush()
-		
-			sys.stdout.write("\n")
-		
-		else:
-		
+		if len(self._solution_bases) == 0:
 			self._sdp_Qdash_matrices = self._sdp_Q_matrices
 
 		q_sizes = [self._sdp_Qdash_matrices[ti].nrows() for ti in range(num_types)]
@@ -1336,6 +1348,7 @@ class Problem(SageObject):
 		
 		density_cols_to_use = []
 		DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
+		#DI = identity_matrix(self._field, num_sharps) * -1
 		DI = None
 		
 		sys.stdout.write("Constructing DR matrix")
@@ -1353,7 +1366,9 @@ class Problem(SageObject):
 					continue		
 				
 				DR = DR.augment(new_col)
-				DI = DR * (DR.T * DR).inverse() * DR.T
+				#DI = DR * (DR.T * DR).inverse() * DR.T
+				DI = DR * DR.T
+				#DI += new_col * new_col.T
 				DI -= identity_matrix(self._field, DI.nrows())
 
 				density_cols_to_use.append(j)
@@ -1388,9 +1403,11 @@ class Problem(SageObject):
 				continue
 			
 			DR = DR.augment(new_col)
-			DI = DR * (DR.T * DR).inverse() * DR.T
+			#DI = DR * (DR.T * DR).inverse() * DR.T
+			DI = DR * DR.T
 			DI -= identity_matrix(self._field, DI.nrows())
-
+			#DI += new_col * new_col.T
+							
 			cols_to_use.append(i)
 			sys.stdout.write(".")
 			sys.stdout.flush()
