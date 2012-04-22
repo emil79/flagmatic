@@ -284,6 +284,25 @@ cdef class HypergraphFlag (Flag):
 				
 			for i in range(ne):	 # N.B. +2 because of n: header
 				self.add_edge((int(s[i * 2 + 2], 16), int(s[i * 2 + 3], 16)))
+
+
+	# TODO: maintain vigilance that we have everything...
+
+	def copy(self):
+	
+		cdef int i
+		ng = type(self)()
+		ng.n = self._n
+		ng.r = self._r
+		ng.oriented = self._oriented
+		ng.t = self._t
+		ng.ne = self.ne
+		ng.is_degenerate = self.is_degenerate
+
+		for i in range(self._r * self.ne):
+			ng._edges[i] = self._edges[i]
+		
+		return ng
 	
 
 	# TODO: handle > 15 vertices properly
@@ -354,25 +373,6 @@ cdef class HypergraphFlag (Flag):
 				return False
 	
 		return True
-	
-
-	# TODO: maintain vigilance that we have everything...
-
-	def copy(self):
-	
-		cdef int i
-		ng = HypergraphFlag()
-		ng.n = self._n
-		ng.r = self._r
-		ng.oriented = self._oriented
-		ng.t = self._t
-		ng.ne = self.ne
-		ng.is_degenerate = self.is_degenerate
-
-		for i in range(self._r * self.ne):
-			ng._edges[i] = self._edges[i]
-		
-		return ng
 
 
 	# TODO: possibly something different with degenerate graphs?
@@ -553,29 +553,27 @@ cdef class HypergraphFlag (Flag):
 
 	def induced_subgraph(self, verts):
 		"""
-		Returns subgraphs induced by verts. Returned HypergraphFlag is always unlabelled.
+		Returns subgraphs induced by verts. Returned flag is always unlabelled.
 		"""
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
 	
 		cdef int i, *c_verts, num_verts
-		cdef HypergraphFlag ig
-		
+				
 		num_verts = len(verts)
 		c_verts = <int *> malloc(num_verts * sizeof(int))
 		
 		for i in range(num_verts):
 			c_verts[i] = <int ?> verts[i]
 		
-		ig = self.c_induced_subgraph(c_verts, num_verts)
-		return ig
+		return self.c_induced_subgraph(c_verts, num_verts)
 
 
 	cdef HypergraphFlag c_induced_subgraph(self, int *verts, int num_verts):
 
 		cdef int nm = 0, i, j, *e, got, te[3]
-		cdef HypergraphFlag ig = HypergraphFlag()
+		cdef HypergraphFlag ig = type(self)()
 
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -894,7 +892,7 @@ cdef class HypergraphFlag (Flag):
 				cg = cg.split_vertex(x)
 				vertices.append(cg.n)
 		
-		ng = HypergraphFlag()
+		ng = type(self)()
 		ng.n = len(vertices)
 		ng.r = self._r
 		ng.oriented = self._oriented
@@ -1643,24 +1641,3 @@ def new_flag_products (HypergraphFlag g, int s, int m1, int m2):
 	sig_off()
 	
 	return
-
-
-
-
-cdef class ThreeGraphFlag (HypergraphFlag):
-
-	def __init__(self, string_rep=None):
-		super(ThreeGraphFlag, self).__init__(string_rep=string_rep, r=3, oriented=False)
-
-
-cdef class GraphFlag (HypergraphFlag):
-
-	def __init__(self, string_rep=None, r=3, oriented=False):
-		super(GraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False)
-
-
-cdef class OrientedGraphFlag (HypergraphFlag):
-
-	def __init__(self, string_rep=None, r=3, oriented=False):
-		super(OrientedGraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=True)
-
