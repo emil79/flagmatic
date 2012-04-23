@@ -51,6 +51,24 @@ sdpa_cmd = "sdpa"
 sdpa_dd_cmd = "sdpa_dd"
 sdpa_qd_cmd = "sdpa_qd"
 
+
+def block_structure(M):
+	"""
+	Returns a tuple. The first entry is the number of blocks, the second is a list of
+	the block sizes, and the third is a list containing the row in which each block begins.
+	Note that only the row subdivisions are looked at.
+	"""
+	row_div = M.subdivisions()[0]
+	div_offsets = [0] + row_div
+	div_sizes = row_div + [M.nrows()]
+	num_blocks = len(div_sizes)
+	
+	for i in range(1, num_blocks):
+		div_sizes[i] -= div_sizes[i - 1]
+
+	return num_blocks, div_sizes, div_offsets
+
+
 class Problem(SageObject):
 
 	def __init__(self, r=3, oriented=False):
@@ -327,6 +345,8 @@ class Problem(SageObject):
 			self._forbidden_graphs.append(h)
 
 
+	# TODO: allow lists
+
 	def forbid_subgraph(self, *args):
 		for h in args:
 			self._forbid_graph(h, False)
@@ -335,7 +355,7 @@ class Problem(SageObject):
 	def forbid_induced_subgraph(self, *args):
 		for h in args:
 			self._forbid_graph(h, True)
-		
+	
 
 	# TODO: warn if already solved
 
@@ -365,8 +385,6 @@ class Problem(SageObject):
 				self._sharp_graphs.append(si)
 			else:
 				sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
-
-
 
 
 	def set_extremal_construction(self, c):
@@ -502,10 +520,12 @@ class Problem(SageObject):
 	
 	def change_solution_bases(self, use_blocks=True, use_smaller=False):
 
+		num_types = len(self._types)
+
 		self._solution_bases = self._create_new_bases(use_blocks)
 		self._inverse_solution_bases = []
 
-		for ti in range(len(self._types)):
+		for ti in range(num_types):
 			M = copy(self._solution_bases[ti])
 			if use_smaller:
 				self._inverse_solution_bases.append(M.T)
@@ -516,6 +536,25 @@ class Problem(SageObject):
 				for j in range(M.nrows()):
 					M[j, :] /= sum([x**2 for x in M.row(j)])
 				self._inverse_solution_bases.append(M.T)
+
+		sys.stdout.write("Transforming matrices")
+		
+		self._sdp_Qdash_matrices = []
+
+		for ti in range(num_types):
+			
+			B = self._solution_bases[ti]
+			row_div = B.subdivisions()[0]
+			M = B * self._sdp_Q_matrices[ti] * B.T
+			M.subdivide(row_div, row_div)
+			# zero out bits that should be zero. Note the copy() seems to be needed.
+			M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
+			M.set_immutable()
+			self._sdp_Qdash_matrices.append(M)
+			sys.stdout.write(".")
+			sys.stdout.flush()
+	
+		sys.stdout.write("\n")
 
 
 	def create_block_bases(self):
@@ -548,6 +587,9 @@ class Problem(SageObject):
 			self.create_block_bases()
 
 		new_bases = []
+
+		sys.stdout.write("Creating bases")
+		sys.stdout.flush()
 
 		for ti in range(num_types):
 	
@@ -595,27 +637,39 @@ class Problem(SageObject):
 					BS.append(B)
 
 			M = block_matrix([[B] for B in BS], subdivide=True)
-			div = M.subdivisions()
-
-			if self._field == RationalField():
-				
-				M, mu = M.gram_schmidt()
-				# .gram_schmidt doesn't appear to preserve sparsity
-				M = matrix(self._field, M.rows(), sparse=True)
-
-			else: # .gram_schmidt is broken for number fields in 4.8 !
-				rows, mu = gram_schmidt(M.rows())
-				M = matrix(self._field, rows, sparse=True)
 			
-			M.subdivide(div)
+			if M.nrows() == 0:
+				M = matrix(self._field, 0, len(self._flags[ti]), sparse=True)
+
+			else:
+				div = M.subdivisions()
+	
+				if self._field == RationalField():
+					
+					M, mu = M.gram_schmidt()
+					# .gram_schmidt doesn't appear to preserve sparsity
+					M = matrix(self._field, M.rows(), sparse=True)
+	
+				else: # .gram_schmidt is broken for number fields in 4.8 !
+					rows, mu = gram_schmidt(M.rows())
+					M = matrix(self._field, rows, sparse=True)
+				
+				M.subdivide(div)
 			
 			M.set_immutable()
 			new_bases.append(M)
+	
+			sys.stdout.write(".")
+			sys.stdout.flush()
+
+		sys.stdout.write("\n")
 	
 		return new_bases
 
 
 	def compute_products(self):
+ 	
+	 	num_types = len(self._types)
  	
 		graph_block = make_graph_block(self._graphs, self.n)
 		
@@ -623,7 +677,7 @@ class Problem(SageObject):
  		
 		sys.stdout.write("Calculating product densities:\n")
 
-		for ti in range(len(self._types)):
+		for ti in range(num_types):
 
 			tg = self._types[ti]
 			s = tg.n
@@ -634,52 +688,63 @@ class Problem(SageObject):
 			flags_block = make_graph_block(self._flags[ti], m)
 			rarray = flag_products(graph_block, tg, flags_block, None)
 			self._product_densities_arrays.append(rarray)
+
 	
 
-	def write_blocks(self, f, write_sizes=False):
+	def _set_block_matrix_structure(self):
+	
+		self._block_matrix_structure = []
 
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-		
-		inv_block_sizes = []
-		anti_inv_block_sizes = []
-		
-		if len(self._flag_bases) > 0:
-			for ti in range(num_types):
-				row_div = self._flag_bases[ti].subdivisions()[0]
-				if len(row_div) > 0:
-					inv_block_sizes.append(row_div[0])
-					anti_inv_block_sizes.append(self._flag_bases[ti].nrows() - row_div[0])
+		for ti in self._active_types:
+
+			if len(self._flag_bases) > 0:
+				num_blocks, block_sizes, block_offsets = block_structure(self._flag_bases[ti])
+			else:
+				num_blocks, block_sizes, block_offsets = 1, [len(self._flags[ti])], [0]
+			
+			# Remove zero-sized blocks
+			bi = 0
+			while bi < num_blocks:
+				if block_sizes[bi] == 0:
+					num_blocks -= 1
+					del block_sizes[bi]
+					del block_offsets[bi]
 				else:
-					inv_block_sizes.append(self._flag_bases[ti].nrows())
-					anti_inv_block_sizes.append(1)
-		else:
-			for ti in range(num_types):
-				inv_block_sizes.append(len(self._flags[ti]))
-				anti_inv_block_sizes.append(1)
+					bi += 1
+			
+			for bi in range(num_blocks):
+				self._block_matrix_structure.append((ti, block_sizes[bi], block_offsets[bi]))
 
-		if write_sizes:
 
-			for i in range(num_types):
-				f.write("%d " % inv_block_sizes[i])
-				f.write("%d " % anti_inv_block_sizes[i])
+	def write_blocks(self, f):
 
-			return
+		for ti in self._active_types:
 
-		for ti in range(num_types):
+			num_blocks = 0
+			block_indices = []
+			block_offsets = []
+
+			for bi in range(len(self._block_matrix_structure)):
+				b = self._block_matrix_structure[bi]
+				if b[0] == ti:
+					num_blocks += 1
+					block_indices.append(bi)
+					block_offsets.append(b[2])
+	
 			for row in self._product_densities_arrays[ti]:
 				gi = row[0]
 				j = row[1]
 				k = row[2]
-				if j < inv_block_sizes[ti]:
-					block = 2 * ti + 2
-				else:
-					block = 2 * ti + 3
-					j -= inv_block_sizes[ti]
-					k -= inv_block_sizes[ti]
+				bi = num_blocks - 1
+				if bi > 0:
+					while block_offsets[bi] > j:
+						bi -= 1
+					j -= block_offsets[bi]
+					k -= block_offsets[bi]
 				value = Integer(row[3]) / Integer(row[4])
-				f.write("%d %d %d %d %s\n" % (gi + 1, block, j + 1, k + 1,
-						value.n(digits=64)))
+				f.write("%d %d %d %d %s\n" % (gi + 1, block_indices[bi] + 2, j + 1, k + 1,
+					value.n(digits=64)))
+
 
 	# TODO: helpful error message if product densities have not been computed.
 	
@@ -702,13 +767,18 @@ class Problem(SageObject):
 		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
+		self._set_block_matrix_structure()
+		num_blocks = len(self._block_matrix_structure)
+		
 		with open(self._sdp_input_filename, "w") as f:
 	
 			f.write("%d\n" % (num_graphs + 1,))
-			f.write("%d\n" % (2 * num_types + 3,))
+			f.write("%d\n" % (num_blocks + 3,))
 			
 			f.write("1 ")
-			self.write_blocks(f, True)
+			for b in self._block_matrix_structure:
+				f.write("%d " % b[1])
+			
 			f.write("-%d -%d\n" % (num_graphs, num_densities))
 			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
 			
@@ -723,7 +793,7 @@ class Problem(SageObject):
 				else:
 					f.write("%d 1 1 1 1.0\n" % (i + 1,))
 				if not (self._force_sharps and i in self._sharp_graphs):
-					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
+					f.write("%d %d %d %d 1.0\n" % (i + 1, num_blocks + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
 				for j in range(num_densities):
@@ -731,10 +801,10 @@ class Problem(SageObject):
 					if d != 0:
 						if self._minimize:
 							d *= -1
-						f.write("%d %d %d %d %s\n" % (i + 1, 2 * num_types + 3, j + 1, j + 1, d.n(digits=64)))
+						f.write("%d %d %d %d %s\n" % (i + 1, num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
 			
 			for j in range(num_densities):
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, 2 * num_types + 3, j + 1, j + 1))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, num_blocks + 3, j + 1, j + 1))
 		
 			self.write_blocks(f)
 
@@ -751,36 +821,41 @@ class Problem(SageObject):
 			raise NotImplementedError("there must be at least one density.")
 		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
+
+		self._set_block_matrix_structure()
+		num_blocks = len(self._block_matrix_structure)
 	
 		with open(self._sdp_input_filename, "w") as f:
 	
 			f.write("%d\n" % (num_graphs + num_densities * 2,))
-			f.write("%d\n" % (2 * num_types + 5,))
+			f.write("%d\n" % (num_blocks + 5,))
 			
 			f.write("1 ")
-			self.write_blocks(f, True)
+			for b in self._block_matrix_structure:
+				f.write("%d " % b[1])
+
 			f.write("-%d -%d -%d -%d\n" % (num_graphs, num_densities, num_densities, num_densities))
 			f.write("%s%s%s\n" % ("0.0 " * num_graphs, "0.0 " * num_densities, "1.0 " * num_densities))
 			f.write("0 1 1 1 1.0\n")
 	
 			for i in range(num_graphs):
 				if not (self._force_sharps and i in self._sharp_graphs):
-					f.write("%d %d %d %d 1.0\n" % (i + 1, 2 * num_types + 2, i + 1, i + 1))
+					f.write("%d %d %d %d 1.0\n" % (i + 1, num_blocks + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
 				for j in range(num_densities):
 					d = self._densities[i][j]
 					if d != 0:
-						f.write("%d %d %d %d %s\n" % (i + 1, 2 * num_types + 3, j + 1, j + 1, d.n(digits=64)))
+						f.write("%d %d %d %d %s\n" % (i + 1, num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
 			
 			for j in range(num_densities):
 				f.write("%d 1 1 1 -1.0\n" % (num_graphs + 1 + j,))
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1 + j, 2 * num_types + 3, j + 1, j + 1))
-				f.write("%d %d %d %d -1.0\n" % (num_graphs + 1 + j, 2 * num_types + 4, j + 1, j + 1))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1 + j, num_blocks + 3, j + 1, j + 1))
+				f.write("%d %d %d %d -1.0\n" % (num_graphs + 1 + j, num_blocks + 4, j + 1, j + 1))
 		
 			for j in range(num_densities):
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, 2 * num_types + 3, j + 1, j + 1))
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, 2 * num_types + 5, j + 1, j + 1))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, num_blocks + 3, j + 1, j + 1))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, num_blocks + 5, j + 1, j + 1))
 	
 			self.write_blocks(f)
 
@@ -889,19 +964,7 @@ class Problem(SageObject):
 
 		with open(self._sdp_output_filename, "r") as f:
 		
-			inv_block_sizes = []
-			anti_inv_block_sizes = []
-
 			if len(self._flag_bases) > 0:
-
-				for ti in range(num_types):
-					row_div = self._flag_bases[ti].subdivisions()[0]
-					if len(row_div) > 0:
-						inv_block_sizes.append(row_div[0])
-						anti_inv_block_sizes.append(self._flag_bases[ti].nrows() - row_div[0])
-					else:
-						inv_block_sizes.append(self._flag_bases[ti].nrows())
-						anti_inv_block_sizes.append(1)
 
 				self._sdp_Q_matrices = [matrix(self._approximate_field,
 					self._flag_bases[ti].nrows(), self._flag_bases[ti].nrows())
@@ -913,37 +976,31 @@ class Problem(SageObject):
 					self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
 
 			else:
-
-				for ti in range(num_types):
-					inv_block_sizes.append(len(self._flags[ti]))
-					anti_inv_block_sizes.append(1)
 	
 				self._sdp_Q_matrices = [matrix(self._approximate_field,
 					len(self._flags[ti]), len(self._flags[ti])) for ti in range(num_types)]
 			
 			self._sdp_density_coeffs = [self._approximate_field(0) for i in range(num_densities)]
+
+			num_blocks = len(self._block_matrix_structure)
 			
 			for line in f:
 				numbers = line.split()
 				if numbers[0] != "2":
 					continue
-				ti = int(numbers[1]) - 2
-				if ti == 2 * num_types + 1:
+				bi = int(numbers[1]) - 2
+				if bi == num_blocks + 1:
 					j = int(numbers[2]) - 1
 					self._sdp_density_coeffs[j] = self._approximate_field(numbers[4])
 					continue
-				if ti < 0 or ti >= 2 * num_types:
+				if bi < 0 or bi >= num_blocks:
 					continue
 				j = int(numbers[2]) - 1
 				k = int(numbers[3]) - 1
-				if ti % 2:
-					ti = (ti - 1) / 2
-					j += inv_block_sizes[ti]
-					k += inv_block_sizes[ti]
-					if j >= self._sdp_Q_matrices[ti].nrows():
-						continue # Might be 'dummy' block for types with no anti-inv space
-				else:
-					ti /= 2
+				ti, size, offset = self._block_matrix_structure[bi]
+				j += offset
+				k += offset 
+
 				self._sdp_Q_matrices[ti][j, k] = numbers[4]
 				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
@@ -961,7 +1018,7 @@ class Problem(SageObject):
 		
 		fbounds = [sum([self._densities[j][i] * self._sdp_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 
-		for ti in range(num_types):
+		for ti in self._active_types:
 			for row in self._product_densities_arrays[ti]:
 				gi, j, k, numer, denom = row
 				d = Integer(numer) / Integer(denom)
@@ -983,6 +1040,7 @@ class Problem(SageObject):
 				sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
 			else:
 				sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
+				return
 				
 		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
 
@@ -1007,9 +1065,6 @@ class Problem(SageObject):
 		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
 		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
 			
-		#for gi in extra_sharp_graphs:
-		#	sys.stdout.write("Warning: graph %d (%s) appears to be sharp.\n" % (gi, self._graphs[gi]))
-	
 		if len(extra_sharp_graphs) > 0:
 			sys.stdout.write("Warning: additional sharp graphs: %s\n" % (extra_sharp_graphs,))	
 	
@@ -1138,7 +1193,7 @@ class Problem(SageObject):
 	
 		num_types = len(self._types)
 
-		for ti in range(num_types):
+		for ti in self._active_types:
 			eigvals = numpy.linalg.eigvalsh(self._sdp_Q_matrices[ti])
 			zero_eigvals = sorted([e for e in eigvals if e < tolerance])
 			if len(zero_eigvals) == 0:
@@ -1148,16 +1203,21 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
-	def get_zero_eigenvectors(self, ti, tolerance = 0.00001):
+	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, new_basis=False):
 	
-		if not ti in range(len(self._types)):
+		if not ti in self._active_types:
 			raise ValueError
 
-		ns = len(self._sdp_Q_matrices[ti].subdivisions()[0]) + 1
+		if new_basis:
+			QM = self._sdp_Qdash_matrices[ti]
+		else:
+			QM = self._sdp_Q_matrices[ti]
+
+		ns = len(QM.subdivisions()[0]) + 1
 	
 		B = []
 		for i in range(ns):
-			QB = self._sdp_Q_matrices[ti].subdivision(i, i)
+			QB = QM.subdivision(i, i)
 			eigvals, T = numpy.linalg.eigh(QB)
 			M = matrix(self._approximate_field, 0, QB.ncols())
 			for ei in range(len(eigvals)):
@@ -1171,9 +1231,7 @@ class Problem(SageObject):
 	
 		# TODO: transform with _flag_bases if present.
 		
-		num_types = len(self._types)
-
-		for ti in range(num_types):
+		for ti in self._active_types:
 			M = C.zero_eigenvectors(self._types[ti], self._flags[ti]) 
 			if M.nrows() == 0:
 				sys.stdout.write("Type %d. None.\n" % ti)
@@ -1192,29 +1250,7 @@ class Problem(SageObject):
 		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
 
-		if len(self._solution_bases) > 0:
-
-			sys.stdout.write("Transforming matrices")
-		
-			self._sdp_Qdash_matrices = []
-
-			for ti in range(num_types):
-				
-				B = self._solution_bases[ti]
-				row_div = B.subdivisions()[0]
-				M = B * self._sdp_Q_matrices[ti] * B.T
-				M.subdivide(row_div, row_div)
-				# zero out bits that should be zero. Note the copy() seems to be needed.
-				M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
-				M.set_immutable()
-				self._sdp_Qdash_matrices.append(M)
-				sys.stdout.write(".")
-				sys.stdout.flush()
-		
-			sys.stdout.write("\n")
-		
-		else:
-		
+		if len(self._solution_bases) == 0:
 			self._sdp_Qdash_matrices = self._sdp_Q_matrices
 
 		q_sizes = [self._sdp_Qdash_matrices[ti].nrows() for ti in range(num_types)]
@@ -1261,7 +1297,7 @@ class Problem(SageObject):
 		else:
 			self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
 			
-		triples = [(ti, j, k) for ti in range(num_types) for j in range(q_sizes[ti])
+		triples = [(ti, j, k) for ti in self._active_types for j in range(q_sizes[ti])
 			for k in range(j, q_sizes[ti])]
 	
 		num_triples = len(triples)
@@ -1274,7 +1310,7 @@ class Problem(SageObject):
 
 		# TODO: only use triples that correspond to middle blocks.
 
-		for ti in range(num_types):
+		for ti in self._active_types:
 
 			Ds = [matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
 				for si in range(num_sharps)]
@@ -1311,8 +1347,9 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 		
 		density_cols_to_use = []
-		DR = matrix(self._field, 0, num_sharps, sparse=True)
-		EDR = matrix(self._field, 0, num_sharps, sparse=True)
+		DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
+		#DI = identity_matrix(self._field, num_sharps) * -1
+		DI = None
 		
 		sys.stdout.write("Constructing DR matrix")
 		
@@ -1320,22 +1357,26 @@ class Problem(SageObject):
 		if num_densities > 1 and use_densities:
 			
 			for j in range(num_densities):
-				new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
-				if new_row.is_zero():
+				new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
+				if new_col.is_zero():
 					continue
-				try:
-					X = EDR.solve_left(new_row)
-					continue
-				except ValueError:
-					DR = DR.stack(new_row)
-					EDR = EDR.stack(new_row)
-					EDR.echelonize()
-					density_cols_to_use.append(j)
-					sys.stdout.write(".")
+				if not DI is None and (DI * new_col).is_zero():
+					sys.stdout.write("'")
 					sys.stdout.flush()
+					continue		
+				
+				DR = DR.augment(new_col)
+				#DI = DR * (DR.T * DR).inverse() * DR.T
+				DI = DR * DR.T
+				#DI += new_col * new_col.T
+				DI -= identity_matrix(self._field, DI.nrows())
+
+				density_cols_to_use.append(j)
+				sys.stdout.write(".")
+				sys.stdout.flush()
 			
 			sys.stdout.write("\n")
-			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.nrows())
+			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.ncols())
 				
 		col_norms = {}
 		for i in range(num_triples):
@@ -1353,26 +1394,26 @@ class Problem(SageObject):
 			ti, j, k = triples[i]
 			if ti in protect: # don't use protected types
 				continue
-			new_row = R[:, i : i + 1].T	
-			if new_row.is_zero():
+			new_col = R[:, i : i + 1]
+			if new_col.is_zero():
 				continue
-			try:
-				X = EDR.solve_left(new_row)
-				continue
-			except ValueError:
-				DR = DR.stack(new_row)
-				EDR = EDR.stack(new_row)
-				EDR.echelonize()
-				cols_to_use.append(i)
-				sys.stdout.write(".")
+			if not DI is None and (DI * new_col).is_zero():
+				sys.stdout.write("'")
 				sys.stdout.flush()
-				# TODO: add this check to density cols loop
-				if DR.nrows() == num_sharps:
-					sys.stdout.write(" got enough.")
-					break
+				continue
+			
+			DR = DR.augment(new_col)
+			#DI = DR * (DR.T * DR).inverse() * DR.T
+			DI = DR * DR.T
+			DI -= identity_matrix(self._field, DI.nrows())
+			#DI += new_col * new_col.T
+							
+			cols_to_use.append(i)
+			sys.stdout.write(".")
+			sys.stdout.flush()
 		
 		sys.stdout.write("\n")
-		sys.stdout.write("DR matrix has rank %d.\n" % DR.nrows())
+		sys.stdout.write("DR matrix has rank %d.\n" % DR.ncols())
 		
 		T = matrix(self._field, num_sharps, 1)
 				
@@ -1390,7 +1431,7 @@ class Problem(SageObject):
 					ti, j, k = triples[i]
 					T[si, 0] -= self._exact_Qdash_matrices[ti][j, k] * R[si, i]
 
-		FDR = matrix(self._field, DR.T)
+		FDR = matrix(self._field, DR)
 		X = FDR.solve_right(T)
 		RX = matrix(self._approximate_field, X.nrows(), 1)
 	
@@ -1419,7 +1460,7 @@ class Problem(SageObject):
 
 	def compare_eigenvalues(self, only_smallest=True):
 	
-		for ti in range(len(self._types)):
+		for ti in self._active_types:
 			sys.stdout.write("Type %d:\n" % ti)
 			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Qdash_matrices[ti]))
 			new_eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
@@ -1452,7 +1493,7 @@ class Problem(SageObject):
 		
 		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
 
-		for ti in range(num_types):
+		for ti in self._active_types:
 			for row in self._product_densities_arrays[ti]:
 				gi, j, k, numer, denom = row
 				d = Integer(numer) / Integer(denom)

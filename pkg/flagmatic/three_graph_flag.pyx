@@ -27,14 +27,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-from flag import *
-from hypergraph_flag import *
-from three_graph_flag import *
-from graph_flag import *
-from oriented_graph_flag import *
-from flag_misc import *
-from problem import *
-from axioms_problem import *
-from construction import *
-from random_tournament_construction import *
-from symmetric_blowup_construction import *
+from hypergraph_flag cimport HypergraphFlag
+
+cdef class ThreeGraphFlag (HypergraphFlag):
+
+	def __init__(self, string_rep=None):
+		super(ThreeGraphFlag, self).__init__(string_rep=string_rep, r=3, oriented=False)
+
+	@classmethod
+	def generate_flags(cls, n, tg, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		return HypergraphFlag.generate_flags(n, tg, r=3, oriented=False, forbidden_edge_numbers={},
+			forbidden_graphs=[], forbidden_induced_graphs=[])
+
+	@classmethod
+	def generate_graphs(cls, n, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		return HypergraphFlag.generate_flags(n, cls(), r=3, oriented=False, forbidden_edge_numbers={},
+			forbidden_graphs=[], forbidden_induced_graphs=[])
