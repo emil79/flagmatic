@@ -49,14 +49,29 @@ def test_graphs():
 		P.run_sdp_solver()
 
 
+def ClebschGraph():
+
+	cleb = GraphFlag()
+	cleb.n = 16
+	edges = [(1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 7), (2, 8), (2, 9), (2, 10),
+		(3, 7), (3, 11), (3, 12), (3, 13), (4, 8), (4, 11), (4, 14), (4,15), (5, 9),
+		(5, 12), (5, 14), (5, 16), (6, 10), (6, 13), (6, 15), (6, 16), (7, 14), (7, 15),
+		(7, 16), (8, 12), (8, 13), (8, 16), (9, 11), (9, 13), (9, 15), (10, 11), (10, 12),
+		(10, 14), (11, 16), (12, 15), (13, 14)]
+	for e in edges:
+		cleb.add_edge(e)
+	return cleb
+
+
+
 def example(prob):
 	
 	if prob == "ff83-cpb":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph("5:123124345")
 		P.n = 6
-		C = BlowupConstruction(Flag("3:123"))
+		C = BlowupConstruction(ThreeGraphFlag("3:123"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.change_problem_bases()
@@ -67,10 +82,10 @@ def example(prob):
 	
 	elif prob == "ff83":
 	
-		P = Problem()
+		P = Problem(ThreeGraphFlag)
 		P.forbid_subgraph("5:123124345")
 		P.n = 6
-		C = BlowupConstruction(Flag("3:123"))
+		C = BlowupConstruction(ThreeGraphFlag("3:123"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -80,7 +95,7 @@ def example(prob):
 	
 	elif prob == "k4-":
 
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph((4, 3))
 		P.n = 6
 		C = None
@@ -91,10 +106,10 @@ def example(prob):
 
 	elif prob == "f32":
 
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
-		C = UnbalancedBlowupConstruction(Flag("2:122"), weights=[1,2])
+		C = UnbalancedBlowupConstruction(ThreeGraphFlag("2:122"), weights=[1,2])
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -105,11 +120,11 @@ def example(prob):
 
 	elif prob == "razb":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph((4, 4))
 		P.forbid_induced_subgraph((4, 1))
 		P.n = 6
-		C = BlowupConstruction(Flag("3:112223331123"))
+		C = BlowupConstruction(ThreeGraphFlag("3:112223331123"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -120,11 +135,11 @@ def example(prob):
 	
 	elif prob == "k5weak":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph((5, 10))
 		P.forbid_induced_subgraph((5, 8))
 		P.n = 6
-		C = BlowupConstruction(Flag("2:112122"))
+		C = BlowupConstruction(ThreeGraphFlag("2:112122"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.change_problem_bases()
@@ -135,11 +150,11 @@ def example(prob):
 
 	elif prob == "turank4-":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph((4, 4))
 		P.n = 6
 		P.set_density((4,3))
-		C = BlowupConstruction(Flag("3:112223331123"))
+		C = BlowupConstruction(ThreeGraphFlag("3:112223331123"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -150,10 +165,10 @@ def example(prob):
 
 	elif prob == "max59":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.n = 6
 		P.set_density((5, 9))
-		C = BlowupConstruction(Flag("2:112122"))
+		C = BlowupConstruction(ThreeGraphFlag("2:112122"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -164,10 +179,10 @@ def example(prob):
 
 	elif prob == "max56":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.n = 6
 		P.set_density_edge_number(5, 6)
-		C = BlowupConstruction(Flag("3:112223331122233311"))
+		C = BlowupConstruction(ThreeGraphFlag("3:112223331122233311"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.change_problem_bases()
@@ -178,10 +193,10 @@ def example(prob):
 
 	elif prob == "38":
 	
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph("5:123124125345", "5:123124125134135145")
 		P.n = 6
-		C = BlowupConstruction(Flag("4:123124134234"))
+		C = BlowupConstruction(ThreeGraphFlag("4:123124134234"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -192,7 +207,7 @@ def example(prob):
 
 	elif prob == "max42":
 
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.n = 5
 		P.remove_types([0])
 		P.set_density("4.2")
@@ -206,12 +221,12 @@ def example(prob):
 	
 	elif prob == "k4-f32":
 
-		P = Problem()
+		P = ThreeGraphProblem()
 		P.forbid_subgraph((4, 3))
-		P.forbid_subgraph(Flag("5:123124125345"))
+		P.forbid_subgraph(ThreeGraphFlag("5:123124125345"))
 		P.n = 7
-		P.remove_types([3,4,5,6])
-		C = BlowupConstruction(Flag("6:123234345451512136246356256146"))
+		P.set_inactive_types(3, 4, 5, 6)
+		C = BlowupConstruction(ThreeGraphFlag("6:123234345451512136246356256146"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.import_solution("../output/k4-f32")
@@ -219,7 +234,7 @@ def example(prob):
 		P.check_floating_point_bound()
 		P.change_solution_bases()
 		P.save("k4-f32")
-		P.make_exact(10000000,protect=[2])
+		P.make_exact(2^23, protect=[2])
 		P.save("k4-f32")
 		P.check_exact_bound()
 		
@@ -297,8 +312,7 @@ def example(prob):
 		P.save("new-cod-1")
 		P._force_sharps = True
 		P.save("new-cod-1")
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True)
+		P.solve_sdp(True, sdpa="dd", tolerance=1e-10)
 		P.save("new-cod-1")
 
 
@@ -367,11 +381,11 @@ def example(prob):
 
 	elif prob == "grzesik":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_subgraph((3, 3))
 		P.n = 5
 		P.set_density("5:1223344551")
-		C = SymmetricBlowupConstruction(Flag("5:1223344551", 2))
+		C = SymmetricBlowupConstruction(GraphFlag("5:1223344551"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -382,10 +396,10 @@ def example(prob):
 
 	elif prob == "hirst":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.n = 7
 		P.set_density("4:1223241314")
-		C = BlowupConstruction(Flag("5:12131415232425343545", 2))
+		C = BlowupConstruction(GraphFlag("5:12131415232425343545"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -396,12 +410,12 @@ def example(prob):
 
 	elif prob == "paw":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.n = 5
 		P.set_inactive_types(4)
 			
 		P.set_density("4:12233114")
-		C = BlowupConstruction(Flag("4:1223344111223344", 2))
+		C = BlowupConstruction(GraphFlag("4:1223344111223344"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		
@@ -423,7 +437,7 @@ def example(prob):
 
 	elif prob == "maxs3":
 
-		P = Problem(2, oriented=True)
+		P = OrientedGraphProblem()
 		P.n = 3
 		P.set_density("3:1213")
 		C = AdHocConstruction("maxs3")
@@ -437,9 +451,9 @@ def example(prob):
 
 	elif prob == "maxs4":
 
-		P = Problem(2, oriented=True)
+		P = OrientedGraphProblem()
 		P.n = 4
-		P.remove_types([0])
+		P.set_inactive_types(0)
 		P.set_density("4:121314")
 		C = AdHocConstruction("maxs4")
 		P.set_extremal_construction(C)
@@ -452,11 +466,11 @@ def example(prob):
 
 	elif prob == "34":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_induced_subgraph((4, 0))
 		P.n = 5
 		P.set_density((3, 3))
-		C = BlowupConstruction(Flag("3:112233", 2))
+		C = BlowupConstruction(GraphFlag("3:112233"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		
@@ -476,11 +490,11 @@ def example(prob):
 	elif prob == "43":
 
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_induced_subgraph((3, 0))
 		P.n = 6
 		P.set_density((4, 6))
-		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
+		C = BlowupConstruction(GraphFlag("5:12233445511122334455"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.minimize=True
@@ -492,11 +506,11 @@ def example(prob):
 
 	elif prob == "44":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_subgraph((4, 6))
 		P.n = 8
 		P.save("44")
-		#P.remove_types([110, 132]) # these types have a full set of zero eigenvectors
+		#P.set_inactive_types(110, 132) # these types have a full set of zero eigenvectors
 		P.set_density((4, 0))
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
@@ -530,11 +544,11 @@ def example(prob):
 
 	elif prob == "53":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_induced_subgraph((3, 0))
 		P.n = 6
 		P.set_density((5, binomial(5, 2)))
-		C = BlowupConstruction(Flag("5:12233445511122334455", 2))
+		C = BlowupConstruction(GraphFlag("5:12233445511122334455"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.minimize = True
@@ -546,7 +560,7 @@ def example(prob):
 
 	elif prob == "63":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 7
 		P.set_inactive_types(1, 2, 4, 7, 9)
@@ -563,7 +577,7 @@ def example(prob):
 
 	elif prob == "63-cpb":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 7
 		P.set_inactive_types(1, 2, 4, 7, 9)
@@ -580,10 +594,10 @@ def example(prob):
 
 	elif prob == "73":
 
-		P = Problem(2)
+		P = GraphProblem()
 		P.forbid_induced_subgraph((3, 3))
 		P.n = 8
-		P.remove_types([1, 3, 4, 5, 6, 7, 8, 10])
+		P.set_inactive_types(1, 3, 4, 5, 6, 7, 8, 10)
 		P.set_density((7, 0))
 		C = SymmetricBlowupConstruction(ClebschGraph())
  		P.set_extremal_construction(C)
@@ -600,7 +614,7 @@ def example(prob):
 	elif prob == "ch":
 	
 		P = AxiomsProblem(2, True)
-		P.forbid_subgraph(Flag("3:122331",2,True))
+		P.forbid_subgraph("3:122331")
 		P.n = 6
 		P.clear_axioms()
 		P.add_out_degree_axiom(1/3)
