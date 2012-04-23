@@ -187,9 +187,10 @@ class BlowupConstruction(Construction):
 			self._field = field
 
 		# Only make use of symmetry when all the conditions are right...
+		# Should probably allow OrientedGraphFlag
 	
-		if (field is None and weights is None
-			and type(g) is GraphFlag and g.n > 4 and not no_symmetry):
+		if (field is None and weights is None and g.n > 4 and not no_symmetry
+			and (type(g) is GraphFlag or type(g) is OrientedGraphFlag)):
 			self._use_symmetry = True
 		else:
 			self._use_symmetry = False
@@ -313,34 +314,6 @@ class BlowupConstruction(Construction):
 	#
 	# "Symmetric" versions follow.
 	#
-
-
-	def tuple_orbits(self, k):
-		
-		SG = self._graph.Graph()
-		G, d = SG.automorphism_group(translation=True)
-
-		# Sage gives the graph new labels! Get a translation dictionary.
-		rd = dict((v,k) for (k,v) in d.iteritems())
-
-		gen_str = ", ".join(str(t) for t in G.gens())
-		gap_str = "g := Group(%s);" % gen_str
-		gap.eval(gap_str)
-
-		orbs = gap.new("Orbits(g, Tuples([1..%d], %d), OnTuples);" % (self._graph.n, k)).sage()
-
-		total = 0
-		orb_reprs = {}
-		for o in orbs:
-			sys.stdout.write("Orbit %d:\n" % len(orb_reprs))
-			orb_reprs[tuple(o[0])] = len(o)
-			for t in o:
-				ig = self._graph.degenerate_induced_subgraph(map(lambda x : rd[x], t))
-				ig.make_minimal_isomorph()
-				sys.stdout.write("%s " % ig)
-			sys.stdout.write("\n")
-
-		return orb_reprs
 		
 
 	# NOTE: This computes orbits on *sets* and then expands these sets in different
@@ -353,17 +326,9 @@ class BlowupConstruction(Construction):
 		tp = tuple(prefix)
 		if s > k:
 			raise ValueError
+
+		gens = self._graph.automorphism_group_gens()
 		
-		SG = self._graph.Graph()
-		G, d = SG.automorphism_group(translation=True)
-
-		# Sage gives the graph new labels! Get a translation dictionary, and
-		# relabel the generators back to how they should be.
-
-		rd = dict((v,k) for (k,v) in d.iteritems())
-		trans_gens = [gen.cycle_tuples() for gen in G.gens()]
-		gens = [tuple(tuple(map(lambda x : rd[x], cy)) for cy in gen) for gen in trans_gens]
-
 		# Pass generators to GAP to create a group for us.
 		
 		gen_str = ",".join("(" + "".join(str(cy) for cy in cys) + ")" for cys in gens)

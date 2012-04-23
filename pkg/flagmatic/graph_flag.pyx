@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from sage.rings.arith import binomial
+from sage.graphs.all import Graph
 from hypergraph_flag cimport HypergraphFlag
 
 cdef class GraphFlag (HypergraphFlag):
@@ -57,3 +58,26 @@ cdef class GraphFlag (HypergraphFlag):
 	def generate_graphs(cls, n, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
 		return HypergraphFlag.generate_flags(n, cls(), r=2, oriented=False, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
+
+
+	def Graph(self):
+		"""
+		Returns a Sage Graph object.
+		"""
+		
+		return Graph([e for e in self.edges])
+
+
+	def automorphism_group_gens(self):
+
+		G, d = self.Graph().automorphism_group(translation=True)
+
+		# Sage gives the graph new labels! Get a translation dictionary, and
+		# relabel the generators back to how they should be.
+
+		rd = dict((v,k) for (k,v) in d.iteritems())
+		trans_gens = [gen.cycle_tuples() for gen in G.gens()]
+		gens = sorted([tuple(sorted(tuple(sorted(map(lambda x : rd[x], cy))) for cy in gen))
+			for gen in trans_gens])
+
+		return gens

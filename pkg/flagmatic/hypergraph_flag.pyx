@@ -53,10 +53,9 @@ cimport numpy
 from copy import copy
 
 from sage.rings.arith import binomial, falling_factorial
-from sage.combinat.all import Combinations, Permutations, Tuples
+from sage.combinat.all import Combinations, Permutations, Tuples, Subsets
 from sage.rings.all import Integer, QQ
 from sage.matrix.all import matrix, block_matrix
-from sage.graphs.all import Graph, DiGraph
 from sage.modules.misc import gram_schmidt
 
 cdef class HypergraphFlag (Flag):
@@ -158,19 +157,6 @@ cdef class HypergraphFlag (Flag):
 				raise ValueError
 
 			self._t = value
-
-	def Graph(self):
-		"""
-		Returns a Sage Graph or DiGraph object. Does not work for 3-graphs.
-		"""
-					
-		if self._r != 2:
-			raise NotImplementedError("cannot do this for %d-graphs." % self._r)
-		
-		if self._oriented:
-			return DiGraph([e for e in self.edges])
-		else:
-			return Graph([e for e in self.edges])
 
 
 	def add_edge(self, edge):
@@ -682,6 +668,29 @@ cdef class HypergraphFlag (Flag):
 			total += 1
 	
 		return Integer(found) / total
+
+
+	def complement(self, minimal=False):
+		"""
+		Returns the complement of the graph. Not implemented for oriented graphs.
+		If minimal=True, the minimal representative from the isomorphism class is
+		returned.
+		"""
+		
+		if self.oriented:
+			raise NotImplementedError("Cannot take complements of oriented graphs.")
+		
+		h = type(self)()
+		h.n = self.n
+		edges = [tuple(sorted(e)) for e in self]
+		for e in Subsets(range(1, self.n + 1), self.r):
+			if not tuple(sorted(e)) in edges:
+				h.add_edge(e)
+		
+		if minimal:
+			h.make_minimal_isomorph()
+		
+		return h
 
 
 	# TODO: mark graph as degenerate if labels are repeated and we get a degenerate edge
