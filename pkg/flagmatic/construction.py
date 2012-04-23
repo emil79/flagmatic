@@ -248,7 +248,7 @@ class BlowupConstruction(Construction):
 	def zero_eigenvectors(self, tg, flags):
 
 		if self._use_symmetry:
-			return self.zero_eigenvectors(tg, flags)
+			return self.symm_zero_eigenvectors(tg, flags)
 
 		cn = self._graph.n
 		s = tg.n
