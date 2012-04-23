@@ -29,16 +29,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from sage.rings.all import Integer
 
+from hypergraph_flag import make_graph_block
+from three_graph_flag import *
+from graph_flag import *
+from oriented_graph_flag import *
 from problem import *
-from flag import *
-from flag_misc import *
+
 
 class AxiomsProblem(Problem):
 
+	def __init__(self, flag_cls):
 	
-	def __init__(self, r=3, oriented=False):
-	
-		Problem.__init__(self, r, oriented)
+		Problem.__init__(self, flag_cls)
 		self._density_graphs = []
 		self.clear_axioms()
 
@@ -62,7 +64,7 @@ class AxiomsProblem(Problem):
 
 		m = self.n - max([t[0].n for t in terms]) + tg.n
 
-		axiom_flags = generate_flags(m, tg, self._r, self._oriented,
+		axiom_flags = self._flag_cls.generate_flags(m, tg,
 			forbidden_edge_numbers=self._forbidden_edge_numbers,
 			forbidden_graphs=self._forbidden_graphs,
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
@@ -79,7 +81,7 @@ class AxiomsProblem(Problem):
 		for i in range(len(terms)):
 			fg = terms[i][0]
 			flags_block = make_graph_block([fg], fg.n)
-			rarray = flag_products(graph_block, tg, flags_block, axiom_flags_block)
+			rarray = self._flag_cls.flag_products(graph_block, tg, flags_block, axiom_flags_block)
 			for row in rarray:
 				gi = row[0]
 				j = row[1] # always 0
@@ -94,12 +96,12 @@ class AxiomsProblem(Problem):
 	
 	def add_codegree_axiom(self, value):
 
-		if not self.r == 3:
+		if not self._flag_cls().r == 3:
 			raise NotImplementedError
 	
-		tg = Flag("2:")
-		f1 = Flag("3:123(2)")
-		f2 = Flag("2:(2)")
+		tg = ThreeGraphFlag("2:")
+		f1 = ThreeGraphFlag("3:123(2)")
+		f2 = ThreeGraphFlag("2:(2)")
 		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 
 
@@ -108,39 +110,48 @@ class AxiomsProblem(Problem):
 		if self.oriented:
 			raise NotImplementedError
 	
-		if self.r == 3:
+		if self._flag_cls().r == 3:
 	
-			tg = Flag("1:")
-			f1 = Flag("3:123(1)")
-			f2 = Flag("1:(1)")
+			tg = ThreeGraphFlag("1:")
+			f1 = ThreeGraphFlag("3:123(1)")
+			f2 = ThreeGraphFlag("1:(1)")
 			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 
-		elif self.r == 2:
+		elif self._flag_cls().r == 2:
 
-			tg = Flag("1:", 2)
-			f1 = Flag("2:12(1)", 2)
-			f2 = Flag("1:(1)", 2)
+			tg = GraphFlag("1:")
+			f1 = GraphFlag("2:12(1)")
+			f2 = GraphFlag("1:(1)")
 			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 		
 	
 	def add_out_degree_axiom(self, value):
 	
-		if not (self.r == 2 and self.oriented):
+		if not (self._flag_cls().r == 2 and self._flag_cls().oriented):
 			raise NotImplementedError
 	
-		tg = Flag("1:", 2, True)
-		f1 = Flag("2:12(1)", 2, True)
-		f2 = Flag("1:(1)", 2, True)
+		tg = OrientedGraphFlag("1:")
+		f1 = OrientedGraphFlag("2:12(1)")
+		f2 = OrientedGraphFlag("1:(1)")
 		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
 
 
 	def add_in_degree_axiom(self, value):
 	
-		if not (self.r == 2 and self.oriented):
+		if not (self._flag_cls().r == 2 and self._flag_cls().oriented):
 			raise NotImplementedError
 	
-		tg = Flag("1:", 2, True)
-		f1 = Flag("2:21(1)", 2, True)
-		f2 = Flag("1:(1)", 2, True)
+		tg = OrientedGraphFlag("1:")
+		f1 = OrientedGraphFlag("2:21(1)")
+		f2 = OrientedGraphFlag("1:(1)")
 		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])	
-		
+
+
+def ThreeGraphAxiomsProblem():
+	return AxiomsProblem(ThreeGraphFlag)
+
+def GraphAxiomsProblem():
+	return AxiomsProblem(GraphFlag)
+
+def OrientedGraphAxiomsProblem():
+	return AxiomsProblem(OrientedGraphFlag)

@@ -76,7 +76,7 @@ def block_structure(M):
 class Problem(SageObject):
 
 
-	def __init__(self, flag_cls, r=3, oriented=False):
+	def __init__(self, flag_cls):
 	
 		if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag]:
 			self._flag_cls = flag_cls
@@ -683,7 +683,6 @@ class Problem(SageObject):
 			flags_block = make_graph_block(self._flags[ti], m)
 			rarray = self._flag_cls.flag_products(graph_block, tg, flags_block, None)
 			self._product_densities_arrays.append(rarray)
-
 	
 
 	def _set_block_matrix_structure(self):

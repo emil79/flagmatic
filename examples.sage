@@ -318,7 +318,7 @@ def example(prob):
 
 	elif prob == "k4-cod":
 	
-		P = AxiomsProblem()
+		P = ThreeGraphAxiomsProblem()
 		P.forbid_subgraph((4, 3))
 		P.n = 7
 		P.remove_types([3,4])
@@ -345,13 +345,12 @@ def example(prob):
 
 	elif prob == "marchant":
 	
-		P = AxiomsProblem()
+		P = ThreeGraphAxiomsProblem()
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
 		P.set_inactive_types(0, 1, 2, 4)
-		P.clear_axioms()
 		P.add_codegree_axiom(1/3)
-		C = BlowupConstruction(Flag("3:112223331"))
+		C = BlowupConstruction(ThreeGraphFlag("3:112223331"))
 		P.set_extremal_construction(C)
 		P.add_sharp_graphs(25, 27, 286, 289, 304, 389, 425)
 		P.compute_products()
@@ -363,19 +362,19 @@ def example(prob):
 
 	elif prob == "gammak4":
 	
-		P = AxiomsProblem()
+		P = ThreeGraphAxiomsProblem()
 		P.forbid_subgraph((4, 4))
 		P.n = 6
-		P.clear_axioms()
-		P.add_codegree_axiom(Rational("1/2"))
-		C = VariantRandomTournamentConstruction()
+		P.add_codegree_axiom(1/2)
+		C = RandomTournamentConstruction(True)
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.write_sdp_input_file()
 		P.run_sdp_solver(True)
+
 		#P.check_floating_point_bound()
 		#P.change_solution_bases()
-		#P.make_exact(2**20)
+		#P.make_exact(2^20)
 		#P.check_exact_bound()
 
 
@@ -613,10 +612,9 @@ def example(prob):
 
 	elif prob == "ch":
 	
-		P = AxiomsProblem(2, True)
+		P = OrientedGraphAxiomsProblem()
 		P.forbid_subgraph("3:122331")
 		P.n = 6
-		P.clear_axioms()
 		P.add_out_degree_axiom(1/3)
 		C = None
 		P.compute_products()
