@@ -36,12 +36,16 @@ import sys
 
 from sage.structure.sage_object import SageObject, dumps, loads
 from sage.rings.all import Integer, QQ, RationalField, RDF
-from sage.matrix.all import matrix, identity_matrix, block_diagonal_matrix
+from sage.matrix.all import matrix, identity_matrix, block_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
 from sage.misc.misc import SAGE_TMP 
+from copy import copy
 
-from flag import *
-from flag_misc import *
+from hypergraph_flag import make_graph_block
+from three_graph_flag import *
+from graph_flag import *
+from oriented_graph_flag import *
+
 
 # pexpect in Sage has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
@@ -71,13 +75,17 @@ def block_structure(M):
 
 class Problem(SageObject):
 
-	def __init__(self, r=3, oriented=False):
 
-		# Set some defaults...
+	def __init__(self, flag_cls, r=3, oriented=False):
+	
+		if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag]:
+			self._flag_cls = flag_cls
+		else:
+			raise ValueError
 		
+		self._density_graphs = flag_cls.default_density_graphs()
 		self._n = 0
-		self._r = r
-		self._oriented = oriented
+
 		self._field = RationalField()
 		self._approximate_field = RDF
 
@@ -85,16 +93,13 @@ class Problem(SageObject):
 		self._forbidden_graphs = []
 		self._forbidden_induced_graphs = []
 		
-		edge_graph = Flag("%d:" % r, r, oriented)
-		edge_graph.add_edge(range(1, r + 1))
-		self._density_graphs = [edge_graph]
-
 		self._obj_value_factor = -1
 		self._minimize = False
 		self._force_sharps = False
 
 		# Set these to be empty, as length is tested
 		# TODO: get rid of them if not used
+
 		self._block_bases = []
 		self._flag_bases = []
 		self._solution_bases = []
@@ -124,12 +129,8 @@ class Problem(SageObject):
 		return obj	
 
 	@property
-	def r(self):
-		return self._r
-		
-	@property
-	def oriented(self):
-		return self._oriented
+	def flag_cls(self):
+		return self._flag_cls
 
 	@property
 	def n(self):
@@ -140,7 +141,7 @@ class Problem(SageObject):
 		self._n = n
 
 		sys.stdout.write("Generating graphs...\n")
-		self._graphs = generate_graphs(n, self._r, self._oriented,
+		self._graphs = self._flag_cls.generate_graphs(n,
 			forbidden_edge_numbers=self._forbidden_edge_numbers,
 			forbidden_graphs=self._forbidden_graphs,
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
@@ -154,7 +155,7 @@ class Problem(SageObject):
 	
 		for s in range(n % 2, n - 1, 2):
 			
-			these_types = generate_graphs(s, self._r, self._oriented,
+			these_types = self._flag_cls.generate_graphs(s,
 				forbidden_edge_numbers=self._forbidden_edge_numbers,
 				forbidden_graphs=self._forbidden_graphs,
 				forbidden_induced_graphs=self._forbidden_induced_graphs)
@@ -164,7 +165,7 @@ class Problem(SageObject):
 			m = (n + s) / 2
 			these_flags = []
 			for tg in these_types:
-				these_flags.append(generate_flags(m, tg, self._r, self._oriented,
+				these_flags.append(self._flag_cls.generate_flags(m, tg,
 					forbidden_edge_numbers=self._forbidden_edge_numbers,
 					forbidden_graphs=self._forbidden_graphs,
 					forbidden_induced_graphs=self._forbidden_induced_graphs))
@@ -274,15 +275,15 @@ class Problem(SageObject):
 		
 			if type(h) == tuple:
 				k, ne = h
-				if k < self._r:
+				if k < self._flag_cls().r:
 					raise ValueError
-				max_e = binomial(k, self._r)
+				max_e = self._flag_cls.max_number_edges(k)
 				if not ne in range(max_e + 1):
 					raise ValueError
 		
 				# Don't forbid anything - if we do, we'll have to keep list
 				# updated whenever forbidden things change
-				graphs = generate_graphs(k, self._r, self._oriented)
+				graphs = self._flag_cls.generate_graphs(k)
 				for g in graphs:
 					if g.ne == ne:
 						density_graphs.append(g)
@@ -290,12 +291,9 @@ class Problem(SageObject):
 				continue
 			
 			if type(h) == str:
-				h = Flag(h, self._r, self._oriented)			
+				h = self._flag_cls(h)
 				
-			if type(h) != Flag:
-				raise ValueError
-
-			if h.r != self._r or h.oriented != self._oriented:
+			if type(h) != self._flag_cls:
 				raise ValueError
 
 			density_graphs.append(h)
@@ -318,9 +316,9 @@ class Problem(SageObject):
 		
 		if type(h) == tuple:
 			k, ne = h
-			if k < self._r:
+			if k < self._flag_cls().r:
 				raise ValueError
-			max_e = binomial(k, self._r)
+			max_e = self._flag_cls.max_number_edges(k)
 			if not ne in range(max_e + 1):
 				raise ValueError
 			if induced:
@@ -331,12 +329,9 @@ class Problem(SageObject):
 			return
 		
 		if type(h) == str:
-			h = Flag(h, self._r, self._oriented)
+			h = self._flag_cls(h)
 		
-		if type(h) != Flag:
-			raise ValueError
-
-		if h.r != self._r or h.oriented != self._oriented:
+		if type(h) != self._flag_cls:
 			raise ValueError
 
 		if induced:
@@ -561,7 +556,7 @@ class Problem(SageObject):
 
 		self._block_bases = []
 		for ti in range(len(self._types)):
-			B = flag_basis(self._types[ti], self._flags[ti])
+			B = self._flag_cls.flag_basis(self._types[ti], self._flags[ti])
 			row_div = B.subdivisions()[0]
 			div_sizes = row_div + [len(self._flags[ti])]
 			for bi in range(1, len(div_sizes)):
@@ -686,7 +681,7 @@ class Problem(SageObject):
 			sys.stdout.write("Doing type %d (order %d; flags %d)...\n" % (ti, s, m))
 
 			flags_block = make_graph_block(self._flags[ti], m)
-			rarray = flag_products(graph_block, tg, flags_block, None)
+			rarray = self._flag_cls.flag_products(graph_block, tg, flags_block, None)
 			self._product_densities_arrays.append(rarray)
 
 	
@@ -1109,11 +1104,15 @@ class Problem(SageObject):
 
 		# TODO: check admissible graphs, target bound, (sharps?).
 
-		if not ("%d-graph" % self.r) in flags.description:
-			raise ValueError
-	
 		if flags.n != self.n:
 			raise ValueError
+
+		if self._flag_cls().oriented:
+			if not ("oriented %d-graph" % self._flag_cls().r) in flags.description:
+				raise ValueError
+		else:
+			if not ("%d-graph" % self._flag_cls().r) in flags.description:
+				raise ValueError
 
 		if flags.num_H != num_graphs:
 			raise ValueError
@@ -1125,7 +1124,7 @@ class Problem(SageObject):
 		ftrs = []
 	
 		for ti in range(num_types):
-			tg = Flag(flags.types[ti], self.r, self.oriented)
+			tg = self._flag_cls(flags.types[ti])
 			for tj in range(num_types):
 				if tg.is_equal(self._types[tj]):
 					ttr.append(tj)
@@ -1137,7 +1136,7 @@ class Problem(SageObject):
 			ftr = []
 			
 			for fi in range(num_flags):
-				fg = Flag(flags.flags[ti][fi], self.r, self.oriented)
+				fg = self._flag_cls(flags.flags[ti][fi])
 				fg.t = tg.n
 				for fj in range(num_flags):
 					if fg.is_equal(self._flags[tj][fj]):
@@ -1150,8 +1149,8 @@ class Problem(SageObject):
 					
 			ftrs.append(ftr)
 		
-		print ttr
-		print ftrs
+		#print ttr
+		#print ftrs
 		
 		self._sdp_Q_matrices = [matrix(self._approximate_field, len(self._flags[ti]),
 			len(self._flags[ti])) for ti in range(num_types)]
@@ -1366,9 +1365,7 @@ class Problem(SageObject):
 					continue		
 				
 				DR = DR.augment(new_col)
-				#DI = DR * (DR.T * DR).inverse() * DR.T
-				DI = DR * DR.T
-				#DI += new_col * new_col.T
+				DI = DR * (DR.T * DR).inverse() * DR.T
 				DI -= identity_matrix(self._field, DI.nrows())
 
 				density_cols_to_use.append(j)
@@ -1403,10 +1400,8 @@ class Problem(SageObject):
 				continue
 			
 			DR = DR.augment(new_col)
-			#DI = DR * (DR.T * DR).inverse() * DR.T
-			DI = DR * DR.T
+			DI = DR * (DR.T * DR).inverse() * DR.T
 			DI -= identity_matrix(self._field, DI.nrows())
-			#DI += new_col * new_col.T
 							
 			cols_to_use.append(i)
 			sys.stdout.write(".")
@@ -1677,4 +1672,14 @@ class Problem(SageObject):
 			sys.stdout.flush()
 		
 		sys.stdout.write("\n")
-		
+
+
+def ThreeGraphProblem():
+	return Problem(ThreeGraphFlag)
+
+def GraphProblem():
+	return Problem(GraphFlag)
+
+def OrientedGraphProblem():
+	return Problem(OrientedGraphFlag)
+

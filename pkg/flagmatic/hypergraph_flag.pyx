@@ -55,9 +55,9 @@ from copy import copy
 from sage.rings.arith import binomial, falling_factorial
 from sage.combinat.all import Combinations, Permutations, Tuples
 from sage.rings.all import Integer, QQ
-from sage.matrix.all import matrix
+from sage.matrix.all import matrix, block_matrix
 from sage.graphs.all import Graph, DiGraph
-
+from sage.modules.misc import gram_schmidt
 
 cdef class HypergraphFlag (Flag):
 
@@ -344,9 +344,9 @@ cdef class HypergraphFlag (Flag):
 		if not (op == 2 or op == 3):
 			return False
 
-		g1 = copy(self)
+		g1 = self.copy()
 		g1.make_minimal_isomorph()
-		g2 = copy(other)
+		g2 = other.copy()
 		g2.make_minimal_isomorph()
 
 		if op == 2: # ==
@@ -382,6 +382,13 @@ cdef class HypergraphFlag (Flag):
 	
 		return True
 
+
+	@classmethod
+	def default_density_graphs(cls, r=3, oriented=False):
+		edge_graph = cls("%d:" % r, r, oriented)
+		edge_graph.add_edge(range(1, r + 1))
+		return [edge_graph]
+	
 
 	@classmethod
 	def generate_flags(cls, n, tg, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
@@ -491,6 +498,133 @@ cdef class HypergraphFlag (Flag):
 	def generate_graphs(cls, n, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
 		return cls.generate_flags(n, cls(r=r, oriented=oriented), r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
+
+
+	@classmethod
+	def flag_orbits(cls, tg, flags):
+		"""
+		flags should be a list of flags of the type tg. Returns a list of tuples.
+		Each tuple contains the indices of the flags that are in the same orbit
+		under the action of relabelling the vertices of tg.
+		"""
+		s = tg.n
+		min_flags = []
+	
+		for fg in flags:
+			mfgs = str(fg)
+			for perm in Permutations(range(1, s + 1)):
+				permplus = perm + range(s + 1, fg.n + 1)
+				ntg = tg.copy()
+				ntg.relabel(perm)
+				nfg = fg.copy()
+				nfg.relabel(permplus)
+				nfg.make_minimal_isomorph()
+				nfgs = str(nfg)
+				if nfgs < mfgs:
+					mfgs = nfgs
+			min_flags.append(mfgs)
+	
+		orbs = []
+		for mfgs in set(min_flags):
+			orbs.append(tuple([i for i in range(len(min_flags)) if min_flags[i] == mfgs]))
+	
+		return sorted(orbs)
+
+
+	@classmethod
+	def flag_basis(cls, tg, flags, orthogonalize=True):
+		"""
+		flags should be a list of flags of the type tg. Returns a basis for the flags
+		that is a block matrix of two blocks. Uses flag orbits to create invariant-
+		anti-invariant decomposition. If orthogonalize=True, perform Gram-Schmidt
+		orthogonalization.
+		"""
+		
+		orbs = cls.flag_orbits(tg, flags)
+		
+		Inv = matrix(QQ, len(orbs), len(flags), sparse=True)
+		row = 0
+		for orb in orbs:
+			for j in orb:
+				Inv[row, j] = 1
+			row += 1
+		
+		# There might be no anti-invariant part.
+		if len(orbs) == len(flags):
+			return Inv
+		
+		AntiInv = matrix(QQ, len(flags) - len(orbs), len(flags), sparse=True)
+		row = 0
+		for orb in orbs:
+			for j in orb[1:]:
+				AntiInv[row, orb[0]] = 1
+				AntiInv[row, j] = -1
+				row += 1
+	
+		#sys.stdout.write("Invariant-anti-invariant split: %d + %d = %d\n" % (Inv.nrows(), AntiInv.nrows(),
+		#	len(flags)))
+		
+		if orthogonalize:
+		
+			# Note: the following does not preserve sparsity
+			#AntiInv, mu = AntiInv.gram_schmidt()
+		
+			AntiInvRows, mu = gram_schmidt(AntiInv.rows())
+			AntiInv = matrix(QQ, AntiInvRows, sparse=True)
+	
+		return block_matrix([[Inv],[AntiInv]])
+
+
+	def homomorphic_images(self):
+		"""
+		For an unlabelled Flag G, returns a list of Flags of order at most that of G,
+		that are homomorphic images of G. The first Flag in the list will be a copy of G.
+		
+		"""
+	
+		if self.t != 0:
+			raise ValueError
+	
+		mg = self.copy()
+		if mg.n <= 1:
+			return [mg]
+		mg.make_minimal_isomorph()
+	
+		graph_hashes = set()
+		graphs = []
+	
+		bad_pairs = set()
+		
+		for e in mg.edges:
+			bad_pairs.add((e[0], e[1]))
+			bad_pairs.add((e[0], e[2]))
+			bad_pairs.add((e[1], e[2]))
+	
+		for i in range(1, mg.n + 1):
+			for j in range(i + 1, mg.n + 1):
+				
+				if (i, j) in bad_pairs:
+					continue
+				
+				ig = mg.copy()
+				ig.identify_vertices(i, j)
+				ig.make_minimal_isomorph()
+		
+				ghash = hash(ig)
+				if not ghash in graph_hashes:
+					graph_hashes.add(ghash)
+					graphs.append(ig)
+					s_graphs = ig.homomorphic_images()
+					for sg in s_graphs:
+						sghash = hash(sg)
+						if not sghash in graph_hashes:
+							graph_hashes.add(sghash)
+							graphs.append(sg)
+	
+		if len(graphs) == 0:
+			return []
+	
+		return [self.copy()] + graphs
 
 
 	# TODO: possibly something different with degenerate graphs?
@@ -1120,6 +1254,171 @@ cdef class HypergraphFlag (Flag):
 		return [Integer(count[i]) / total for i in range(len(flags))]
 
 
+	#
+	# TODO: Make this function accept more than one type on s vertices.
+	#
+	
+	@classmethod
+	def flag_products (cls, graph_block gb, HypergraphFlag tg, graph_block flags1, graph_block flags2):
+	
+		cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
+		cdef int n, s, m1, m2, ne, i, j, k, gi
+		cdef int cnte, cnf1e, cnf2e
+		cdef int has_type, has_f1
+		cdef int f1index, f2index, *grb, equal_flags_mode, nzcount, row
+		cdef HypergraphFlag g, t, f1, f2
+		
+		rarray = numpy.zeros([0, 5], dtype=numpy.int)
+		row = 0
+		
+		sig_on()
+		
+		n = gb.n
+		s = tg.n
+		m1 = flags1.n
+	
+		if not flags2 is None:
+	
+			equal_flags_mode = 0
+			m2 = flags2.n
+			p = generate_pair_combinations(n, s, m1, m2, &np)
+	
+		else:
+	
+			equal_flags_mode = 1
+			m2 = flags1.n
+			flags2 = flags1
+			p = generate_equal_pair_combinations(n, s, m1, &np)
+	
+		cur_edges = <int *> malloc (sizeof(int) * MAX_NUMBER_OF_EDGE_INTS)
+		pf1 = <int *> malloc (sizeof(int) * m1)
+		pf2 = <int *> malloc (sizeof(int) * m2)
+		grb = <int *> malloc (flags1.len * flags2.len * sizeof(int))
+	
+		for gi in range(gb.len):
+	
+			sig_on()
+		
+			g = <HypergraphFlag> gb.graphs[gi]
+		
+			memset(grb, 0, flags1.len * flags2.len * sizeof(int))
+		
+			ne = g.ne
+			edges = g._edges
+	
+			has_type = 0
+			has_f1 = 0
+	
+			for i in range(np):
+			
+				pp = &p[(i * n)]
+			
+				if pp[0] != 0:
+			
+					for j in range(s):
+						pf1[j] = pp[j]
+						pf2[j] = pp[j]
+							
+					has_type = 0
+					t = g.c_induced_subgraph(pf1, s)
+					if tg.is_equal(t):
+						has_type = 1
+		
+				if has_type == 0:
+					continue
+				
+				if has_type and pp[s] != 0:
+		
+					has_f1 = 0
+		
+					for j in range(m1 - s):
+						pf1[s + j] = pp[s + j]
+		
+					f1 = g.c_induced_subgraph(pf1, m1)
+					f1.t = s
+					f1.make_minimal_isomorph()
+	
+					for j in range(flags1.len):
+						if f1.is_equal(<HypergraphFlag> flags1.graphs[j]):
+							has_f1 = 1
+							f1index = j
+							break
+		
+				if has_f1 == 0:
+					continue
+		
+				for j in range(m2 - s):
+					pf2[s + j] = pp[m1 + j]
+		
+				f2 = g.c_induced_subgraph(pf2, m2)
+				f2.t = s
+				f2.make_minimal_isomorph()
+				
+				for j in range(flags2.len):
+					if f2.is_equal(<HypergraphFlag> flags2.graphs[j]):
+						f2index = j
+						grb[(f1index * flags1.len) + f2index] += 1
+						break
+	
+			if equal_flags_mode:
+		
+				nzcount = 0
+				for i in range(flags1.len):
+					for j in range(i, flags1.len):
+						k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
+						if k != 0:
+							nzcount += 1
+	
+				rarray.resize([row + nzcount, 5], refcheck=False)
+				
+				for i in range(flags1.len):
+					for j in range(i, flags1.len):
+						k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
+						if k != 0:
+							rarray[row, 0] = gi
+							rarray[row, 1] = i
+							rarray[row, 2] = j
+							rarray[row, 3] = k
+							rarray[row, 4] = np * 2
+							row += 1
+	
+			else:
+		
+				nzcount = 0
+				for i in range(flags1.len):
+					for j in range(flags2.len):
+						k = grb[(i * flags1.len) + j]
+						if k != 0:
+							nzcount += 1
+	
+				rarray.resize([row + nzcount, 5], refcheck=False)
+				
+				for i in range(flags1.len):
+					for j in range(flags2.len):
+						k = grb[(i * flags1.len) + j]
+						if k != 0:
+							rarray[row, 0] = gi
+							rarray[row, 1] = i
+							rarray[row, 2] = j
+							rarray[row, 3] = k
+							rarray[row, 4] = np
+							row += 1
+	
+		free(cur_edges)
+		free(pf1)
+		free(pf2)
+		free(grb)
+	
+		sig_off()
+		
+		return rarray
+
+
+#
+# end of HypergraphFlag class definition
+#
+
+
 cdef void raw_minimize_edges(int *edges, int m, int r, bint oriented):
 
 	cdef int i, *e, round, swapped
@@ -1485,277 +1784,3 @@ def print_graph_block(graph_block gb):
 	for i in range(gb.len):
 		g = <HypergraphFlag ?> gb.graphs[i]
 		print str(g)
-
-#
-# TODO: Make this function accept more than one type on s vertices.
-#
-
-def flag_products (graph_block gb, HypergraphFlag tg, graph_block flags1, graph_block flags2):
-
-	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
-	cdef int n, s, m1, m2, ne, i, j, k, gi
-	cdef int cnte, cnf1e, cnf2e
-	cdef int has_type, has_f1
-	cdef int f1index, f2index, *grb, equal_flags_mode, nzcount, row
-	cdef HypergraphFlag g, t, f1, f2
-	
-	rarray = numpy.zeros([0, 5], dtype=numpy.int)
-	row = 0
-	
-	sig_on()
-	
-	n = gb.n
-	s = tg.n
-	m1 = flags1.n
-
-	if not flags2 is None:
-
-		equal_flags_mode = 0
-		m2 = flags2.n
-		p = generate_pair_combinations(n, s, m1, m2, &np)
-
-	else:
-
-		equal_flags_mode = 1
-		m2 = flags1.n
-		flags2 = flags1
-		p = generate_equal_pair_combinations(n, s, m1, &np)
-
-	cur_edges = <int *> malloc (sizeof(int) * MAX_NUMBER_OF_EDGE_INTS)
-	pf1 = <int *> malloc (sizeof(int) * m1)
-	pf2 = <int *> malloc (sizeof(int) * m2)
-	grb = <int *> malloc (flags1.len * flags2.len * sizeof(int))
-
-	for gi in range(gb.len):
-
-		sig_on()
-	
-		g = <HypergraphFlag> gb.graphs[gi]
-	
-		memset(grb, 0, flags1.len * flags2.len * sizeof(int))
-	
-		ne = g.ne
-		edges = g._edges
-
-		has_type = 0
-		has_f1 = 0
-
-		for i in range(np):
-		
-			pp = &p[(i * n)]
-		
-			if pp[0] != 0:
-		
-				for j in range(s):
-					pf1[j] = pp[j]
-					pf2[j] = pp[j]
-						
-				has_type = 0
-				t = g.c_induced_subgraph(pf1, s)
-				if tg.is_equal(t):
-					has_type = 1
-	
-			if has_type == 0:
-				continue
-			
-			if has_type and pp[s] != 0:
-	
-				has_f1 = 0
-	
-				for j in range(m1 - s):
-					pf1[s + j] = pp[s + j]
-	
-				f1 = g.c_induced_subgraph(pf1, m1)
-				f1.t = s
-				f1.make_minimal_isomorph()
-
-				for j in range(flags1.len):
-					if f1.is_equal(<HypergraphFlag> flags1.graphs[j]):
-						has_f1 = 1
-						f1index = j
-						break
-	
-			if has_f1 == 0:
-				continue
-	
-			for j in range(m2 - s):
-				pf2[s + j] = pp[m1 + j]
-	
-			f2 = g.c_induced_subgraph(pf2, m2)
-			f2.t = s
-			f2.make_minimal_isomorph()
-			
-			for j in range(flags2.len):
-				if f2.is_equal(<HypergraphFlag> flags2.graphs[j]):
-					f2index = j
-					grb[(f1index * flags1.len) + f2index] += 1
-					break
-
-		if equal_flags_mode:
-	
-			nzcount = 0
-			for i in range(flags1.len):
-				for j in range(i, flags1.len):
-					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
-					if k != 0:
-						nzcount += 1
-
-			rarray.resize([row + nzcount, 5], refcheck=False)
-			
-			for i in range(flags1.len):
-				for j in range(i, flags1.len):
-					k = grb[(i * flags1.len) + j] + grb[(j * flags1.len) + i]
-					if k != 0:
-						rarray[row, 0] = gi
-						rarray[row, 1] = i
-						rarray[row, 2] = j
-						rarray[row, 3] = k
-						rarray[row, 4] = np * 2
-						row += 1
-
-		else:
-	
-			nzcount = 0
-			for i in range(flags1.len):
-				for j in range(flags2.len):
-					k = grb[(i * flags1.len) + j]
-					if k != 0:
-						nzcount += 1
-
-			rarray.resize([row + nzcount, 5], refcheck=False)
-			
-			for i in range(flags1.len):
-				for j in range(flags2.len):
-					k = grb[(i * flags1.len) + j]
-					if k != 0:
-						rarray[row, 0] = gi
-						rarray[row, 1] = i
-						rarray[row, 2] = j
-						rarray[row, 3] = k
-						rarray[row, 4] = np
-						row += 1
-
-	free(cur_edges)
-	free(pf1)
-	free(pf2)
-	free(grb)
-
-	sig_off()
-	
-	return rarray
-
-
-def new_flag_products (HypergraphFlag g, int s, int m1, int m2):
-	"""
-	Experimental function - not used for anything (yet).
-	"""
-
-	cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
-	cdef int n, ne, i, j, k, gi
-	cdef int cnf1e, cnf2e
-	cdef int num_flags1, f1index, num_flags2, f2index, equal_flags_mode
-	cdef HypergraphFlag f1, f2
-	cdef void **flags1, **flags2
-
-	sig_on()
-		
-	n = g.n
-	ne = g.ne
-	edges = g._edges
-
-	num_flags1 = 0
-	flags1 = NULL
-	num_flags2 = 0
-	flags2 = NULL
-
-	if m1 == m2:
-		equal_flags_mode = 1
-		p = generate_equal_pair_combinations(n, s, m1, &np)
-
-	else:
-		equal_flags_mode = 0
-		p = generate_pair_combinations(n, s, m1, m2, &np)
-	
-	cur_edges = <int *> malloc (sizeof(int) * MAX_NUMBER_OF_EDGE_INTS)
-	pf1 = <int *> malloc (sizeof(int) * m1)
-	pf2 = <int *> malloc (sizeof(int) * m2)
-
-	for i in range(np):
-	
-		pp = &p[(i * n)]
-	
-		if pp[0] != 0:
-	
-			for j in range(s):
-				pf1[j] = pp[j]
-				pf2[j] = pp[j]
-					
-		if pp[s] != 0:
-
-			for j in range(m1 - s):
-				pf1[s + j] = pp[s + j]
-
-			f1 = g.c_induced_subgraph(pf1, m1)
-			f1.t = s
-			f1.make_minimal_isomorph()
-
-			for j in range(num_flags1):
-				if f1.is_equal(<HypergraphFlag> flags1[j]):
-					f1index = j
-					break
-			else:
-				num_flags1 += 1
-				flags1 = <void **> realloc(flags1, num_flags1 * sizeof(void *))
-				f1index = num_flags1 - 1
-				Py_INCREF(f1)
-				flags1[f1index] = <void *> f1
-
-		for j in range(m2 - s):
-			pf2[s + j] = pp[m1 + j]
-
-		f2 = g.c_induced_subgraph(pf2, m2)
-		f2.t = s
-		f2.make_minimal_isomorph()
-		
-		if equal_flags_mode:
-		
-			for j in range(num_flags1):
-				if f2.is_equal(<HypergraphFlag> flags1[j]):
-					f2index = j
-					break
-			else:
-				num_flags1 += 1
-				flags1 = <void **> realloc(flags1, num_flags1 * sizeof(void *))
-				f2index = num_flags1 - 1 
-				Py_INCREF(f2)
-				flags1[f2index] = <void *> f2
-
-		else:			
-
-			for j in range(num_flags2):
-				if f2.is_equal(<HypergraphFlag> flags2[j]):
-					f2index = j
-					break
-			else:
-				num_flags2 += 1
-				flags2 = <void **> realloc(flags2, num_flags2 * sizeof(void *))
-				f2index = num_flags2 - 1
-				Py_INCREF(f2)
-				flags2[f2index] = <void *> f2
-
-	for j in range(num_flags1):
-		Py_DECREF(<HypergraphFlag> flags1[j])
-
-	for j in range(num_flags2):
-		Py_DECREF(<HypergraphFlag> flags2[j])
-	
-	free(flags1)
-	free(flags2)
-
-	free(cur_edges)
-	free(pf1)
-	free(pf2)
-
-	sig_off()
-	
-	return

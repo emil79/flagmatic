@@ -27,19 +27,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
+from sage.rings.arith import binomial
 from hypergraph_flag cimport HypergraphFlag
 
 cdef class GraphFlag (HypergraphFlag):
 
-	def __init__(self, string_rep=None, r=3, oriented=False):
+
+	def __init__(self, string_rep=None):
 		super(GraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False)
+
+
+	@classmethod
+	def default_density_graphs(cls):
+		return [cls("2:12")]
+
+
+	@classmethod
+	def max_number_edges(cls, n):
+		return binomial(n, 2)
+
 
 	@classmethod
 	def generate_flags(cls, n, tg, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
-		return HypergraphFlag.generate_flags(n, tg, r=2, oriented=False, forbidden_edge_numbers={},
-			forbidden_graphs=[], forbidden_induced_graphs=[])
+		return HypergraphFlag.generate_flags(n, tg, r=2, oriented=False, forbidden_edge_numbers=forbidden_edge_numbers,
+			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
+
 
 	@classmethod
 	def generate_graphs(cls, n, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
-		return HypergraphFlag.generate_flags(n, cls(), r=2, oriented=False, forbidden_edge_numbers={},
-			forbidden_graphs=[], forbidden_induced_graphs=[])
+		return HypergraphFlag.generate_flags(n, cls(), r=2, oriented=False, forbidden_edge_numbers=forbidden_edge_numbers,
+			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)

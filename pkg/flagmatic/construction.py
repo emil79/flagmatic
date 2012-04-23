@@ -36,7 +36,9 @@ from sage.rings.all import Integer, QQ, polygen, RationalField
 from sage.matrix.all import matrix, identity_matrix
 from sage.misc.all import sage_eval
 
-from flag import *
+from three_graph_flag import *
+from graph_flag import *
+from oriented_graph_flag import *
 
 
 class Construction(SageObject):
@@ -116,7 +118,7 @@ class AdHocConstruction(Construction):
 		
 		if self._name == "maxs3":
 
-			if tg.is_equal(Flag("1:", 2, True)):
+			if tg == OrientedGraphFlag("1:"):
 		
 				rows = [
 					[1 - x,       0,     x],
@@ -125,14 +127,14 @@ class AdHocConstruction(Construction):
 	
 		elif self._name == "maxs4":
 
-			if tg.is_equal(Flag("2:", 2, True)):
+			if tg == OrientedGraphFlag("2:"):
 		
 				rows = [
 					[1 - x,       0, 0, 0, 0, 0,   0, 0, x],
 					[x * (1 - x), 0, 0, 0, 0, 1-x, 0, 0, x**2]
 				]
 				
-			elif tg.is_equal(Flag("2:12", 2, True)):
+			elif tg == OrientedGraphFlag("2:12"):
 
 				rows = [
 					[0, 1 - x, 0, 0, 0, 0, 0, 0, x],
@@ -143,11 +145,11 @@ class AdHocConstruction(Construction):
 
 		elif self._name == "max42":
 
-			if tg.is_equal(Flag("3:")):
+			if tg == ThreeGraphFlag("3:"):
 
 				rows = [[1, 0, 0, 0, 1, 1, 1, 0]]
 			
-			elif tg.is_equal(Flag("3:123")):
+			elif tg == ThreeGraphFlag("3:123"):
 
 				rows = [[0, 1, 1, 1, 0, 0, 0, 1]]
 

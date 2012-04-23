@@ -37,23 +37,6 @@ from sage.interfaces.gap import gap
 
 from construction import *
 from flag import *
-from flag_misc import *
-
-
-# TODO: is this out of place?
-
-def ClebschGraph():
-
-	cleb = Flag("0:",2)
-	cleb.n = 16
-	edges = [(1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 7), (2, 8), (2, 9), (2, 10),
-		(3, 7), (3, 11), (3, 12), (3, 13), (4, 8), (4, 11), (4, 14), (4,15), (5, 9),
-		(5, 12), (5, 14), (5, 16), (6, 10), (6, 13), (6, 15), (6, 16), (7, 14), (7, 15),
-		(7, 16), (8, 12), (8, 13), (8, 16), (9, 11), (9, 13), (9, 15), (10, 11), (10, 12),
-		(10, 14), (11, 16), (12, 15), (13, 14)]
-	for e in edges:
-		cleb.add_edge(e)
-	return cleb
 
 
 # TODO: add constructor that disallows 3-graphs

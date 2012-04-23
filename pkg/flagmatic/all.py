@@ -32,7 +32,7 @@ from hypergraph_flag import *
 from three_graph_flag import *
 from graph_flag import *
 from oriented_graph_flag import *
-from flag_misc import *
+#from flag_misc import *
 from problem import *
 from axioms_problem import *
 from construction import *
