@@ -711,7 +711,7 @@ class Problem(SageObject):
 				self._block_matrix_structure.append((ti, block_sizes[bi], block_offsets[bi]))
 
 
-	def write_blocks(self, f):
+	def _write_blocks(self, f):
 
 		for ti in self._active_types:
 
@@ -742,6 +742,7 @@ class Problem(SageObject):
 
 
 	# TODO: helpful error message if product densities have not been computed.
+	# TODO: add option for forcing sharps
 	
 	def write_sdp_input_file(self):
 	
@@ -801,62 +802,11 @@ class Problem(SageObject):
 			for j in range(num_densities):
 				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, num_blocks + 3, j + 1, j + 1))
 		
-			self.write_blocks(f)
+			self._write_blocks(f)
 
 
-	def write_alternate_sdp_input_file(self):
+	# TODO: report error if problem infeasible
 	
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-		num_densities = len(self._densities)
-
-		self._obj_value_factor = 1.0
-		
-		if num_densities < 1:
-			raise NotImplementedError("there must be at least one density.")
-		
-		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
-
-		self._set_block_matrix_structure()
-		num_blocks = len(self._block_matrix_structure)
-	
-		with open(self._sdp_input_filename, "w") as f:
-	
-			f.write("%d\n" % (num_graphs + num_densities * 2,))
-			f.write("%d\n" % (num_blocks + 5,))
-			
-			f.write("1 ")
-			for b in self._block_matrix_structure:
-				f.write("%d " % b[1])
-
-			f.write("-%d -%d -%d -%d\n" % (num_graphs, num_densities, num_densities, num_densities))
-			f.write("%s%s%s\n" % ("0.0 " * num_graphs, "0.0 " * num_densities, "1.0 " * num_densities))
-			f.write("0 1 1 1 1.0\n")
-	
-			for i in range(num_graphs):
-				if not (self._force_sharps and i in self._sharp_graphs):
-					f.write("%d %d %d %d 1.0\n" % (i + 1, num_blocks + 2, i + 1, i + 1))
-	
-			for i in range(num_graphs):
-				for j in range(num_densities):
-					d = self._densities[i][j]
-					if d != 0:
-						f.write("%d %d %d %d %s\n" % (i + 1, num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
-			
-			for j in range(num_densities):
-				f.write("%d 1 1 1 -1.0\n" % (num_graphs + 1 + j,))
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1 + j, num_blocks + 3, j + 1, j + 1))
-				f.write("%d %d %d %d -1.0\n" % (num_graphs + 1 + j, num_blocks + 4, j + 1, j + 1))
-		
-			for j in range(num_densities):
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, num_blocks + 3, j + 1, j + 1))
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + num_densities + 1 + j, num_blocks + 5, j + 1, j + 1))
-	
-			self.write_blocks(f)
-
-
-	# TODO: add option for forcing sharps, and report error if problem unfeasible
-
 	def run_sdp_solver(self, show_output=False, sdpa=False):
 	
 		num_graphs = len(self._graphs)

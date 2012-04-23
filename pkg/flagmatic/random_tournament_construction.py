@@ -36,7 +36,7 @@ from sage.rings.all import Integer, QQ
 from sage.matrix.all import matrix, identity_matrix
 
 from construction import *
-from flag import *
+from three_graph_flag import *
 
 
 class RandomTournamentConstruction(Construction):
@@ -50,7 +50,7 @@ class RandomTournamentConstruction(Construction):
 
 	def subgraph_densities(self, n):
 
-		tg = Flag()
+		tg = ThreeGraphFlag()
 		return self.induced_flags(n, tg, [])
 
 
@@ -133,7 +133,7 @@ class RandomTournamentConstruction(Construction):
 						edges.append((j, i))
 					c += 1
 
-			ig = Flag()
+			ig = ThreeGraphFlag()
 			ig.n = n
 			ig.t = tg.n
 			
