@@ -532,6 +532,13 @@ class Problem(SageObject):
 					M[j, :] /= sum([x**2 for x in M.row(j)])
 				self._inverse_solution_bases.append(M.T)
 
+		self._transform_sdp_Q_matrices()
+
+
+	def _transform_sdp_Q_matrices(self):
+	
+		num_types = len(self._types)
+	
 		sys.stdout.write("Transforming matrices")
 		
 		self._sdp_Qdash_matrices = []

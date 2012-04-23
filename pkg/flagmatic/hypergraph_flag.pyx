@@ -630,7 +630,7 @@ cdef class HypergraphFlag (Flag):
 	
 	def edge_density(self):
 		"""
-		Returns the edge density, i.e. the number of edges divided by binomial(n, 3),
+		Returns the edge density, i.e. the number of edges divided by binomial(n, r),
 		where n is the number of vertices.
 		"""
 		if self.is_degenerate:
