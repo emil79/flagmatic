@@ -221,6 +221,14 @@ class BlowupConstruction(Construction):
 		else:
 			return M
 
+	def raw_zero_eigenvectors(self, tg, flags):
+
+		rows = set()
+		for tv in Tuples(range(1, self._graph.n + 1), tg.n):
+			rows.add(tuple(self._graph.degenerate_flag_density(tg, flags, tv)))
+
+		return matrix(self._field, list(rows), sparse=True)
+
 
 class UnbalancedBlowupConstruction(Construction):
 
