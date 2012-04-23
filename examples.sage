@@ -109,7 +109,7 @@ def example(prob):
 		P = ThreeGraphProblem()
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
-		C = UnbalancedBlowupConstruction(ThreeGraphFlag("2:122"), weights=[1,2])
+		C = BlowupConstruction(ThreeGraphFlag("2:122"), weights=[1,2])
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -385,7 +385,7 @@ def example(prob):
 		P.forbid_subgraph((3, 3))
 		P.n = 5
 		P.set_density("5:1223344551")
-		C = SymmetricBlowupConstruction(GraphFlag("5:1223344551"))
+		C = BlowupConstruction(GraphFlag("5:1223344551"))
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
@@ -515,9 +515,9 @@ def example(prob):
 		x = polygen(QQ)
 		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
 		x = K.gen()
-		#C = UnbalancedBlowupConstruction(Flag("8:122886633447755156781122334455667788",2),
+		#C = BlowupConstruction(GraphFlag("8:122886633447755156781122334455667788"),
 		#	weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
-		C = UnbalancedBlowupConstruction(Flag("8:131416171823242526273537384546485867",2),
+		C = BlowupConstruction(GraphFlag("8:131416171823242526273537384546485867"),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
 		P.set_extremal_construction(C)
 		P.save("44")
@@ -554,7 +554,7 @@ def example(prob):
 		P.minimize = True
 		P.solve_sdp()
 		P.change_solution_bases()
-		P.make_exact()
+		P.make_exact(2^20)
 		P.check_exact_bound()
 
 
@@ -565,13 +565,13 @@ def example(prob):
 		P.n = 7
 		P.set_inactive_types(1, 2, 4, 7, 9)
 		P.set_density((6, 0))
-		C = SymmetricBlowupConstruction(ClebschGraph())
+		C = BlowupConstruction(ClebschGraph())
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.minimize = True
 		P.solve_sdp(show_output=True)
 		P.change_solution_bases()
-		P.make_exact()
+		P.make_exact(2^20)
 		P.check_exact_bound()
 
 
