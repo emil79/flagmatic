@@ -784,8 +784,13 @@ class Problem(SageObject):
 						if self._minimize:
 							d *= -1
 						f.write("%d %d %d %d %s\n" % (i + 1, num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
+
+			non_free_densities = range(num_densities)
+			if hasattr(self, "_free_densities"):
+				for j in self._free_densities:
+					non_free_densities.remove(j)
 			
-			for j in range(num_densities):
+			for j in non_free_densities:
 				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, num_blocks + 3, j + 1, j + 1))
 		
 			self._write_blocks(f)

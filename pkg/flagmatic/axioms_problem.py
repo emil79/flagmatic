@@ -41,26 +41,15 @@ class AxiomsProblem(Problem):
 	def __init__(self, flag_cls):
 	
 		Problem.__init__(self, flag_cls)
-		self._density_graphs = []
-		self.clear_axioms()
-
-
-	def _compute_densities(self):
-		pass
-		
-
-	def set_density(self, *args):	
-		pass
-
-
-	def clear_axioms(self):
-		
 		self._axioms = []
 		self._axiom_flags = []
+		
+
+	def clear_densities(self):
 		self._densities = []
 
 
-	def add_axiom(self, tg, terms):
+	def add_axiom(self, tg, terms, make_free=True):
 
 		m = self.n - max([t[0].n for t in terms]) + tg.n
 
@@ -91,10 +80,16 @@ class AxiomsProblem(Problem):
 		
 		self._axioms.append((tg, terms))
 		self._axiom_flags.append(axiom_flags)
+		
+		num_densities = len(self._densities)
 		self._densities.extend(quantum_graphs)
+		if make_free:
+			if not hasattr(self, "_free_densities"):
+				self._free_densities = []
+			self._free_densities.extend(range(num_densities, len(self._densities)))
 	
 	
-	def add_codegree_axiom(self, value):
+	def add_codegree_axiom(self, value, make_free=True):
 
 		if not self._flag_cls().r == 3:
 			raise NotImplementedError
@@ -102,12 +97,12 @@ class AxiomsProblem(Problem):
 		tg = ThreeGraphFlag("2:")
 		f1 = ThreeGraphFlag("3:123(2)")
 		f2 = ThreeGraphFlag("2:(2)")
-		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
+		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
 
 
-	def add_degree_axiom(self, value):
+	def add_degree_axiom(self, value, make_free=True):
 	
-		if self.oriented:
+		if self._flag_cls().oriented:
 			raise NotImplementedError
 	
 		if self._flag_cls().r == 3:
@@ -115,17 +110,17 @@ class AxiomsProblem(Problem):
 			tg = ThreeGraphFlag("1:")
 			f1 = ThreeGraphFlag("3:123(1)")
 			f2 = ThreeGraphFlag("1:(1)")
-			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
 
 		elif self._flag_cls().r == 2:
 
 			tg = GraphFlag("1:")
 			f1 = GraphFlag("2:12(1)")
 			f2 = GraphFlag("1:(1)")
-			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
 		
 	
-	def add_out_degree_axiom(self, value):
+	def add_out_degree_axiom(self, value, make_free=True):
 	
 		if not (self._flag_cls().r == 2 and self._flag_cls().oriented):
 			raise NotImplementedError
@@ -133,10 +128,10 @@ class AxiomsProblem(Problem):
 		tg = OrientedGraphFlag("1:")
 		f1 = OrientedGraphFlag("2:12(1)")
 		f2 = OrientedGraphFlag("1:(1)")
-		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])
+		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
 
 
-	def add_in_degree_axiom(self, value):
+	def add_in_degree_axiom(self, value, make_free=True):
 	
 		if not (self._flag_cls().r == 2 and self._flag_cls().oriented):
 			raise NotImplementedError
@@ -144,7 +139,7 @@ class AxiomsProblem(Problem):
 		tg = OrientedGraphFlag("1:")
 		f1 = OrientedGraphFlag("2:21(1)")
 		f2 = OrientedGraphFlag("1:(1)")
-		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)])	
+		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)	
 
 
 def ThreeGraphAxiomsProblem():
