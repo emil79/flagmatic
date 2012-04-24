@@ -103,6 +103,16 @@ def example(prob):
 		P.write_sdp_input_file()
 		P.run_sdp_solver()
 
+	elif prob == "c5axiom":
+
+		P = ThreeGraphAxiomsProblem()
+		P.forbid_subgraph("5:123234345451512")
+		P.n = 6
+		P.add_degree_axiom(2*3^(1/2)-3)
+		C = None
+		P.compute_products()
+		P.write_sdp_input_file()
+		P.run_sdp_solver(True)
 
 	elif prob == "f32":
 
@@ -349,7 +359,8 @@ def example(prob):
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
 		P.set_inactive_types(0, 1, 2, 4)
-		P.add_codegree_axiom(1/3)
+		P.clear_densities()
+		P.add_codegree_axiom(1/3, False)
 		C = BlowupConstruction(ThreeGraphFlag("3:112223331"))
 		P.set_extremal_construction(C)
 		P.add_sharp_graphs(25, 27, 286, 289, 304, 389, 425)
