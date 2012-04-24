@@ -55,7 +55,7 @@ setup (
 				os.path.join(SAGE_ROOT, 'devel/sage/sage/ext'),
 				os.path.join(SAGE_ROOT, 'devel/sage')],
 			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
-			extra_compile_args = ["-O3", "-Wall"]
+			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
 		Extension('flagmatic.hypergraph_flag',
 			sources=['flagmatic/hypergraph_flag.pyx'],
@@ -64,19 +64,19 @@ setup (
 				os.path.join(SAGE_ROOT, 'devel/sage/sage/ext'),
 				os.path.join(SAGE_ROOT, 'devel/sage')],
 			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
-			extra_compile_args = ["-O3", "-Wall"]
+			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
 		Extension('flagmatic.three_graph_flag',
 			sources=['flagmatic/three_graph_flag.pyx'],
-			extra_compile_args = ["-O3", "-Wall"]
+			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
 		Extension('flagmatic.graph_flag',
 			sources=['flagmatic/graph_flag.pyx'],
-			extra_compile_args = ["-O3", "-Wall"]
+			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
 		Extension('flagmatic.oriented_graph_flag',
 			sources=['flagmatic/oriented_graph_flag.pyx'],
-			extra_compile_args = ["-O3", "-Wall"]
+			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		)
 	]
 )

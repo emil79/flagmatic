@@ -34,7 +34,7 @@ import os
 import pexpect
 import sys
 
-from sage.structure.sage_object import SageObject, dumps, loads
+from sage.structure.sage_object import SageObject
 from sage.rings.all import Integer, QQ, RationalField, RDF
 from sage.matrix.all import matrix, identity_matrix, block_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
@@ -105,36 +105,15 @@ class Problem(SageObject):
 		self._solution_bases = []
 
 
-	def save(self, filename):
-
-		if filename[-5:] != ".sobj":
-			filename += ".sobj"
-
-		with open(filename, "wb") as f:
-			f.write(dumps(self.__dict__))
-
-
-	@classmethod
-	def load(cls, filename):
-
-		if filename[-5:] != ".sobj":
-			filename += ".sobj"
-		
-		obj = cls()
-		
-		with open(filename, "rb") as f:
-			d = loads(f.read())
-			obj.__dict__.update(d)
-		
-		return obj	
-
 	@property
 	def flag_cls(self):
 		return self._flag_cls
 
+
 	@property
 	def n(self):
 		return self._n
+
 
 	@n.setter
 	def n(self, n):
@@ -782,7 +761,8 @@ class Problem(SageObject):
 				f.write("%d " % b[1])
 			
 			f.write("-%d -%d\n" % (num_graphs, num_densities))
-			f.write("%s1.0\n" % ("0.0 " * num_graphs,))
+			f.write("0.0 " * num_graphs)
+			f.write("1.0\n")
 			
 			if not self._minimize:
 				f.write("0 1 1 1 -1.0\n")

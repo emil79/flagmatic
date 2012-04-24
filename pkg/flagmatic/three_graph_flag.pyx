@@ -37,6 +37,10 @@ cdef class ThreeGraphFlag (HypergraphFlag):
 		super(ThreeGraphFlag, self).__init__(string_rep=string_rep, r=3, oriented=False)
 
 
+	def __reduce__(self):
+		return (type(self), (self._repr_(),))
+
+
 	@classmethod
 	def default_density_graphs(cls):
 		return [cls("3:123")]

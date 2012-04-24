@@ -39,6 +39,10 @@ cdef class OrientedGraphFlag (HypergraphFlag):
 		super(OrientedGraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=True)
 
 
+	def __reduce__(self):
+		return (type(self), (self._repr_(),))
+
+
 	@classmethod
 	def default_density_graphs(cls):
 		return [cls("2:12")]

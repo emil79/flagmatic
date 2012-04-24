@@ -324,11 +324,12 @@ cdef class HypergraphFlag (Flag):
  	
 
 	# TODO: Handle < > (subgraph)
+	# Not sure what happens at the moment with < and >.
 	
 	def __richcmp__(HypergraphFlag self, HypergraphFlag other not None, int op):
 
 		if not (op == 2 or op == 3):
-			return False
+			return NotImplemented
 
 		g1 = self.copy()
 		g1.make_minimal_isomorph()
