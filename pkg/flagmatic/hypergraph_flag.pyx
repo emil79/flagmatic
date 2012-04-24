@@ -564,17 +564,17 @@ cdef class HypergraphFlag (Flag):
 
 	def homomorphic_images(self):
 		"""
-		For an unlabelled Flag G, returns a list of Flags of order at most that of G,
-		that are homomorphic images of G. The first Flag in the list will be a copy of G.
+		For an unlabelled flag G of order at least 1, returns a list of flags of smaller
+		(non-zero) order that are homomorphic images of G.
 		
 		"""
 	
-		if self.t != 0:
+		if self.t != 0 or self.n == 0:
 			raise ValueError
 	
 		mg = self.copy()
-		if mg.n <= 1:
-			return [mg]
+		if mg.n == 1:
+			return []
 		mg.make_minimal_isomorph()
 	
 		graph_hashes = set()
@@ -608,10 +608,7 @@ cdef class HypergraphFlag (Flag):
 							graph_hashes.add(sghash)
 							graphs.append(sg)
 	
-		if len(graphs) == 0:
-			return []
-	
-		return [self.copy()] + graphs
+		return graphs
 
 
 	# TODO: possibly something different with degenerate graphs?
