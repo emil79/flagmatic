@@ -73,6 +73,30 @@ def block_structure(M):
 	return num_blocks, div_sizes, div_offsets
 
 
+def safe_gram_schmidt(M):
+	"""
+	In Sage 4.8, .gram_schmidt() is broken for matrices over number fields. This function
+	will use the new implementation for matrices over the rationals, and the old
+	implementation in all other cases. In addition, the sparsity and subdivisions are
+	preserved.
+	"""
+
+	div = M.subdivisions()
+	BR = M.base_ring()
+
+	if BR == QQ:
+		M, mu = M.gram_schmidt()
+		# .gram_schmidt doesn't appear to preserve sparsity
+		M = matrix(QQ, M.rows(), sparse=True)
+
+	else: # .gram_schmidt is broken for number fields in 4.8 !
+		rows, mu = gram_schmidt(M.rows())
+		M = matrix(BR, rows, sparse=True)
+
+	M.subdivide(div)
+	return M
+
+
 class Problem(SageObject):
 
 
@@ -88,7 +112,7 @@ class Problem(SageObject):
 		self._density_graphs = flag_cls.default_density_graphs()
 		self._n = 0
 
-		self._field = RationalField()
+		self._field = QQ
 		self._approximate_field = RDF
 
 		self._forbidden_edge_numbers = []
@@ -98,13 +122,6 @@ class Problem(SageObject):
 		self._obj_value_factor = -1
 		self._minimize = False
 		self._force_sharps = False
-
-		# Set these to be empty, as length is tested
-		# TODO: get rid of them if not used
-
-		self._block_bases = []
-		self._flag_bases = []
-		self._solution_bases = []
 
 		self._register_progression("specify", "set")
 		
@@ -132,12 +149,16 @@ class Problem(SageObject):
 				"requires" : ["set_construction"],
 				"depends" : []
 			},
-			"compute_new_bases" : {
+			"compute_block_bases" : {
+				"requires" : ["compute_flags"],
+				"depends" : []
+			},
+			"compute_flag_bases" : {
 				"requires" : ["set_construction"],
 				"depends" : ["add_zero_eigenvectors"]
 			},
 			"transform_problem" : {
-				"requires" : ["compute_new_bases"],
+				"requires" : ["compute_flag_bases"],
 				"depends" : []
 			},
 			"compute_products" : {
@@ -157,7 +178,7 @@ class Problem(SageObject):
 				"depends" : []
 			},
 			"transform_solution" : {
-				"requires" : ["compute_new_bases", "run_sdp_solver"],
+				"requires" : ["compute_flag_bases", "run_sdp_solver"],
 				"depends" : []
 			},
 			"add_sharp_graphs" : {
@@ -198,6 +219,10 @@ class Problem(SageObject):
 
 		elif action == "ensure":
 			if self._states[cur_sn] != "set":
+				raise NotImplementedError("not ready for this yet!")
+
+		elif action == "ensure-not-no":
+			if self._states[cur_sn] == "no":
 				raise NotImplementedError("not ready for this yet!")
 
 		elif action == "query":
@@ -254,6 +279,9 @@ class Problem(SageObject):
 						
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
+		
+		self._zero_eigenvectors = [matrix(self._field, 0, len(self._flags[ti]), sparse=True)
+			for ti in range(len(self._types))]
 
 		self._active_types = range(len(self._types))
 
@@ -518,11 +546,12 @@ class Problem(SageObject):
 
 	# TODO: reinstate the per-block option?
 
-	def add_zero_eigenvectors(self, ti, M, use_new_bases=False):
+	def add_zero_eigenvectors(self, ti, M, use_bases=False):
 
 		self._register_progression("add_zero_eigenvectors", "set")
 
-		if use_new_bases:
+		if use_bases:
+			self._register_progression("compute_flag_bases", "ensure-not-no")
 			NZ = (self._flag_bases[ti].T).solve_left(M)
 		else:
 			NZ = M
@@ -549,16 +578,12 @@ class Problem(SageObject):
 
 	# TODO: handle non-rational flag bases?
 
-	def change_problem_bases(self, use_blocks=True, transform_products=True):
+	def change_problem_bases(self, use_blocks=True):
 
-		self._register_progression("compute_new_bases", "set")
-
-		self._flag_bases = self._create_new_bases(use_blocks)
+		if self._register_progression("compute_flag_bases", "query") != "set":
+			self.compute_flag_bases(use_blocks)
 
 		self._register_progression("transform_problem", "set")
-
-		if not transform_products:
-			return
 
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -599,36 +624,14 @@ class Problem(SageObject):
 			
 			self._product_densities_arrays[ti] = new_rarray
 
-
 	
-	def change_solution_bases(self, use_blocks=True, use_smaller=False):
+	def change_solution_bases(self, use_blocks=True):
 
-		self._register_progression("compute_new_bases", "set")
-
-		num_types = len(self._types)
-
-		self._solution_bases = self._create_new_bases(use_blocks)
-		self._inverse_solution_bases = []
-
-		for ti in range(num_types):
-			M = copy(self._solution_bases[ti])
-			if use_smaller:
-				self._inverse_solution_bases.append(M.T)
-				for j in range(M.nrows()):
-					M[j, :] /= sum([x**2 for x in M.row(j)])
-				self._solution_bases[ti] = M
-			else:
-				for j in range(M.nrows()):
-					M[j, :] /= sum([x**2 for x in M.row(j)])
-				self._inverse_solution_bases.append(M.T)
+		if self._register_progression("compute_flag_bases", "query") != "set":
+			self.compute_flag_bases(use_blocks)
 
 		self._register_progression("transform_solution", "set")
 
-		self._transform_sdp_Q_matrices()
-
-
-	def _transform_sdp_Q_matrices(self):
-	
 		num_types = len(self._types)
 	
 		sys.stdout.write("Transforming matrices")
@@ -637,7 +640,7 @@ class Problem(SageObject):
 
 		for ti in range(num_types):
 			
-			B = self._solution_bases[ti]
+			B = self._flag_bases[ti]
 			row_div = B.subdivisions()[0]
 			M = B * self._sdp_Q_matrices[ti] * B.T
 			M.subdivide(row_div, row_div)
@@ -651,61 +654,51 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 
 
-	def create_block_bases(self):
+	def compute_block_bases(self):
+
+		self._register_progression("compute_block_bases", "set")
 
 		self._block_bases = []
+		
 		for ti in range(len(self._types)):
+		
 			B = self._flag_cls.flag_basis(self._types[ti], self._flags[ti])
-			row_div = B.subdivisions()[0]
-			div_sizes = row_div + [len(self._flags[ti])]
-			for bi in range(1, len(div_sizes)):
-				div_sizes[bi] -= div_sizes[bi - 1]
-			sys.stdout.write("Type %d (%d flags) blocks: %s \n" % (ti, len(self._flags[ti]), div_sizes))
+			num_blocks, block_sizes, block_offsets = block_structure(B)
+			sys.stdout.write("Type %d (%d flags) blocks: %s \n" % (ti, len(self._flags[ti]), block_sizes))
 			self._block_bases.append(B)
 
 
-	def _create_new_bases(self, use_blocks=True, keep_rows=False):
+	def compute_flag_bases(self, use_blocks=True, keep_rows=False, use_smaller=False):
+
+		self._register_progression("compute_flag_bases", "set")
 
 		num_types = len(self._types)
 
-		if len(self._zero_eigenvectors) == 0:
+		if use_blocks and self._register_progression("compute_block_bases", "query") != "set":
+			self.compute_block_bases()
 
-			sys.stdout.write("No zero eigenvectors found.\n")
-			
-			if use_blocks:
-				return [self._block_bases[ti] for ti in range(num_types)]
-			else:
-				return [identity_matrix(QQ, len(self._flags[ti]), sparse=True) for ti in range(num_types)]
-
-		if use_blocks and len(self._block_bases) == 0:
-			self.create_block_bases()
-
-		new_bases = []
-
+		self._flag_bases = []
+		
 		sys.stdout.write("Creating bases")
 		sys.stdout.flush()
 
 		for ti in range(num_types):
 	
 			if use_blocks:
-			
-				row_div = self._block_bases[ti].subdivisions()[0]
-				div_sizes = row_div + [len(self._flags[ti])]
-				for bi in range(1, len(div_sizes)):
-					div_sizes[bi] -= div_sizes[bi - 1]
-			
+				num_blocks, block_sizes, block_offsets = block_structure(self._block_bases[ti])
 			else:
-		
-				div_sizes = [len(self._flags[ti])]
+				num_blocks, block_sizes, block_offsets = 1, [len(self._flags[ti])], [0]
 				
 			BS = []
 			
-			for bi in range(len(div_sizes)):	
+			for bi in range(num_blocks):	
 			
+				Z = self._zero_eigenvectors[ti]
+				
 				if use_blocks:
-					B = (self._block_bases[ti].subdivision(bi, 0) * self._zero_eigenvectors[ti].T).T
+					B = (self._block_bases[ti].subdivision(bi, 0) * Z.T).T
 				else:
-					B = self._zero_eigenvectors[ti]
+					B = Z
 				
 				B = B.echelon_form()
 
@@ -713,9 +706,9 @@ class Problem(SageObject):
 				B = B[:nzev, :]
 
 				if nzev == 0:
-					B = identity_matrix(QQ, div_sizes[bi], sparse=True)
+					B = identity_matrix(QQ, block_sizes[bi], sparse=True)
 				
-				elif nzev == div_sizes[bi]:
+				elif nzev == block_sizes[bi]:
 					pass
 					
 				else:
@@ -734,31 +727,38 @@ class Problem(SageObject):
 			
 			if M.nrows() == 0:
 				M = matrix(self._field, 0, len(self._flags[ti]), sparse=True)
-
 			else:
-				div = M.subdivisions()
-	
-				if self._field == RationalField():
-					
-					M, mu = M.gram_schmidt()
-					# .gram_schmidt doesn't appear to preserve sparsity
-					M = matrix(self._field, M.rows(), sparse=True)
-	
-				else: # .gram_schmidt is broken for number fields in 4.8 !
-					rows, mu = gram_schmidt(M.rows())
-					M = matrix(self._field, rows, sparse=True)
-				
-				M.subdivide(div)
+				M = safe_gram_schmidt(M)
 			
 			M.set_immutable()
-			new_bases.append(M)
+			self._flag_bases.append(M)
 	
 			sys.stdout.write(".")
 			sys.stdout.flush()
 
 		sys.stdout.write("\n")
 	
-		return new_bases
+		self._inverse_flag_bases = []
+
+		for ti in range(num_types):
+		
+			M = copy(self._flag_bases[ti])
+			
+			if use_smaller:
+				MT = M.T
+				MT.set_immutable()
+				self._inverse_flag_bases.append(MT)
+				for j in range(M.nrows()):
+					M[j, :] /= sum([x**2 for x in M.row(j)])
+				M.set_immutable()	
+				self._flag_bases[ti] = M
+			
+			else:
+				for j in range(M.nrows()):
+					M[j, :] /= sum([x**2 for x in M.row(j)])
+				MT = M.T
+				MT.set_immutable()	
+				self._inverse_flag_bases.append(MT)
 
 
 	def compute_products(self):
@@ -792,7 +792,7 @@ class Problem(SageObject):
 
 		for ti in self._active_types:
 
-			if len(self._flag_bases) > 0:
+			if self._register_progression("transform_problem", "query") == "set":
 				num_blocks, block_sizes, block_offsets = block_structure(self._flag_bases[ti])
 			else:
 				num_blocks, block_sizes, block_offsets = 1, [len(self._flags[ti])], [0]
@@ -1019,7 +1019,7 @@ class Problem(SageObject):
 
 		with open(self._sdp_output_filename, "r") as f:
 		
-			if len(self._flag_bases) > 0:
+			if self._register_progression("transform_problem", "query") == "set":
 
 				self._sdp_Q_matrices = [matrix(self._approximate_field,
 					self._flag_bases[ti].nrows(), self._flag_bases[ti].nrows())
@@ -1322,7 +1322,7 @@ class Problem(SageObject):
 		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
 
-		if len(self._solution_bases) == 0:
+		if self._register_progression("transform_solution", "query") != "set":
 			self._sdp_Qdash_matrices = self._sdp_Q_matrices
 
 		q_sizes = [self._sdp_Qdash_matrices[ti].nrows() for ti in range(num_types)]
@@ -1398,8 +1398,8 @@ class Problem(SageObject):
 				Ds[si][j, k] = value
 				Ds[si][k, j] = value
 
-			if len(self._solution_bases) > 0:
-				B = self._inverse_solution_bases[ti]
+			if self._register_progression("transform_solution", "query") == "set":
+				B = self._inverse_flag_bases[ti]
 				for si in range(num_sharps):
 					Ds[si] = B.T * Ds[si] * B
 
@@ -1554,9 +1554,9 @@ class Problem(SageObject):
 		
 		self._exact_Q_matrices = []
 		
-		if len(self._solution_bases) > 0:
+		if self._register_progression("transform_solution", "query") == "set":
 			for ti in range(num_types):
-				B = self._inverse_solution_bases[ti]
+				B = self._inverse_flag_bases[ti]
 				M = B * self._exact_Qdash_matrices[ti] * B.T
 				self._exact_Q_matrices.append(M)
 		else:
