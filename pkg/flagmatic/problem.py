@@ -78,6 +78,8 @@ class Problem(SageObject):
 
 	def __init__(self, flag_cls):
 	
+		self._flagmatic_version = "2.0"
+	
 		if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag]:
 			self._flag_cls = flag_cls
 		else:
@@ -104,6 +106,103 @@ class Problem(SageObject):
 		self._flag_bases = []
 		self._solution_bases = []
 
+		self._register_progression("specify", "set")
+		
+
+	def _register_progression(self, cur_sn, action):
+
+		states = {
+			"specify" : {
+				"requires" : [],
+				"depends" : []
+			},
+			"set_objective" : {
+				"requires" : [],
+				"depends" : []
+			},
+			"compute_flags" : {
+				"requires" : [],
+				"depends" : ["specify"]
+			},
+			"set_construction" : {
+				"requires" : ["compute_flags"],
+				"depends" : []
+			},
+			"add_zero_eigenvectors" : {
+				"requires" : ["set_construction"],
+				"depends" : []
+			},
+			"compute_new_bases" : {
+				"requires" : ["set_construction"],
+				"depends" : ["add_zero_eigenvectors"]
+			},
+			"transform_problem" : {
+				"requires" : ["compute_new_bases"],
+				"depends" : []
+			},
+			"compute_products" : {
+				"requires" : ["compute_flags"],
+				"depends" : []
+			},			
+			"set_active_types" : {
+				"requires" : ["compute_flags"],
+				"depends" : []
+			},
+			"write_sdp_input_file" : {
+				"requires" : ["compute_flags"],
+				"depends" : ["set_objective", "transform_problem", "set_active_types"]
+			},
+			"run_sdp_solver" : {
+				"requires" : ["write_sdp_input_file"],
+				"depends" : []
+			},
+			"transform_solution" : {
+				"requires" : ["compute_new_bases", "run_sdp_solver"],
+				"depends" : []
+			},
+			"add_sharp_graphs" : {
+				"requires" : ["set_construction"],
+				"depends" : []
+			},
+			"make_exact" : {
+				"requires" : ["run_sdp_solver"],
+				"depends" : ["transform_solution", "add_sharp_graphs"]
+			},
+			"check_exact" : {
+				"requires" : ["make_exact"],
+				"depends" : []
+			}
+		}
+
+		state_names = states.keys()
+
+		if not hasattr(self, "_states"):
+			self._states = dict((sn, "no") for sn in state_names)
+
+		if not cur_sn in state_names:
+			raise ValueError("unknown state.")
+
+		if action == "set":
+			if not all(self._states[sn] == "set" for sn in states[cur_sn]["requires"]):
+				raise NotImplementedError("not ready for this yet!")
+			self._states[cur_sn] = "set"	
+			for sn in states:
+				if cur_sn in states[sn]["depends"] and self._states[sn] == "set":
+					self._register_progression(sn, "stale")
+				
+		elif action == "stale":
+			self._states[cur_sn] = "stale"
+			for sn in states:
+				if cur_sn in states[sn]["depends"]:
+					self._register_progression(sn, "stale")
+
+		elif action == "ensure":
+			if self._states[cur_sn] != "set":
+				raise NotImplementedError("not ready for this yet!")
+
+		elif action == "query":
+			return self._states[cur_sn]
+
 
 	@property
 	def flag_cls(self):
@@ -117,6 +216,9 @@ class Problem(SageObject):
 
 	@n.setter
 	def n(self, n):
+
+		self._register_progression("compute_flags", "set")
+
 		self._n = n
 
 		sys.stdout.write("Generating graphs...\n")
@@ -231,6 +333,9 @@ class Problem(SageObject):
 
 	@maximize.setter
 	def maximize(self, value):
+
+		self._register_progression("set_objective", "set")
+	
 		if not type(value) == bool:
 			raise ValueError
 		self._minimize = not value
@@ -243,6 +348,8 @@ class Problem(SageObject):
 
 
 	def set_density(self, *args):
+
+		self._register_progression("set_objective", "set")
 
 		density_graphs = []
 		orders = []
@@ -261,7 +368,8 @@ class Problem(SageObject):
 					raise ValueError
 		
 				# Don't forbid anything - if we do, we'll have to keep list
-				# updated whenever forbidden things change
+				# updated whenever forbidden things change. Also it seems the most
+				# appropriate thing to do.
 				graphs = self._flag_cls.generate_graphs(k)
 				for g in graphs:
 					if g.ne == ne:
@@ -289,6 +397,8 @@ class Problem(SageObject):
 
 
 	def _forbid_graph(self, h, induced):
+
+		self._register_progression("specify", "set")
 
 		if type(h) == str and "." in h:
 			h = tuple(map(int, h.split(".")))
@@ -335,6 +445,8 @@ class Problem(SageObject):
 
 	def set_inactive_types(self, *args):
 	
+		self._register_progression("set_active_types", "set")
+	
 		num_types = len(self._types)
 		
 		for arg in args:
@@ -347,26 +459,15 @@ class Problem(SageObject):
 				sys.stdout.write("Warning: type %d is already inactive.\n" % ti)
 
 
-	def add_sharp_graphs(self, *args):
-	
-		num_graphs = len(self._graphs)
-	
-		for arg in args:
-			si = int(arg)
-			if not si in range(num_graphs):
-				raise ValueError
-			if not si in self._sharp_graphs:
-				self._sharp_graphs.append(si)
-			else:
-				sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
-
-
 	def set_extremal_construction(self, c):
+
+		self._register_progression("set_construction", "set")
 
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
 
+		self._construction = c
 		self._field = c.field
 
 		# Ad Hoc constructions use target_bound() instead of subgraph_densities()
@@ -388,7 +489,7 @@ class Problem(SageObject):
 			for pair in sharp_graphs:
 				g, den = pair
 				for gi in range(num_graphs):
-					if g.is_equal(self._graphs[gi]):
+					if g.is_labelled_isomorphic(self._graphs[gi]):
 						self._sharp_graphs.append(gi)
 						for j in range(num_densities):
 							target_densities[j] += self._densities[j][gi] * den
@@ -417,9 +518,11 @@ class Problem(SageObject):
 
 	# TODO: reinstate the per-block option?
 
-	def add_zero_eigenvectors(self, ti, M):
+	def add_zero_eigenvectors(self, ti, M, use_new_bases=False):
 
-		if len(self._flag_bases) > 0:
+		self._register_progression("add_zero_eigenvectors", "set")
+
+		if use_new_bases:
 			NZ = (self._flag_bases[ti].T).solve_left(M)
 		else:
 			NZ = M
@@ -429,6 +532,8 @@ class Problem(SageObject):
 
 	
 	def add_sharp_graphs(self, *args):
+	
+		self._register_progression("add_sharp_graphs", "set")
 	
 		num_graphs = len(self._graphs)
 	
@@ -446,7 +551,11 @@ class Problem(SageObject):
 
 	def change_problem_bases(self, use_blocks=True, transform_products=True):
 
+		self._register_progression("compute_new_bases", "set")
+
 		self._flag_bases = self._create_new_bases(use_blocks)
+
+		self._register_progression("transform_problem", "set")
 
 		if not transform_products:
 			return
@@ -494,6 +603,8 @@ class Problem(SageObject):
 	
 	def change_solution_bases(self, use_blocks=True, use_smaller=False):
 
+		self._register_progression("compute_new_bases", "set")
+
 		num_types = len(self._types)
 
 		self._solution_bases = self._create_new_bases(use_blocks)
@@ -510,6 +621,8 @@ class Problem(SageObject):
 				for j in range(M.nrows()):
 					M[j, :] /= sum([x**2 for x in M.row(j)])
 				self._inverse_solution_bases.append(M.T)
+
+		self._register_progression("transform_solution", "set")
 
 		self._transform_sdp_Q_matrices()
 
@@ -650,6 +763,8 @@ class Problem(SageObject):
 
 	def compute_products(self):
  	
+	 	self._register_progression("compute_products", "set")
+ 	
 	 	num_types = len(self._types)
  	
 		graph_block = make_graph_block(self._graphs, self.n)
@@ -731,6 +846,8 @@ class Problem(SageObject):
 	
 	def write_sdp_input_file(self):
 	
+		self._register_progression("write_sdp_input_file", "set")
+		
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
@@ -799,6 +916,8 @@ class Problem(SageObject):
 	# TODO: report error if problem infeasible
 	
 	def run_sdp_solver(self, show_output=False, sdpa=False):
+	
+		self._register_progression("run_sdp_solver", "set")
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -946,6 +1065,8 @@ class Problem(SageObject):
 
 	def check_floating_point_bound(self, tolerance = 0.00001, show_all=False):
 	
+		self._register_progression("run_sdp_solver", "ensure")
+	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
@@ -1026,6 +1147,9 @@ class Problem(SageObject):
 
 	def import_solution(self, directory):
 	
+		self._register_progression("write_sdp_input_file", "set")
+		self._register_progression("run_sdp_solver", "set")
+	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
@@ -1067,7 +1191,7 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			tg = self._flag_cls(flags.types[ti])
 			for tj in range(num_types):
-				if tg.is_equal(self._types[tj]):
+				if tg.is_labelled_isomorphic(self._types[tj]):
 					ttr.append(tj)
 					break
 			else:
@@ -1080,7 +1204,7 @@ class Problem(SageObject):
 				fg = self._flag_cls(flags.flags[ti][fi])
 				fg.t = tg.n
 				for fj in range(num_flags):
-					if fg.is_equal(self._flags[tj][fj]):
+					if fg.is_labelled_isomorphic(self._flags[tj][fj]):
 						ftr.append(fj)
 						break
 				else:
@@ -1131,6 +1255,8 @@ class Problem(SageObject):
 
 	def show_zero_eigenvalues(self, tolerance = 0.00001):
 	
+		self._register_progression("run_sdp_solver", "ensure")
+	
 		num_types = len(self._types)
 
 		for ti in self._active_types:
@@ -1143,12 +1269,14 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
-	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, new_basis=False):
+	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, old_basis=False):
+
+		self._register_progression("run_sdp_solver", "ensure")
 	
 		if not ti in self._active_types:
-			raise ValueError
+			raise ValueError("Type is not active.")
 
-		if new_basis:
+		if not old_basis and self._register_progression("transform_solution", "query"):
 			QM = self._sdp_Qdash_matrices[ti]
 		else:
 			QM = self._sdp_Q_matrices[ti]
@@ -1167,9 +1295,11 @@ class Problem(SageObject):
 		return block_diagonal_matrix(B)
 
 
+	# TODO: transform with _flag_bases if present.
+
 	def check_construction(self, C, tolerance = 0.00001):
 	
-		# TODO: transform with _flag_bases if present.
+		self._register_progression("run_sdp_solver", "ensure")
 		
 		for ti in self._active_types:
 			M = C.zero_eigenvectors(self._types[ti], self._flags[ti]) 
@@ -1184,6 +1314,8 @@ class Problem(SageObject):
 
 	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False,
 		use_densities=True):
+	
+		self._register_progression("make_exact", "set")
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -1288,7 +1420,6 @@ class Problem(SageObject):
 		
 		density_cols_to_use = []
 		DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
-		#DI = identity_matrix(self._field, num_sharps) * -1
 		DI = None
 		
 		sys.stdout.write("Constructing DR matrix")
@@ -1336,7 +1467,7 @@ class Problem(SageObject):
 			if new_col.is_zero():
 				continue
 			if not DI is None and (DI * new_col).is_zero():
-				sys.stdout.write("'")
+				sys.stdout.write("~")
 				sys.stdout.flush()
 				continue
 			
@@ -1396,6 +1527,8 @@ class Problem(SageObject):
 
 	def compare_eigenvalues(self, only_smallest=True):
 	
+		self._register_progression("make_exact", "ensure")
+	
 		for ti in self._active_types:
 			sys.stdout.write("Type %d:\n" % ti)
 			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Qdash_matrices[ti]))
@@ -1412,6 +1545,8 @@ class Problem(SageObject):
 	# TODO: check for negative density coefficients 
 
 	def check_exact_bound(self):
+	
+		self._register_progression("check_exact", "set")
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -1474,7 +1609,10 @@ class Problem(SageObject):
 		self._bounds = bounds
 
 
+
 	def combine_densities(self, denominator=32, larger_than=0.0):
+
+		self._register_progression("run_sdp_solver", "ensure")
 	
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
@@ -1506,9 +1644,9 @@ class Problem(SageObject):
 		return new_problem
 
 
-
-
 	def get_large_densities(self, larger_than=0.0):
+
+		self._register_progression("run_sdp_solver", "ensure")
 
 		num_densities = len(self._densities)
 
@@ -1523,6 +1661,8 @@ class Problem(SageObject):
 
 
 	def get_independent_densities(self):
+
+		self._register_progression("run_sdp_solver", "ensure")
 	
 		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
@@ -1562,6 +1702,8 @@ class Problem(SageObject):
 		sys.stdout.write("Coefficients: %s\n" % ([self._sdp_density_coeffs[j] for j in densities_to_use],))
 
 
+	# TODO: don't assume all these things exist
+	
 	def problem_with_densities(self, densities_to_use):
 	
 		if len(densities_to_use) == 0:
@@ -1586,8 +1728,10 @@ class Problem(SageObject):
 		return new_problem
 
 
+	# TODO: use self._register_progression
+
 	def diagonalize(self):
-		
+			
 		def LDLdecomposition(M):
 	
 			MS = M.parent()
