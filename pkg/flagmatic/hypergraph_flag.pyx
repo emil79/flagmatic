@@ -300,7 +300,6 @@ cdef class HypergraphFlag (Flag):
 	
 	def __hash__(self):
 		return hash(self._repr_() + str(self._r) + str(self._oriented))
-
  	
 
 	# TODO: Handle < > (subgraph)
@@ -317,14 +316,12 @@ cdef class HypergraphFlag (Flag):
 		g2.make_minimal_isomorph()
 
 		if op == 2: # ==
-			return g1.is_equal(g2)
-
-		# op == 3 !=
-		return not g1.is_equal(g2)
-
+			return g1.is_labelled_isomorphic(g2)
+		elif op == 3: # !=
+			return not g1.is_labelled_isomorphic(g2)
 
 	
-	cpdef is_equal(self, HypergraphFlag other):
+	cpdef is_labelled_isomorphic(self, HypergraphFlag other):
 	
 		cdef int i
 
@@ -641,7 +638,7 @@ cdef class HypergraphFlag (Flag):
 		for hv in Combinations(range(1, self.n + 1), h.n):
 			ig = self.induced_subgraph(hv)
 			ig.make_minimal_isomorph()
-			if minh.is_equal(ig):
+			if minh.is_labelled_isomorphic(ig):
 				found += 1
 			total += 1
 	
@@ -1192,7 +1189,7 @@ cdef class HypergraphFlag (Flag):
 		for hv in Tuples(range(1, self.n + 1), h.n):
 			ig = self.degenerate_induced_subgraph(hv)
 			ig.make_minimal_isomorph()
-			if minh.is_equal(ig):
+			if minh.is_labelled_isomorphic(ig):
 				found += 1
 			total += 1
 	
@@ -1213,7 +1210,7 @@ cdef class HypergraphFlag (Flag):
 		total = 0
 
 		it = self.degenerate_induced_subgraph(type_verts)
-		if not tg.is_equal(it):
+		if not tg.is_labelled_isomorphic(it):
 			return count
 	
 		# TODO: Work out why UnorderedTuple is slower!
@@ -1232,7 +1229,7 @@ cdef class HypergraphFlag (Flag):
 			ig.t = s
 			ig.make_minimal_isomorph()
 			for i in range(len(flags)):
-				if ig.is_equal(flags[i]):
+				if ig.is_labelled_isomorphic(flags[i]):
 					count[i] += factor
 					break
 
@@ -1308,7 +1305,7 @@ cdef class HypergraphFlag (Flag):
 							
 					has_type = 0
 					t = g.c_induced_subgraph(pf1, s)
-					if tg.is_equal(t):
+					if tg.is_labelled_isomorphic(t):
 						has_type = 1
 		
 				if has_type == 0:
@@ -1326,7 +1323,7 @@ cdef class HypergraphFlag (Flag):
 					f1.make_minimal_isomorph()
 	
 					for j in range(flags1.len):
-						if f1.is_equal(<HypergraphFlag> flags1.graphs[j]):
+						if f1.is_labelled_isomorphic(<HypergraphFlag> flags1.graphs[j]):
 							has_f1 = 1
 							f1index = j
 							break
@@ -1342,7 +1339,7 @@ cdef class HypergraphFlag (Flag):
 				f2.make_minimal_isomorph()
 				
 				for j in range(flags2.len):
-					if f2.is_equal(<HypergraphFlag> flags2.graphs[j]):
+					if f2.is_labelled_isomorphic(<HypergraphFlag> flags2.graphs[j]):
 						f2index = j
 						grb[(f1index * flags1.len) + f2index] += 1
 						break

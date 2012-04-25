@@ -136,7 +136,7 @@ class BlowupConstruction(Construction):
 		for tv in Tuples(range(1, cn + 1), s):
 
 			it = self._graph.degenerate_induced_subgraph(tv)
-			if not it.is_equal(tg):
+			if not it.is_labelled_isomorphic(tg):
 				continue
 
 			total = Integer(0)
@@ -157,7 +157,7 @@ class BlowupConstruction(Construction):
 				ig.make_minimal_isomorph()
 				
 				for j in range(len(flags)):
-					if ig.is_equal(flags[j]):
+					if ig.is_labelled_isomorphic(flags[j]):
 						row[j] += factor
 						total += factor
 						break
@@ -258,7 +258,7 @@ class BlowupConstruction(Construction):
 			for tp in Permutations(t_rep):
 
 				it = self._graph.degenerate_induced_subgraph(tp)
-				if not it.is_equal(tg):
+				if not it.is_labelled_isomorphic(tg):
 					continue
 
 				total, orb_reps = self.tuple_orbit_reps(k, prefix=tp)
@@ -272,7 +272,7 @@ class BlowupConstruction(Construction):
 					ig.make_minimal_isomorph()
 					
 					for j in range(len(flags)):
-						if ig.is_equal(flags[j]):
+						if ig.is_labelled_isomorphic(flags[j]):
 							row[j] += Integer(factor) / total
 							break
 				
