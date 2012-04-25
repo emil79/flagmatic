@@ -272,27 +272,6 @@ cdef class HypergraphFlag (Flag):
 				self.add_edge((int(s[i * 2 + 2], 16), int(s[i * 2 + 3], 16)))
 
 
-	# TODO: maintain vigilance that we have everything...
-
-	def copy(self):
-	
-		cdef int i
-		cdef HypergraphFlag ng
-		
-		ng = type(self)()
-		ng.n = self._n
-		ng.r = self._r
-		ng.oriented = self._oriented
-		ng.t = self._t
-		ng.ne = self.ne
-		ng.is_degenerate = self.is_degenerate
-
-		for i in range(self._r * self.ne):
-			ng._edges[i] = self._edges[i]
-		
-		return ng
-	
-
 	# TODO: handle > 15 vertices properly
 	# Note that hex(4) gives '0x4', and so hex(4)[-1] gives '4'.
 
@@ -305,6 +284,7 @@ cdef class HypergraphFlag (Flag):
 		if self._t > 0:
 			string_rep += "(" + hex(self._t)[-1] + ")"
 		return string_rep
+
  	
 	def _latex_(self):
 		return "\\verb|" + self._repr_() + "|"
@@ -331,9 +311,9 @@ cdef class HypergraphFlag (Flag):
 		if not (op == 2 or op == 3):
 			return NotImplemented
 
-		g1 = self.copy()
+		g1 = copy(self)
 		g1.make_minimal_isomorph()
-		g2 = other.copy()
+		g2 = copy(other)
 		g2.make_minimal_isomorph()
 
 		if op == 2: # ==
@@ -417,7 +397,7 @@ cdef class HypergraphFlag (Flag):
 			return []
 	
 		if n == s:
-			ntg = tg.copy()
+			ntg = copy(tg)
 			ntg.t = s
 			return [ntg]
 	
@@ -458,7 +438,7 @@ cdef class HypergraphFlag (Flag):
 						if any(e in nb and (e[1], e[0]) in nb for e in possible_edges):
 							continue
 							
-					ng = sg.copy()
+					ng = copy(sg)
 					ng.n = n
 					for e in nb:
 						ng.add_edge(e)
@@ -501,9 +481,9 @@ cdef class HypergraphFlag (Flag):
 			mfgs = str(fg)
 			for perm in Permutations(range(1, s + 1)):
 				permplus = perm + range(s + 1, fg.n + 1)
-				ntg = tg.copy()
+				ntg = copy(tg)
 				ntg.relabel(perm)
-				nfg = fg.copy()
+				nfg = copy(fg)
 				nfg.relabel(permplus)
 				nfg.make_minimal_isomorph()
 				nfgs = str(nfg)
@@ -572,7 +552,7 @@ cdef class HypergraphFlag (Flag):
 		if self.t != 0 or self.n == 0:
 			raise ValueError
 	
-		mg = self.copy()
+		mg = copy(self)
 		if mg.n == 1:
 			return []
 		mg.make_minimal_isomorph()
@@ -593,7 +573,7 @@ cdef class HypergraphFlag (Flag):
 				if (i, j) in bad_pairs:
 					continue
 				
-				ig = mg.copy()
+				ig = copy(mg)
 				ig.identify_vertices(i, j)
 				ig.make_minimal_isomorph()
 		
@@ -654,7 +634,7 @@ cdef class HypergraphFlag (Flag):
 				return 1 - self.edge_density()
 		
 		found, total = 0, 0
-		minh = h.copy()
+		minh = copy(h)
 		minh.t = 0
 		minh.make_minimal_isomorph()
 		
@@ -1101,7 +1081,7 @@ cdef class HypergraphFlag (Flag):
 		if x < 1 or x > self._n:
 			raise ValueError
 	
-		ng = self.copy()
+		ng = copy(self)
 		ng.n += 1
 		nv = self._n + 1
 		
@@ -1142,7 +1122,7 @@ cdef class HypergraphFlag (Flag):
 		if self._oriented and self.is_degenerate:
 			raise NotImplementedError
 		
-		cg = self.copy()
+		cg = copy(self)
 		vertices = []
 		for x in verts:
 			if not x in vertices:
@@ -1205,7 +1185,7 @@ cdef class HypergraphFlag (Flag):
 			raise NotImplementedError
 				
 		found, total = 0, 0
-		minh = h.copy()
+		minh = copy(h)
 		minh.t = 0
 		minh.make_minimal_isomorph()
 		
