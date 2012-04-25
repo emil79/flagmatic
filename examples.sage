@@ -293,10 +293,11 @@ def example(prob):
 
 	elif prob == "cod6":
 
-		P = AxiomsProblem()
+		P = ThreeGraphAxiomsProblem()
 		P.forbid_subgraph((4, 3), "6:612623634645651")
 		P.n = 6
-		P.add_codegree_axiom(1/4)
+		P.clear_densities()
+		P.add_codegree_axiom(1/4, False)
 		C = RandomTournamentConstruction()
 		P.set_extremal_construction(C)
 		P.compute_products()
@@ -474,7 +475,7 @@ def example(prob):
 		P.check_exact_bound()
 
 
-	elif prob == "34":
+	elif prob == "34old":
 
 		P = GraphProblem()
 		P.forbid_induced_subgraph((4, 0))
@@ -495,6 +496,30 @@ def example(prob):
 		P.solve_sdp()
 		P.make_exact()
 		P.check_exact_bound()
+
+
+	elif prob == "34":
+
+		P = GraphProblem()
+		P.forbid_induced_subgraph((4, 0))
+		P.n = 5
+		P.set_density((3, 3))
+		C = BlowupConstruction(GraphFlag("3:112233"))
+		P.set_extremal_construction(C)
+		P.compute_products()
+		
+		P.add_zero_eigenvectors(2, matrix(QQ, [[0, 1/3, 1/3, 1/3, 0, 0, 0, 0]]))
+		P.add_zero_eigenvectors(3, matrix(QQ,
+			[[1/3, 0, 0, 1/3, 1/3, 0, 0, 0],
+			[1/3, 0, 1/3, 0, 0, 1/3, 0, 0]]))
+		P.add_sharp_graphs(2, 3, 4, 16, 20)
+				
+		P.minimize = True
+		P.solve_sdp()
+		P.change_solution_bases()
+		P.make_exact()
+		P.check_exact_bound()
+
 
 
 	elif prob == "43":
