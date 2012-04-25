@@ -433,10 +433,10 @@ def example(prob):
 		P.change_problem_bases(transform_products=False)
 		
 		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, 1/2, 31/70],
-			[0, 1, 49/106, 7/108, -17/20]]))
-		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]))
-		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]))
-		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,3,-1,0,0],[0,1,0,0,0,0,0]]))
+			[0, 1, 49/106, 7/108, -17/20]]), use_new_bases=True)
+		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]), use_new_bases=True)
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]), use_new_bases=True)
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,3,-1,0,0],[0,1,0,0,0,0,0]]), use_new_bases=True)
 		
 		P.change_problem_bases()
 		P.add_sharp_graphs(0, 4, 11, 18, 19, 24, 27)
@@ -486,9 +486,9 @@ def example(prob):
 		P.compute_products()
 		
 		P.change_problem_bases(transform_products=False)	
-		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]))
-		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]))
-		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]))
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]), use_new_bases=True)
+		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]), use_new_bases=True)
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]), use_new_bases=True)
 		P.add_sharp_graphs(2, 3, 4, 16, 20)
 		P.change_problem_bases()
 		
