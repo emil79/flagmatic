@@ -29,11 +29,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-from sage.structure.sage_object import SageObject       
 from sage.rings.arith import factorial
 from sage.combinat.all import UnorderedTuples, Tuples, Combinations, Permutations, Compositions, Subsets
 from sage.rings.all import Integer, RationalField
-from sage.matrix.all import matrix, identity_matrix
 from sage.interfaces.gap import gap
 
 from three_graph_flag import *
