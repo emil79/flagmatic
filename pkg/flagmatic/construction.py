@@ -39,6 +39,25 @@ from graph_flag import *
 from oriented_graph_flag import *
 
 
+def matrix_of_independent_rows(field, rows, width):
+
+	M = matrix(field, rows, sparse=True)
+
+	if len(rows) == 0 or M.is_zero():
+		return matrix(field, 0, width, sparse=True)
+
+	N = M[0, :]
+	NE = N
+	for i in range(1, M.nrows()):
+		NE2 = NE.stack(M[i, :])
+		NE2.echelonize()
+		if not NE2[-1,:].is_zero():
+			NE = NE2
+			N = N.stack(M[i, :])
+
+	return N
+
+
 class Construction(SageObject):
 
 	def __init__(self):
@@ -151,11 +170,5 @@ class AdHocConstruction(Construction):
 
 				rows = [[0, 1, 1, 1, 0, 0, 0, 1]]
 
-		M = matrix(self._field, list(rows), sparse=True)
-		M = M.echelon_form()
-		M = M[:M.rank(),:]
-		
-		if M.rank() == 0:
-			return matrix(self._field, 0, len(flags), sparse=True)
-		else:
-			return M
+
+		return matrix_of_independent_rows(self._field, rows, len(flags))

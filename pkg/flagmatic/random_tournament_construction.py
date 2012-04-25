@@ -77,41 +77,7 @@ class RandomTournamentConstruction(Construction):
 						break
 			rows.add(tuple(row))
 
-		M = matrix(self._field, list(rows), sparse=True)
-		M = M.echelon_form()
-		M = M[:M.rank(),:]
-		
-		if M.rank() == 0:
-			return matrix(self._field, 0, len(flags), sparse=True)
-		else:
-			return M
-
-	
-	def raw_zero_eigenvectors(self, tg, flags):
-		
-		rows = set()
-		for p in Tuples([0, 1], binomial(tg.n, 2)):
-			edges = []
-			c = 0
-			for i in range(1, tg.n + 1):
-				for j in range(1, i):
-					if p[c] == 0:
-						edges.append((i, j))
-					else:	
-						edges.append((j, i))
-					c += 1
-			graphs = self.induced_flags(flags[0].n, tg, edges)
-			row = [0 for f in flags]
-			for pair in graphs:
-				g, den = pair
-				for i in range(len(flags)):
-					if g.is_equal(flags[i]):
-						row[i] = den
-						break
-			rows.add(tuple(row))
-	
-		return matrix(self._field, list(rows), sparse=True)
-
+		return matrix_of_independent_rows(self._field, list(rows), len(flags))
 
 
 	def induced_flags(self, n, tg, type_edges):
