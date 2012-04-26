@@ -50,8 +50,6 @@ from libc.string cimport memset
 import numpy
 cimport numpy
 
-from copy import copy
-
 from sage.rings.arith import binomial, falling_factorial
 from sage.combinat.all import Combinations, Permutations, Tuples, Subsets
 from sage.rings.all import Integer, QQ
@@ -272,18 +270,45 @@ cdef class HypergraphFlag (Flag):
 				self.add_edge((int(s[i * 2 + 2], 16), int(s[i * 2 + 3], 16)))
 
 
-	# TODO: handle > 15 vertices properly
-	# Note that hex(4) gives '0x4', and so hex(4)[-1] gives '4'.
-
 	def _repr_(self):
 
 		cdef int i
-		string_rep = hex(self._n)[-1] + ":"
+		cdef char *symbols = "0123456789abcdefghijklmnopqrstuvwxyz"
+		
+		if self._n > 35:
+			raise NotImplementedError
+		
+		string_rep = chr(symbols[self._n]) + ":"
 		for i in range(self._r * self.ne):
-			string_rep += hex(self._edges[i])[-1]
+			string_rep += chr(symbols[self._edges[i]])
 		if self._t > 0:
-			string_rep += "(" + hex(self._t)[-1] + ")"
+			string_rep += "(" + chr(symbols[self._t]) + ")"
 		return string_rep
+
+
+	cpdef __copy__(self):
+
+		# TODO: maintain vigilance that we have everything...
+
+		cdef int i
+		cdef HypergraphFlag ng
+		
+		ng = type(self)()
+		ng.n = self._n
+		ng.r = self._r
+		ng.oriented = self._oriented
+		ng.t = self._t
+		ng.ne = self.ne
+		ng.is_degenerate = self.is_degenerate
+
+		for i in range(self._r * self.ne):
+			ng._edges[i] = self._edges[i]
+		
+		return ng
+
+
+	def __deepcopy__(self):
+		return self.__copy__()
 
  	
 	def _latex_(self):
@@ -310,9 +335,9 @@ cdef class HypergraphFlag (Flag):
 		if not (op == 2 or op == 3):
 			return NotImplemented
 
-		g1 = copy(self)
+		g1 = self.__copy__()
 		g1.make_minimal_isomorph()
-		g2 = copy(other)
+		g2 = other.__copy__()
 		g2.make_minimal_isomorph()
 
 		if op == 2: # ==
@@ -394,7 +419,7 @@ cdef class HypergraphFlag (Flag):
 			return []
 	
 		if n == s:
-			ntg = copy(tg)
+			ntg = tg.__copy__()
 			ntg.t = s
 			return [ntg]
 	
@@ -435,7 +460,7 @@ cdef class HypergraphFlag (Flag):
 						if any(e in nb and (e[1], e[0]) in nb for e in possible_edges):
 							continue
 							
-					ng = copy(sg)
+					ng = sg.__copy__()
 					ng.n = n
 					for e in nb:
 						ng.add_edge(e)
@@ -478,9 +503,9 @@ cdef class HypergraphFlag (Flag):
 			mfgs = str(fg)
 			for perm in Permutations(range(1, s + 1)):
 				permplus = perm + range(s + 1, fg.n + 1)
-				ntg = copy(tg)
+				ntg = tg.__copy__()
 				ntg.relabel(perm)
-				nfg = copy(fg)
+				nfg = fg.__copy__()
 				nfg.relabel(permplus)
 				nfg.make_minimal_isomorph()
 				nfgs = str(nfg)
@@ -549,7 +574,7 @@ cdef class HypergraphFlag (Flag):
 		if self.t != 0 or self.n == 0:
 			raise ValueError
 	
-		mg = copy(self)
+		mg = self.__copy__()
 		if mg.n == 1:
 			return []
 		mg.make_minimal_isomorph()
@@ -570,7 +595,7 @@ cdef class HypergraphFlag (Flag):
 				if (i, j) in bad_pairs:
 					continue
 				
-				ig = copy(mg)
+				ig = mg.__copy__()
 				ig.identify_vertices(i, j)
 				ig.make_minimal_isomorph()
 		
@@ -631,7 +656,7 @@ cdef class HypergraphFlag (Flag):
 				return 1 - self.edge_density()
 		
 		found, total = 0, 0
-		minh = copy(h)
+		minh = h.__copy__()
 		minh.t = 0
 		minh.make_minimal_isomorph()
 		
@@ -1078,7 +1103,7 @@ cdef class HypergraphFlag (Flag):
 		if x < 1 or x > self._n:
 			raise ValueError
 	
-		ng = copy(self)
+		ng = self.__copy__()
 		ng.n += 1
 		nv = self._n + 1
 		
@@ -1119,7 +1144,7 @@ cdef class HypergraphFlag (Flag):
 		if self._oriented and self.is_degenerate:
 			raise NotImplementedError
 		
-		cg = copy(self)
+		cg = self.__copy__()
 		vertices = []
 		for x in verts:
 			if not x in vertices:
@@ -1182,7 +1207,7 @@ cdef class HypergraphFlag (Flag):
 			raise NotImplementedError
 				
 		found, total = 0, 0
-		minh = copy(h)
+		minh = h.__copy__()
 		minh.t = 0
 		minh.make_minimal_isomorph()
 		
