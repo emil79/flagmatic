@@ -30,10 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #clang c
 
 #
-# TODO: enforce number of vertices <= 7.
-#  More sanity checking.
-#
-#
+# TODO: More sanity checking.
 #
 
 include "interrupt.pxi"
@@ -43,6 +40,8 @@ include "cdefs.pxi"
 # This doesn't seem to be remembered from .pxd file
 # 35 + 42 + 7 = 84, 84 * 3 = 252
 DEF MAX_NUMBER_OF_EDGE_INTS = 256
+DEF MAX_NUMBER_OF_VERTICES = 35
+
 
 from libc.stdlib cimport malloc, calloc, realloc, free
 from libc.string cimport memset
@@ -55,6 +54,8 @@ from sage.combinat.all import Combinations, Permutations, Tuples, Subsets
 from sage.rings.all import Integer, QQ
 from sage.matrix.all import matrix, block_matrix
 from sage.modules.misc import gram_schmidt
+		
+
 
 cdef class HypergraphFlag (Flag):
 
@@ -133,10 +134,15 @@ cdef class HypergraphFlag (Flag):
 		def __get__(self):
 			return self._n
 	
+		# TODO: allow decreasing number of vertices if no bad edges will result.
+	
 		def __set__(self, value):
 
 			if value < self._n:
-				raise ValueError
+				raise ValueError("Cannot decrease the number of vertices.")
+
+			if value > MAX_NUMBER_OF_VERTICES:
+				raise ValueError("Too many vertices.")
 
 			self._n = value
 
@@ -219,55 +225,52 @@ cdef class HypergraphFlag (Flag):
 		return list(self.edges).__iter__()
 	
 	
-	# TODO: handle > 16 vertices. 
-	
 	def init_from_string(self, s):
 
-		cdef int i, t, n, ne, x
-
+		def decode_symbol(c):
+			try:
+				return "0123456789abcdefghijklmnopqrstuvwxyz".index(c)
+			except ValueError:
+				raise ValueError("String is not a representation of a flag.")
+		
 		if s[1] != ":":
-			print s
-			raise ValueError
+			raise ValueError("String is not a representation of a flag.")
 
-		n = int(s[0], 16) # read in hex
-		if n < 0:
-			raise ValueError
+		n = decode_symbol(s[0])
 		self._n = n
 		self.ne = 0
+		nei = len(s) - 2
 
 		if s[-1] == ")":
 			if s[-3] != "(":
 				raise ValueError
-			t = int(s[-2], 16)
+			t = decode_symbol(s[-2])
 			if t > n:
 				raise ValueError
-			s = s[:-3]
+			nei -= 3
 		else:
 			t = 0
+		
 		self._t = t
 
-		ne = len(s) - 2
-		
-		if ne > MAX_NUMBER_OF_EDGE_INTS:
+		if nei > MAX_NUMBER_OF_EDGE_INTS:
 			raise NotImplementedError("Too many edges.")
 		
 		if self._r == 3:
 		
-			if ne % 3 != 0:
+			if nei % 3 != 0:
 				raise ValueError
-			ne /= 3
-				
-			for i in range(ne):	 # N.B. +2 because of n: header
-				self.add_edge((int(s[i * 3 + 2], 16), int(s[i * 3 + 3], 16), int(s[i * 3 + 4], 16)))
+			
+			for i in range(2, 2 + nei, 3):
+				self.add_edge((decode_symbol(s[i]), decode_symbol(s[i + 1]), decode_symbol(s[i + 2])))
 
 		elif self._r == 2:
 		
-			if ne % 2 != 0:
+			if nei % 2 != 0:
 				raise ValueError
-			ne /= 2
-				
-			for i in range(ne):	 # N.B. +2 because of n: header
-				self.add_edge((int(s[i * 2 + 2], 16), int(s[i * 2 + 3], 16)))
+			
+			for i in range(2, 2 + nei, 2):
+				self.add_edge((decode_symbol(s[i]), decode_symbol(s[i + 1])))
 
 
 	def _repr_(self):
@@ -306,10 +309,6 @@ cdef class HypergraphFlag (Flag):
 			ng._edges[i] = self._edges[i]
 		
 		return ng
-
-
-	def __deepcopy__(self):
-		return self.__copy__()
 
  	
 	def _latex_(self):

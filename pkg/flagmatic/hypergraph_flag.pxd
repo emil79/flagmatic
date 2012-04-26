@@ -31,6 +31,7 @@ from flag cimport Flag
 
 # 35 + 42 + 7 = 84, 84 * 3 = 252
 DEF MAX_NUMBER_OF_EDGE_INTS = 256
+DEF MAX_NUMBER_OF_VERTICES = 35
 
 cdef class HypergraphFlag (Flag):
 
