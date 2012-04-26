@@ -169,6 +169,59 @@ class BlowupConstruction(Construction):
 		return matrix_of_independent_rows(self._field, rows, len(flags))
 
 
+
+	def zero_eigenvectors_with_phantom_edge(self, tg, flags, pe):
+
+		cn = self._graph.n
+		s = tg.n
+		k = flags[0].n # assume all flags the same order
+
+		rows = []
+
+		for tv in Tuples(range(1, cn + 1), s):
+
+			it = self._graph.degenerate_induced_subgraph(tv)
+			if it.ne != tg.ne - 1:
+				continue
+			extra_edges = [e for e in tg if not e in it]
+			if len(extra_edges) != 1:
+				continue
+			ee = extra_edges[0]
+			if any(tv[ee[i] - 1] != pe[i] for i in range(tg.r)):
+				continue
+			it.add_edge(ee)
+
+			total = Integer(0)
+			row = [0] * len(flags)
+		
+			for ov in UnorderedTuples(range(1, cn + 1), k - s):
+		
+				factor = factorial(k - s)
+				for i in range(1, cn + 1):
+					factor /= factorial(ov.count(i))
+
+				if self._weights:
+					for v in ov:
+						factor *= self._weights[v - 1]
+				
+				ig = self._graph.degenerate_induced_subgraph(tv + ov)
+				ig.add_edge(ee)
+				ig.t = s
+				ig.make_minimal_isomorph()
+				
+				for j in range(len(flags)):
+					if ig.is_labelled_isomorphic(flags[j]):
+						row[j] += factor
+						total += factor
+						break
+						
+			for j in range(len(flags)):
+				row[j] /= total	
+			rows.append(row)
+
+		return matrix_of_independent_rows(self._field, rows, len(flags))
+		
+
 	#
 	# "Symmetric" versions follow.
 	#
