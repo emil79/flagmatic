@@ -33,6 +33,7 @@ from sage.rings.arith import factorial
 from sage.combinat.all import UnorderedTuples, Tuples, Combinations, Permutations, Compositions, Subsets
 from sage.rings.all import Integer, RationalField
 from sage.interfaces.gap import gap
+from copy import copy
 
 from three_graph_flag import *
 from graph_flag import *
@@ -43,12 +44,12 @@ from construction import *
 class BlowupConstruction(Construction):
 
 
-	def __init__(self, g, weights=None, field=None, no_symmetry=False):
+	def __init__(self, g, weights=None, field=None, phantom_edge=None, no_symmetry=False):
 	
 		if g.oriented and g.is_degenerate:
 			raise NotImplementedError("degenerate oriented graphs not supported.")
 	
-		self._graph = g
+		self._graph = copy(g)
 
 		if weights is None:
 			self._weights = None
@@ -62,11 +63,18 @@ class BlowupConstruction(Construction):
 		else:
 			self._field = field
 
+		if not phantom_edge is None:
+			# check edge is valid; will get an Exception if not.
+			h = copy(g)
+			h.add_edge(phantom_edge)
+			self._phantom_edge = phantom_edge
+
 		# Only make use of symmetry when all the conditions are right...
 		# Should probably allow OrientedGraphFlag
 	
 		if (field is None and weights is None and g.n > 4 and not no_symmetry
-			and (type(g) is GraphFlag or type(g) is OrientedGraphFlag)):
+			and (type(g) is GraphFlag or type(g) is OrientedGraphFlag)
+			and phantom_edge is None):
 			self._use_symmetry = True
 		else:
 			self._use_symmetry = False
@@ -136,7 +144,18 @@ class BlowupConstruction(Construction):
 		for tv in Tuples(range(1, cn + 1), s):
 
 			it = self._graph.degenerate_induced_subgraph(tv)
-			if not it.is_labelled_isomorphic(tg):
+			
+			using_phantom_edge = False
+
+			if hasattr(self, "_phantom_edge") and it.ne == tg.ne - 1:
+				extra_edges = [e for e in tg if not e in it]
+				if len(extra_edges) == 1:
+					phantom_edge = extra_edges[0]
+					if all(tv[phantom_edge[i] - 1] == self._phantom_edge[i] for i in range(tg.r)):
+						it.add_edge(phantom_edge)
+						using_phantom_edge = True
+		
+			if not (using_phantom_edge or it.is_labelled_isomorphic(tg)):
 				continue
 
 			total = Integer(0)
@@ -153,6 +172,8 @@ class BlowupConstruction(Construction):
 						factor *= self._weights[v - 1]
 				
 				ig = self._graph.degenerate_induced_subgraph(tv + ov)
+				if using_phantom_edge:
+					ig.add_edge(phantom_edge)
 				ig.t = s
 				ig.make_minimal_isomorph()
 				
@@ -168,59 +189,6 @@ class BlowupConstruction(Construction):
 
 		return matrix_of_independent_rows(self._field, rows, len(flags))
 
-
-
-	def zero_eigenvectors_with_phantom_edge(self, tg, flags, pe):
-
-		cn = self._graph.n
-		s = tg.n
-		k = flags[0].n # assume all flags the same order
-
-		rows = []
-
-		for tv in Tuples(range(1, cn + 1), s):
-
-			it = self._graph.degenerate_induced_subgraph(tv)
-			if it.ne != tg.ne - 1:
-				continue
-			extra_edges = [e for e in tg if not e in it]
-			if len(extra_edges) != 1:
-				continue
-			ee = extra_edges[0]
-			if any(tv[ee[i] - 1] != pe[i] for i in range(tg.r)):
-				continue
-			it.add_edge(ee)
-
-			total = Integer(0)
-			row = [0] * len(flags)
-		
-			for ov in UnorderedTuples(range(1, cn + 1), k - s):
-		
-				factor = factorial(k - s)
-				for i in range(1, cn + 1):
-					factor /= factorial(ov.count(i))
-
-				if self._weights:
-					for v in ov:
-						factor *= self._weights[v - 1]
-				
-				ig = self._graph.degenerate_induced_subgraph(tv + ov)
-				ig.add_edge(ee)
-				ig.t = s
-				ig.make_minimal_isomorph()
-				
-				for j in range(len(flags)):
-					if ig.is_labelled_isomorphic(flags[j]):
-						row[j] += factor
-						total += factor
-						break
-						
-			for j in range(len(flags)):
-				row[j] /= total	
-			rows.append(row)
-
-		return matrix_of_independent_rows(self._field, rows, len(flags))
-		
 
 	#
 	# "Symmetric" versions follow.

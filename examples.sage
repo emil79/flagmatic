@@ -522,6 +522,24 @@ def example(prob):
 		P.check_exact_bound()
 
 
+	elif prob == "34pe":
+
+		P = GraphProblem()
+		P.forbid_induced_subgraph((4, 0))
+		P.n = 5
+		P.set_density((3, 3))
+		C = BlowupConstruction(GraphFlag("3:112233"), phantom_edge=[1,2])
+		P.set_extremal_construction(C)
+		P.compute_products()
+		
+		P.add_sharp_graphs(2, 3, 4, 16, 20)
+				
+		P.minimize = True
+		P.solve_sdp()
+		P.change_solution_bases()
+		P.make_exact()
+		P.check_exact_bound()
+
 
 	elif prob == "43":
 
@@ -606,7 +624,7 @@ def example(prob):
 		P.save("44i")
 		
 		x = polygen(QQ)
-		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
+		K = NumberField(x^3 - 2*x^2 + 2*x - 2/3, 'x', embedding=RDF(0.5))
 		x = K.gen()
 		C = BlowupConstruction(GraphFlag("8:122886633447755156781122334455667788"),
 			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)

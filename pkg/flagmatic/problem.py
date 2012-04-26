@@ -1258,13 +1258,14 @@ class Problem(SageObject):
 		sys.dont_write_bytecode = dont_write_bytecode
 
 
-	def show_zero_eigenvalues(self, tolerance = 0.00001):
+	def show_zero_eigenvalues(self, tolerance=0.00001, types=None):
 	
 		self._register_progression("run_sdp_solver", "ensure")
-	
-		num_types = len(self._types)
 
-		for ti in self._active_types:
+		if types is None:
+			types = self._active_types
+	
+		for ti in types:
 			eigvals = numpy.linalg.eigvalsh(self._sdp_Q_matrices[ti])
 			zero_eigvals = sorted([e for e in eigvals if e < tolerance])
 			if len(zero_eigvals) == 0:
@@ -1272,6 +1273,26 @@ class Problem(SageObject):
 			else:
 				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(zero_eigvals),
 					" ".join("%s" % e for e in zero_eigvals)))
+
+
+	# TODO: transform with _flag_bases if present.
+
+	def check_construction(self, C, tolerance = 0.00001, types=None):
+	
+		self._register_progression("run_sdp_solver", "ensure")
+		
+		if types is None:
+			types = self._active_types
+		
+		for ti in types:
+			M = C.zero_eigenvectors(self._types[ti], self._flags[ti]) 
+			if M.nrows() == 0:
+				sys.stdout.write("Type %d. None.\n" % ti)
+			else:
+				R = M * self._sdp_Q_matrices[ti]
+				norms = [R[i,:].norm() for i in range(R.nrows())]
+				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(norms),
+					" ".join("%s" % e for e in norms)))
 
 
 	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, use_bases=True):
@@ -1298,23 +1319,6 @@ class Problem(SageObject):
 					M = M.stack(matrix(numpy.matrix(T[:, ei])))
 			B.append(M)
 		return block_diagonal_matrix(B)
-
-
-	# TODO: transform with _flag_bases if present.
-
-	def check_construction(self, C, tolerance = 0.00001):
-	
-		self._register_progression("run_sdp_solver", "ensure")
-		
-		for ti in self._active_types:
-			M = C.zero_eigenvectors(self._types[ti], self._flags[ti]) 
-			if M.nrows() == 0:
-				sys.stdout.write("Type %d. None.\n" % ti)
-			else:
-				R = M * self._sdp_Q_matrices[ti]
-				norms = [R[i,:].norm() for i in range(R.nrows())]
-				sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(norms),
-					" ".join("%s" % e for e in norms)))
 
 
 	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False,
