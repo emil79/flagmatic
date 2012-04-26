@@ -82,7 +82,7 @@ def example(prob):
 	
 	elif prob == "ff83":
 	
-		P = Problem(ThreeGraphFlag)
+		P = ThreeGraphProblem()
 		P.forbid_subgraph("5:123124345")
 		P.n = 6
 		C = BlowupConstruction(ThreeGraphFlag("3:123"))
@@ -430,15 +430,16 @@ def example(prob):
 		P.set_extremal_construction(C)
 		P.compute_products()
 		
-		P.change_problem_bases(transform_products=False)
+		P.compute_flag_bases()
 		
 		P.add_zero_eigenvectors(0, matrix(QQ,[[1, 0, 0, 1/2, 31/70],
-			[0, 1, 49/106, 7/108, -17/20]]), use_new_bases=True)
-		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]), use_new_bases=True)
-		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]), use_new_bases=True)
-		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,3,-1,0,0],[0,1,0,0,0,0,0]]), use_new_bases=True)
+			[0, 1, 49/106, 7/108, -17/20]]), use_bases=True)
+		P.add_zero_eigenvectors(1, matrix(QQ,[[1,0,0,0,0,0,0,0],[0,0,0,1,0,0,0,0]]), use_bases=True)
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0,0,-5,0,8,0,0],[0,0,10,8,0,0,0]]), use_bases=True)
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0,0,0,3,-1,0,0],[0,1,0,0,0,0,0]]), use_bases=True)
 		
 		P.change_problem_bases()
+		
 		P.add_sharp_graphs(0, 4, 11, 18, 19, 24, 27)
 		
 		P.solve_sdp()
@@ -484,11 +485,11 @@ def example(prob):
 		C = BlowupConstruction(GraphFlag("3:112233"))
 		P.set_extremal_construction(C)
 		P.compute_products()
-		
-		P.change_problem_bases(transform_products=False)	
-		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]), use_new_bases=True)
-		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]), use_new_bases=True)
-		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]), use_new_bases=True)
+		P.compute_flag_bases()
+
+		P.add_zero_eigenvectors(2, matrix(QQ,[[0, 2, 1, 0, 0, 0, 0]]), use_bases=True)
+		P.add_zero_eigenvectors(3, matrix(QQ,[[1, 0, 1, 1, 0, 0, 0, 0]]), use_bases=True)
+		P.add_zero_eigenvectors(3, matrix(QQ,[[0, 0, 0, 0, 0, 0, 1, -1]]), use_bases=True)
 		P.add_sharp_graphs(2, 3, 4, 16, 20)
 		P.change_problem_bases()
 		

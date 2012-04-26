@@ -1208,8 +1208,8 @@ class Problem(SageObject):
 						ftr.append(fj)
 						break
 				else:
-					print ti
-					print ftr
+					#print ti
+					#print ftr
 					raise ValueError
 					
 			ftrs.append(ftr)
@@ -1269,14 +1269,14 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in zero_eigvals)))
 
 
-	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, old_basis=False):
+	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, use_bases=True):
 
 		self._register_progression("run_sdp_solver", "ensure")
 	
 		if not ti in self._active_types:
 			raise ValueError("Type is not active.")
 
-		if not old_basis and self._register_progression("transform_solution", "query"):
+		if use_bases and self._register_progression("transform_solution", "query"):
 			QM = self._sdp_Qdash_matrices[ti]
 		else:
 			QM = self._sdp_Q_matrices[ti]
