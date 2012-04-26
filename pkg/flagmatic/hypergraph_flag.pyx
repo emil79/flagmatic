@@ -680,14 +680,31 @@ cdef class HypergraphFlag (Flag):
 		if self.oriented:
 			raise NotImplementedError("Cannot take complements of oriented graphs.")
 		
+		if self.is_degenerate:
+			raise NotImplementedError
+		
 		h = type(self)()
 		h.n = self.n
+		h.t = self.t
 		edges = [tuple(sorted(e)) for e in self]
 		for e in Subsets(range(1, self.n + 1), self.r):
 			if not tuple(sorted(e)) in edges:
 				h.add_edge(e)
 		
 		if minimal:
+			if h.t > 0:
+				tg = h.induced_subgraph(range(1, h.t + 1))
+				mintgs = str(tg)
+				minh = h
+				for perm in Permutations(range(1, h.t + 1)):
+					ntg = tg.__copy__()
+					ntg.relabel(perm)
+					ntgs = str(ntg)
+					if ntgs < mintgs:
+						mintgs = ntgs
+						minh = h.__copy__()
+						minh.relabel(perm + range(h.t + 1, h.n + 1))
+				h = minh		
 			h.make_minimal_isomorph()
 		
 		return h

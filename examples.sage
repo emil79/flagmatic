@@ -540,6 +540,23 @@ def example(prob):
 		P.check_exact_bound()
 
 
+	elif prob == "43i":
+
+
+		P = GraphProblem()
+		P.forbid_induced_subgraph((3, 0))
+		P.n = 6
+		P.set_density((4, 6))
+		C = BlowupConstruction(GraphFlag("5:12233445511122334455"))
+		P.set_extremal_construction(C)
+		P.compute_products()
+		P.minimize=True
+		P.import_solution("/Users/emil/Projects/flagmatic-1.5-mac64/tmp", complement=True)
+		P.change_solution_bases()
+		P.make_exact()
+		P.check_exact_bound()
+
+
 	elif prob == "44":
 
 		P = GraphProblem()
@@ -577,6 +594,34 @@ def example(prob):
 		#P.make_exact(1024*1024)
 
 
+
+	elif prob == "44i":
+
+		P = GraphProblem()
+		P.forbid_induced_subgraph((4, 0))
+		P.n = 8
+		P.set_inactive_types(110, 132) # these types have a full set of zero eigenvectors
+		P.set_density((4, 6))
+		P.minimize = True
+		P.save("44i")
+		
+		x = polygen(QQ)
+		K = NumberField(x**3 - 2*x**2 + 2*x - Integer(2)/3, 'x', embedding=RDF(0.5))
+		x = K.gen()
+		C = BlowupConstruction(GraphFlag("8:122886633447755156781122334455667788"),
+			weights=[x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4], field=K)
+		
+		P.set_extremal_construction(C)
+		P.save("44i")
+		P.compute_products()
+
+		P.save("44i")
+		P._approximate_field = RealField(113)
+		P.import_solution("/Users/emil/Projects/flagmatic/oleg/44", complement=True)
+		P.save("44i")
+		P.check_floating_point_bound(tolerance=1e-9)
+		P.save("44i")
+		
 
 	elif prob == "53":
 

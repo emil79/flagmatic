@@ -1145,7 +1145,7 @@ class Problem(SageObject):
 
 
 
-	def import_solution(self, directory):
+	def import_solution(self, directory, complement=False):
 	
 		self._register_progression("write_sdp_input_file", "set")
 		self._register_progression("run_sdp_solver", "set")
@@ -1190,6 +1190,8 @@ class Problem(SageObject):
 	
 		for ti in range(num_types):
 			tg = self._flag_cls(flags.types[ti])
+			if complement:
+				tg = tg.complement(True)
 			for tj in range(num_types):
 				if tg.is_labelled_isomorphic(self._types[tj]):
 					ttr.append(tj)
@@ -1203,6 +1205,8 @@ class Problem(SageObject):
 			for fi in range(num_flags):
 				fg = self._flag_cls(flags.flags[ti][fi])
 				fg.t = tg.n
+				if complement:
+					fg = fg.complement(True)
 				for fj in range(num_flags):
 					if fg.is_labelled_isomorphic(self._flags[tj][fj]):
 						ftr.append(fj)
@@ -1237,10 +1241,11 @@ class Problem(SageObject):
 			ti = int(numbers[1]) - 2
 			if ti >= 0 and ti < num_types:
 				tj = ttr[ti]
-				j = ftrs[ti][int(numbers[2]) - 1]
-				k = ftrs[ti][int(numbers[3]) - 1]
-				self._sdp_Q_matrices[tj][j, k] = numbers[4]
-				self._sdp_Q_matrices[tj][k, j] = self._sdp_Q_matrices[tj][j, k]
+				if tj in self._active_types:
+					j = ftrs[ti][int(numbers[2]) - 1]
+					k = ftrs[ti][int(numbers[3]) - 1]
+					self._sdp_Q_matrices[tj][j, k] = numbers[4]
+					self._sdp_Q_matrices[tj][k, j] = self._sdp_Q_matrices[tj][j, k]
 
 		f.close()
 
