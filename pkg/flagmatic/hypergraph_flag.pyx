@@ -286,9 +286,10 @@ cdef class HypergraphFlag (Flag):
 		return string_rep
 
 
-	cpdef __copy__(self):
+	# This is used by copy(). Causes SIGSEGV if it is a cpdef.
+	# TODO: maintain vigilance that we have everything...
 
-		# TODO: maintain vigilance that we have everything...
+	def __copy__(self):
 
 		cdef int i
 		cdef HypergraphFlag ng

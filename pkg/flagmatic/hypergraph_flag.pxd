@@ -41,7 +41,6 @@ cdef class HypergraphFlag (Flag):
 	cdef readonly bint is_degenerate
 	cdef readonly int ne
 	cdef int _edges[MAX_NUMBER_OF_EDGE_INTS]
-	cpdef __copy__(self)
 	cpdef is_labelled_isomorphic(self, HypergraphFlag other)
 	cdef HypergraphFlag c_induced_subgraph(self, int *verts, int num_verts)
 	cdef int c_has_subgraph (self, HypergraphFlag h)

@@ -411,7 +411,7 @@ class Problem(SageObject):
 			if type(h) != self._flag_cls:
 				raise ValueError
 
-			density_graphs.append(h)
+			density_graphs.append(copy(h))
 			orders.append(h.n)
 		
 		if len(density_graphs) == 0:
@@ -452,9 +452,9 @@ class Problem(SageObject):
 			raise ValueError
 
 		if induced:
-			self._forbidden_induced_graphs.append(h)		
+			self._forbidden_induced_graphs.append(copy(h))
 		else:
-			self._forbidden_graphs.append(h)
+			self._forbidden_graphs.append(copy(h))
 
 
 	# TODO: allow lists
