@@ -1063,7 +1063,7 @@ class Problem(SageObject):
 			self._sdp_Q_matrices[ti].set_immutable()
 
 
-	def check_floating_point_bound(self, tolerance = 0.00001, show_all=False):
+	def check_floating_point_bound(self, tolerance = 0.00001, show_sorted=False, show_all=False):
 	
 		self._register_progression("run_sdp_solver", "ensure")
 	
@@ -1101,17 +1101,26 @@ class Problem(SageObject):
 				
 		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
 
-		if show_all:
+		if show_sorted or show_all:
 		
-			sorted_indices = sorted(range(num_graphs), key = lambda i : fbounds[i])
+			if not self._minimize:
+				sorted_indices = sorted(range(num_graphs), key = lambda i : -fbounds[i])
+			else:
+				sorted_indices = sorted(range(num_graphs), key = lambda i : fbounds[i])
 
 			for gi in sorted_indices:
-				sys.stdout.write("%s : graph %d (%s) " % (fbounds[gi], gi, self._graphs[gi]))
-				if gi in self._sharp_graphs:
-					sys.stdout.write("S")
 				if gi in apparently_sharp_graphs:
-					sys.stdout.write("*")
-				sys.stdout.write("\n")	
+					sys.stdout.write("S")
+				elif not show_all:
+					break
+				else:
+					sys.stdout.write(" ")
+				if gi in self._sharp_graphs:
+					sys.stdout.write("C")
+				else:
+					sys.stdout.write(" ")
+				sys.stdout.write(" %s : graph %d (%s) " % (fbounds[gi], gi, self._graphs[gi]))
+				sys.stdout.write("\n")
 
 		else:
 	
