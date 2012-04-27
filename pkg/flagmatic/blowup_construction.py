@@ -116,6 +116,7 @@ class BlowupConstruction(Construction):
 					factor *= self._weights[v - 1]
 			
 			ig = self._graph.degenerate_induced_subgraph(P)
+			igc = copy(ig) # copy for phantom edge
 			ig.make_minimal_isomorph()
 			
 			ghash = hash(ig)
@@ -126,6 +127,17 @@ class BlowupConstruction(Construction):
 				sharp_graph_counts[ghash] = factor
 
 			total += factor
+		
+			if hasattr(self, "_phantom_edge") and all(x in P for x in self._phantom_edge):
+				phantom_edge = [P.index(x) + 1 for x in self._phantom_edge]
+				igc.add_edge(phantom_edge)
+				igc.make_minimal_isomorph()
+
+				ghash = hash(igc)
+				if not ghash in sharp_graph_counts:
+					sharp_graphs.append(igc)
+					sharp_graph_counts[ghash] = Integer(0)
+				
 		
 		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
 
