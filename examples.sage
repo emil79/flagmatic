@@ -371,20 +371,17 @@ def example(prob):
 		P.make_exact(2^20)
 		P.check_exact_bound()
 
-	# Get more zevs for type 4 (ok for other types)
+
 	elif prob == "marchantpe":
 	
 		P = ThreeGraphAxiomsProblem()
 		P.forbid_subgraph("5:123124125345")
 		P.n = 6
-		#P.set_inactive_types(0, 1, 2)
 		P.clear_densities()
 		P.add_codegree_axiom(1/3, False)
 		C = BlowupConstruction(ThreeGraphFlag("3:112223331"), phantom_edge=[1,2,3])
 		P.set_extremal_construction(C)
-		#P.add_sharp_graphs(25, 27, 286, 289, 304, 389, 425)
 		P.compute_products()
-		#P.solve_sdp(sdpa="dd", tolerance=1e-10)
 		P.solve_sdp()
 		P.change_solution_bases()
 		P.make_exact(2^20)
