@@ -376,12 +376,12 @@ def example(prob):
 		P.n = 6
 		C = None
 		P.clear_densities()
-		P.add_degree_axiom(5616/10000, False)
-		P.add_codegree_axiom(1/3, True)
+		P.add_codegree_axiom(529/1000, False)  # .528 .529
 		P.compute_products()
 		P.solve_sdp(True)
-		#P.make_exact(denominator=2^60, cholesky="all")
-		#P.check_exact_bound()
+		P.make_exact(denominator=2^60, cholesky="all")
+		P.check_exact_bound()
+		print max(P._bounds).n()
 
 
 	elif prob == "marchant":
