@@ -70,7 +70,7 @@ class RandomTournamentConstruction(Construction):
 			for pair in graphs:
 				g, den = pair
 				for i in range(len(flags)):
-					if g.is_equal(flags[i]):
+					if g.is_labelled_isomorphic(flags[i]):
 						row[i] = den
 						break
 			rows.add(tuple(row))
@@ -112,7 +112,7 @@ class RandomTournamentConstruction(Construction):
 						ig.add_edge(s)
 			
 			it = ig.induced_subgraph(range(1, tg.n + 1))
-			if tg.is_equal(it):
+			if tg.is_labelled_isomorphic(it):
 				ig.make_minimal_isomorph()
 				
 				ghash = hash(ig)

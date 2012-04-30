@@ -915,14 +915,15 @@ class Problem(SageObject):
 
 	# TODO: report error if problem infeasible
 	
-	def run_sdp_solver(self, show_output=False, sdpa=False):
+	def run_sdp_solver(self, show_output=False, sdpa=False, output_file=None):
 	
 		self._register_progression("run_sdp_solver", "set")
 	
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-		num_densities = len(self._densities)
-
+		if not output_file is None:
+			self._sdp_output_filename = output_file
+			self._read_sdp_output_file()
+			return
+	
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 
 		if not sdpa:
@@ -1016,6 +1017,15 @@ class Problem(SageObject):
 						
 						if col > 1: # at least one number found...
 							row += 1
+
+		self._read_sdp_output_file()
+
+
+	def _read_sdp_output_file(self):
+
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._densities)
 
 		with open(self._sdp_output_filename, "r") as f:
 		
@@ -1148,7 +1158,7 @@ class Problem(SageObject):
 
 
 
-	def solve_sdp(self, show_output=False, sdpa=False, tolerance=0.00001, show_all=False):
+	def solve_sdp(self, show_output=False, sdpa=False, tolerance=0.00001, show_all=False, output_file=None):
 		"""
 		Creates and solves the semi-definite program corresponding to the problem.
 		
@@ -1158,7 +1168,7 @@ class Problem(SageObject):
 		"""
 	
 		self.write_sdp_input_file()
-		self.run_sdp_solver(show_output=show_output, sdpa=sdpa)
+		self.run_sdp_solver(show_output=show_output, sdpa=sdpa, output_file=output_file)
 		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
 
 
@@ -1653,125 +1663,6 @@ class Problem(SageObject):
 			sys.stdout.write("Bound violated by:")
 			for gi in violators:
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
-
-
-
-	def combine_densities(self, denominator=32, larger_than=0.0):
-
-		self._register_progression("run_sdp_solver", "ensure")
-	
-		num_graphs = len(self._graphs)
-		num_densities = len(self._densities)
-	
-		def rationalize (f):
-			return Integer(round(f * denominator)) / denominator
-	
-		new_density_weights = [rationalize(n) for n in self._sdp_density_coeffs]
-	
-		for j in range(num_densities):
-			if self._sdp_density_coeffs[j] < larger_than:
-				new_density_weights[j] = Integer(0)
-	
-		print new_density_weights
-	
-		new_density = [Integer(0) for i in range(num_graphs)]
-		for i in range(num_graphs):
-			for j in range(num_densities):
-				new_density[i] += self._densities[j][i] * new_density_weights[j]
-				
-		new_problem = copy(self)
-		new_problem._sdp_Q_matrices = []
-		new_problem._exact_Q_matrices = []
-		new_problem._sdp_density_coeffs = []
-		new_problem._exact_density_coeffs = []
-		new_problem._bounds = []
-		new_problem._densities = [new_density]
-
-		return new_problem
-
-
-	def get_large_densities(self, larger_than=0.0):
-
-		self._register_progression("run_sdp_solver", "ensure")
-
-		num_densities = len(self._densities)
-
-		densities_to_use = []
-		for j in range(num_densities):
-			if self._sdp_density_coeffs[j] > larger_than:
-				densities_to_use.append(j)
-
-		sys.stdout.write("Densities: %s\n" % (densities_to_use,))
-
-		sys.stdout.write("Coefficients: %s\n" % ([self._sdp_density_coeffs[j] for j in densities_to_use],))
-
-
-	def get_independent_densities(self):
-
-		self._register_progression("run_sdp_solver", "ensure")
-	
-		num_sharps = len(self._sharp_graphs)
-		num_densities = len(self._densities)
-	
-		densities_to_use = []
-		
-		if len(self._sdp_density_coeffs) > 0:
-			density_indices = sorted(range(num_densities), key = lambda i : -self._sdp_density_coeffs[i])
-		else:
-			density_indices = range(num_densities)
-		
-		DR = matrix(self._field, 0, num_sharps, sparse=True)
-		EDR = matrix(self._field, 0, num_sharps, sparse=True)
-				
-		sys.stdout.write("Constructing DR matrix")
-		
-		for j in density_indices:
-			new_row = matrix(QQ, [[self._densities[j][gi] for gi in self._sharp_graphs]], sparse=True)
-			if new_row.is_zero():
-				continue
-			try:
-				X = EDR.solve_left(new_row)
-				continue
-			except ValueError:
-				DR = DR.stack(new_row)
-				EDR = EDR.stack(new_row)
-				EDR.echelonize()
-				densities_to_use.append(j)
-				sys.stdout.write(".")
-				sys.stdout.flush()
-			
-		sys.stdout.write("\n")
-		sys.stdout.write("Rank is %d.\n" % DR.nrows())
-
-		sys.stdout.write("Densities: %s\n" % (densities_to_use,))
-
-		sys.stdout.write("Coefficients: %s\n" % ([self._sdp_density_coeffs[j] for j in densities_to_use],))
-
-
-	# TODO: don't assume all these things exist
-	
-	def problem_with_densities(self, densities_to_use):
-	
-		if len(densities_to_use) == 0:
-			raise ValueError
-	
-		num_densities = len(self._densities)
-
-		new_densities = []
-		for j in densities_to_use:
-			new_densities.append(self._densities[j])
-		
-		new_problem = copy(self)
-		new_problem._sdp_Q_matrices = []
-		new_problem._sdp_Qdash_matrices = []
-		new_problem._exact_Q_matrices = []
-		new_problem._exact_Qdash_matrices = []
-		new_problem._sdp_density_coeffs = []
-		new_problem._exact_density_coeffs = []
-		new_problem._bounds = []
-		new_problem._densities = new_densities
-
-		return new_problem
 
 
 	# TODO: use self._register_progression
