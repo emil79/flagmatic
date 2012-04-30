@@ -355,6 +355,23 @@ def example(prob):
 		#P.check_exact_bound()
 
 
+	elif prob == "gammak4-":
+	
+		Q = ThreeGraphAxiomsProblem()
+		Q.forbid_subgraph((4, 3))
+		Q.n = 7
+		Q.set_inactive_types(3, 4)
+		Q.clear_densities()
+		Q.add_codegree_axiom(1/4, False)
+		C = RandomTournamentConstruction()
+		Q.set_extremal_construction(C)
+		Q.compute_products()
+		P = Q.new_problem_with_densities([0, 4, 5, 6, 9, 16, 30, 56, 65, 66, 81, 89, 90, 91, 227, 511, 878, 889, 1201])
+		P._approximate_field = RealField(113)
+		P.solve_sdp(output_file="gammak4-19.out")		
+		P.make_exact(denominator=2^60)
+		P.check_exact_bound()
+
 	elif prob == "k4degree":
 	
 		P = ThreeGraphAxiomsProblem()
@@ -376,12 +393,15 @@ def example(prob):
 		P.n = 6
 		C = None
 		P.clear_densities()
-		P.add_codegree_axiom(529/1000, False)  # .528 .529
+		P.add_codegree_axiom(52866/100000, False)  # 0.52865 ... 0.52866
 		P.compute_products()
 		P.solve_sdp(True)
 		P.make_exact(denominator=2^60, cholesky="all")
 		P.check_exact_bound()
 		print max(P._bounds).n()
+
+
+
 
 
 	elif prob == "marchant":
@@ -422,18 +442,19 @@ def example(prob):
 	
 		P = ThreeGraphAxiomsProblem()
 		P.forbid_subgraph((4, 4))
-		P.n = 6
-		P.add_codegree_axiom(1/2)
 		C = RandomTournamentConstruction(True)
+		P.n = 6
+		P._graphs = [f[0] for f in C.subgraph_densities(6)]
+		P._compute_densities()
+		P.clear_densities()
+		P.add_codegree_axiom(1/2, False)
 		P.set_extremal_construction(C)
 		P.compute_products()
-		P.write_sdp_input_file()
-		P.run_sdp_solver(True)
-
-		#P.check_floating_point_bound()
+		P.solve_sdp()
 		#P.change_solution_bases()
 		#P.make_exact(2^20)
 		#P.check_exact_bound()
+
 
 
 	elif prob == "grzesik":
