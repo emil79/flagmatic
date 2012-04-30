@@ -100,8 +100,9 @@ def example(prob):
 		P.n = 6
 		C = None
 		P.compute_products()
-		P.write_sdp_input_file()
-		P.run_sdp_solver()
+		P.solve_sdp()
+		P.make_exact(denominator=2^30, cholesky="all")
+		P.check_exact_bound()
 
 	elif prob == "c5axiom":
 
@@ -351,6 +352,35 @@ def example(prob):
 		P.check_floating_point_bound()
 		P.save("k4-cod")
 		#P.make_exact(1024*1024)
+		#P.check_exact_bound()
+
+
+	elif prob == "k4degree":
+	
+		P = ThreeGraphAxiomsProblem()
+		P.forbid_subgraph((4, 4))
+		P.n = 6
+		C = None
+		P.clear_densities()
+		P.add_degree_axiom(5616493/10000000, False)
+		P.compute_products()
+		P.solve_sdp(True)
+		P.make_exact(denominator=2^60, cholesky="all")
+		P.check_exact_bound()
+
+
+	elif prob == "k4exp":
+	
+		P = ThreeGraphAxiomsProblem()
+		P.forbid_subgraph((4, 4))
+		P.n = 6
+		C = None
+		P.clear_densities()
+		P.add_degree_axiom(5616/10000, False)
+		P.add_codegree_axiom(1/3, True)
+		P.compute_products()
+		P.solve_sdp(True)
+		#P.make_exact(denominator=2^60, cholesky="all")
 		#P.check_exact_bound()
 
 

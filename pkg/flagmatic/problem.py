@@ -1092,12 +1092,18 @@ class Problem(SageObject):
 		else:
 			bound = min(fbounds)
 		
-		if not self._target_bound is None:
+		self._sdp_bounds = fbounds
+
+		if self._register_progression("set_construction", "query") == "set":
+
 			if abs(bound - self._approximate_field(self._target_bound)) < tolerance:
 				sys.stdout.write("Bound of %s appears to have been met.\n" % self._target_bound)
 			else:
 				sys.stdout.write("Warning: bound of %s appears to have not been met.\n" % self._target_bound)
 				return
+			sharp_graphs = self._sharp_graphs
+		else:
+			sharp_graphs = [] # set dummy sharp_graphs
 				
 		apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
 
@@ -1127,6 +1133,9 @@ class Problem(SageObject):
 			sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
 			for gi in apparently_sharp_graphs:
 				sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
+		
+		if self._register_progression("set_construction", "query") != "set":
+			return
 			
 		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
 		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
@@ -1337,8 +1346,17 @@ class Problem(SageObject):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
-		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
+
+		if cholesky == "all":
+			cholesky = self._active_types
+
+		if self._register_progression("set_construction", "query") != "set":
+			if not all(ti in cholesky for ti in self._active_types):
+				raise NotImplementedError("If construction is not set, then cholesky must be used.")
+			num_sharps = 0
+		else:
+			num_sharps = len(self._sharp_graphs)
 
 		if self._register_progression("transform_solution", "query") != "set":
 			self._sdp_Qdash_matrices = self._sdp_Q_matrices
@@ -1386,7 +1404,14 @@ class Problem(SageObject):
 			self._exact_density_coeffs = [Integer(1)]
 		else:
 			self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
-			
+		
+		if self._register_progression("set_construction", "query") != "set":
+		
+			for ti in range(num_types):
+				self._exact_Qdash_matrices[ti].set_immutable()
+			return
+		
+		
 		triples = [(ti, j, k) for ti in self._active_types for j in range(q_sizes[ti])
 			for k in range(j, q_sizes[ti])]
 	
@@ -1594,6 +1619,11 @@ class Problem(SageObject):
 				else:
 					bounds[gi] -= d * value
 
+		self._bounds = bounds
+
+		if self._register_progression("set_construction", "query") != "set":
+			return
+
 		if self._field == RationalField():
 
 			if not self._minimize:
@@ -1623,8 +1653,6 @@ class Problem(SageObject):
 			sys.stdout.write("Bound violated by:")
 			for gi in violators:
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
-
-		self._bounds = bounds
 
 
 
