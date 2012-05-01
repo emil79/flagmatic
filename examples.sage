@@ -63,7 +63,6 @@ def ClebschGraph():
 	return cleb
 
 
-
 def example(prob):
 	
 	if prob == "ff83-cpb":
@@ -211,6 +210,26 @@ def example(prob):
 		P.set_extremal_construction(C)
 		P.compute_products()
 		P.solve_sdp()
+		P.change_solution_bases()
+		P.make_exact()
+		P.check_exact_bound()
+
+
+	elif prob == "bt1":
+	
+		P = ThreeGraphProblem()
+		P.forbid_subgraph("6:123124135146156", "7:123124156346257", "7:123124156347567")
+		P.forbid_homomorphic_images()
+		P.n = 7
+		x = polygen(QQ)
+		K = NumberField(x^2 - 5, 'x', embedding=RDF(2.2))
+		x = K.gen()
+		w1 = (13 + 3*x)/62
+		w2 = (6 - x)/31
+		C = BlowupConstruction(ThreeGraphFlag("5:123124125345"), weights=[w1,w1,w2,w2,w2], field=K)
+		P.set_extremal_construction(C)
+		P.compute_products()
+		P.solve_sdp(True)
 		P.change_solution_bases()
 		P.make_exact()
 		P.check_exact_bound()
@@ -366,11 +385,18 @@ def example(prob):
 		C = RandomTournamentConstruction()
 		Q.set_extremal_construction(C)
 		Q.compute_products()
-		P = Q.new_problem_with_densities([0, 4, 5, 6, 9, 16, 30, 56, 65, 66, 81, 89, 90, 91, 227, 511, 878, 889, 1201])
+		Q.save("gammak4-full")
+		P = Q.problem_with_densities([0, 4, 5, 6, 9, 16, 30, 56, 65, 66, 81, 89, 90, 91, 227, 511, 878, 889, 1201])
 		P._approximate_field = RealField(113)
-		P.solve_sdp(output_file="gammak4-19.out")		
-		P.make_exact(denominator=2^60)
+		P.save("gammak4-19")
+		P.solve_sdp(tolerance=1e-12, output_file="new-19.out")
+		P.change_solution_bases()
+		P.make_exact(2^60)
 		P.check_exact_bound()
+		
+		#P.solve_sdp()		
+		#P.make_exact(denominator=2^60)
+		#P.check_exact_bound()
 
 	elif prob == "k4degree":
 	
