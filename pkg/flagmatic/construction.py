@@ -33,6 +33,7 @@ from sage.structure.sage_object import SageObject
 from sage.rings.all import Integer, QQ, polygen, RationalField
 from sage.matrix.all import matrix
 from sage.misc.all import sage_eval
+from copy import copy
 
 from three_graph_flag import *
 from graph_flag import *
@@ -42,16 +43,13 @@ from oriented_graph_flag import *
 def matrix_of_independent_rows(field, rows, width):
 
 	M = matrix(field, rows, sparse=True)
-
-	if len(rows) == 0 or M.is_zero():
-		return matrix(field, 0, width, sparse=True)
-
-	N = M[0, :]
-	NE = N
-	for i in range(1, M.nrows()):
+	N = matrix(field, 0, width, sparse=True)
+	NE = copy(N)
+	
+	for i in range(M.nrows()):
 		NE2 = NE.stack(M[i, :])
 		NE2.echelonize()
-		if not NE2[-1,:].is_zero():
+		if not NE2[-1, :].is_zero():
 			NE = NE2
 			N = N.stack(M[i, :])
 
