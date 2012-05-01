@@ -613,6 +613,21 @@ cdef class HypergraphFlag (Flag):
 		return graphs
 
 
+	@classmethod
+	def minimal_by_inclusion(cls, graphs):
+		L = sorted(graphs, key = lambda g : (g.n, g.ne))
+		i = 0
+		while i < len(L) - 1:
+			j = i + 1
+			while j < len(L):
+				if L[j].has_forbidden_graphs([L[i]]):
+					L.pop(j)
+				else:
+					j += 1
+			i += 1
+		return L
+
+
 	# TODO: possibly something different with degenerate graphs?
 
 	def degrees(self):
@@ -1067,7 +1082,7 @@ cdef class HypergraphFlag (Flag):
 	
 		return False
 
-
+	
 	def has_forbidden_graphs(self, graphs, must_have_highest=False, induced=False):
 	
 		cdef int *c, nc, i, j, k, cne, *cur_edges, *e
@@ -1075,8 +1090,6 @@ cdef class HypergraphFlag (Flag):
 		
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
-		
-		cur_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
 		
 		for i in range(len(graphs)):
 	
@@ -1101,10 +1114,8 @@ cdef class HypergraphFlag (Flag):
 					continue
 				
 				if ig.c_has_subgraph(h):
-					free(cur_edges)
 					return True
 	
-		free(cur_edges)
 		return False
 
 

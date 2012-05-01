@@ -469,6 +469,19 @@ class Problem(SageObject):
 			self._forbid_graph(h, True)
 	
 
+	def forbid_homomorphic_images(self):
+	
+		L = sum([g.homomorphic_images() for g in self._forbidden_graphs], [])
+		LM = self._flag_cls.minimal_by_inclusion(L)
+		if len(LM) == 0:
+			return
+		sys.stdout.write("Forbidding")
+		for g in LM:
+			sys.stdout.write(" %s" % repr(g))
+			self._forbid_graph(g, False)
+		sys.stdout.write("\n")
+
+
 	# TODO: warn if already solved
 
 	def set_inactive_types(self, *args):
@@ -844,7 +857,7 @@ class Problem(SageObject):
 	# TODO: helpful error message if product densities have not been computed.
 	# TODO: add option for forcing sharps
 	
-	def write_sdp_input_file(self):
+	def write_sdp_input_file(self, no_output=False):
 	
 		self._register_progression("write_sdp_input_file", "set")
 		
@@ -861,13 +874,16 @@ class Problem(SageObject):
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")
 		
-		sys.stdout.write("Writing SDP input file...\n")
-		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
 		self._set_block_matrix_structure()
 		num_blocks = len(self._block_matrix_structure)
 		
+		if no_output:
+			return
+		
+		sys.stdout.write("Writing SDP input file...\n")
+				
 		with open(self._sdp_input_filename, "w") as f:
 	
 			f.write("%d\n" % (num_graphs + 1,))
@@ -1166,8 +1182,11 @@ class Problem(SageObject):
 		followed by check_floating_point_bound.
 		
 		"""
-	
-		self.write_sdp_input_file()
+		
+		if output_file is None:
+			self.write_sdp_input_file(no_output=True)
+		else:
+			self.write_sdp_input_file()
 		self.run_sdp_solver(show_output=show_output, sdpa=sdpa, output_file=output_file)
 		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
 
@@ -1668,7 +1687,7 @@ class Problem(SageObject):
 	# TODO: use self._register_progression
 
 	def diagonalize(self):
-			
+		
 		def LDLdecomposition(M):
 	
 			MS = M.parent()
