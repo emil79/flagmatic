@@ -245,7 +245,7 @@ class Problem(SageObject):
 		self.generate_flags(n)
 
 	
-	def generate_flags(self, n, type_orders="all"):
+	def generate_flags(self, n, type_orders="all", max_flags=None):
 
 		if type_orders == "all":
 			type_orders = range(n % 2, n - 1, 2)
@@ -288,14 +288,26 @@ class Problem(SageObject):
 					forbidden_graphs=self._forbidden_graphs,
 					forbidden_induced_graphs=self._forbidden_induced_graphs))
 			sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
-						
+			
 			self._types.extend(these_types)
 			self._flags.extend(these_flags)
+
+		num_types = len(self._types)
+
+		if not max_flags is None:
+			bad_indices = [i for i in range(num_types) if len(self._flags[i]) > max_flags]
+			if len(bad_indices) > 0:
+				good_indices = [i for i in range(num_types) if not i in bad_indices]
+				self._types = [self._types[i] for i in good_indices]
+				self._flags = [self._flags[i] for i in good_indices]
+				sys.stdout.write("Removed types %s as they have too many flags.\n" % bad_indices)
+		
+		num_types = len(self._types) # may have changed!
 		
 		self._zero_eigenvectors = [matrix(self._field, 0, len(self._flags[ti]), sparse=True)
-			for ti in range(len(self._types))]
+			for ti in range(num_types)]
 
-		self._active_types = range(len(self._types))
+		self._active_types = range(num_types)
 
 
 	@property
@@ -1172,7 +1184,7 @@ class Problem(SageObject):
 	
 			sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
 			for gi in apparently_sharp_graphs:
-				sys.stdout.write("%s : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
+				sys.stdout.write("%.12f : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
 		
 		if self._register_progression("set_construction", "query") != "set":
 			return
@@ -1707,12 +1719,17 @@ class Problem(SageObject):
 	
 			MS = M.parent()
 			D = MS.matrix()
+			if M.is_zero():
+				D.set_immutable()
+				return D, D
 			L = copy(MS.identity_matrix())
 			for i in xrange(M.nrows()):
 				for j in xrange(i):
 					L[i, j] = (Integer(1) / D[j, j]) * (M[i, j] - sum(L[i, k] * L[j, k] * D[k, k] for k in xrange(j)))
 				D[i, i] = M[i, i] - sum(L[i, k]**2 * D[k, k]
 					for k in xrange(i))
+			L.set_immutable()
+			D.set_immutable()
 			return L, D
 
 		self._exact_diagonal_matrices = []
