@@ -1,0 +1,12 @@
+P = ThreeGraphAxiomsProblem()
+P.forbid_subgraph("5:123124125345")
+P.n = 6
+P.clear_densities()
+P.add_codegree_axiom(1/3, False)
+C = BlowupConstruction(ThreeGraphFlag("3:112223331"), phantom_edge=[1,2,3])
+P.set_extremal_construction(C)
+P.compute_products()
+P.solve_sdp()
+P.change_solution_bases()
+P.make_exact(2^20)
+P.check_exact_bound()
