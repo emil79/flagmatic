@@ -36,6 +36,7 @@ import sys
 
 from sage.structure.sage_object import SageObject
 from sage.rings.all import Integer, QQ, RationalField, RDF
+from sage.functions.other import floor
 from sage.matrix.all import matrix, identity_matrix, block_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
 from sage.misc.misc import SAGE_TMP 
@@ -241,6 +242,17 @@ class Problem(SageObject):
 
 	@n.setter
 	def n(self, n):
+		self.generate_flags(n)
+
+	
+	def generate_flags(self, n, type_orders="all"):
+
+		if type_orders == "all":
+			type_orders = range(n % 2, n - 1, 2)
+		else:
+			if not all(s in range(n + 1) for s in type_orders):
+				raise ValueError
+			type_orders = sorted(list(set(type_orders)))
 
 		self._register_progression("compute_flags", "set")
 
@@ -258,8 +270,8 @@ class Problem(SageObject):
 		sys.stdout.write("Generating types and flags...\n")
 		self._types = []
 		self._flags = []
-	
-		for s in range(n % 2, n - 1, 2):
+		
+		for s in type_orders:
 			
 			these_types = self._flag_cls.generate_graphs(s,
 				forbidden_edge_numbers=self._forbidden_edge_numbers,
@@ -268,7 +280,7 @@ class Problem(SageObject):
 			sys.stdout.write("Generated %d types of order %d, " % (
 				len(these_types), s))
 
-			m = (n + s) / 2
+			m = floor((n + s) / 2)
 			these_flags = []
 			for tg in these_types:
 				these_flags.append(self._flag_cls.generate_flags(m, tg,
@@ -453,8 +465,10 @@ class Problem(SageObject):
 
 		if induced:
 			self._forbidden_induced_graphs.append(copy(h))
+			self._forbidden_induced_graphs.sort(key = lambda g : (g.n, g.ne))
 		else:
 			self._forbidden_graphs.append(copy(h))
+			self._forbidden_graphs.sort(key = lambda g : (g.n, g.ne))
 
 
 	# TODO: allow lists
@@ -1184,12 +1198,13 @@ class Problem(SageObject):
 		"""
 		
 		if output_file is None:
-			self.write_sdp_input_file(no_output=True)
-		else:
 			self.write_sdp_input_file()
-		self.run_sdp_solver(show_output=show_output, sdpa=sdpa, output_file=output_file)
-		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
+			self.run_sdp_solver(show_output=show_output, sdpa=sdpa)
+		else:
+			self.write_sdp_input_file(no_output=True)
+			self.run_sdp_solver(show_output=show_output, sdpa=sdpa, output_file=output_file)
 
+		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
 
 
 	def import_solution(self, directory, complement=False):

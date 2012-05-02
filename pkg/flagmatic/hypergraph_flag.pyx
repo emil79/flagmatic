@@ -1085,7 +1085,7 @@ cdef class HypergraphFlag (Flag):
 	
 	def has_forbidden_graphs(self, graphs, must_have_highest=False, induced=False):
 	
-		cdef int *c, nc, i, j, k, cne, *cur_edges, *e
+		cdef int *c, nc, i, j
 		cdef HypergraphFlag h, ig
 		
 		if self.is_degenerate:
