@@ -1,0 +1,12 @@
+P = ThreeGraphProblem()
+P.forbid_subgraph("7:123124135256167467", "5:123124125345", "4:123124134")
+P.forbid_homomorphic_images()
+P.n = 7
+P.set_inactive_types(3, 4)
+C = BlowupConstruction(ThreeGraphFlag("5:123234345145125"))
+P.set_extremal_construction(C)
+P.compute_products()
+P.solve_sdp(True)
+P.change_solution_bases()
+P.make_exact(2^30)
+P.check_exact_bound()

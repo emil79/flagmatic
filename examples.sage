@@ -29,6 +29,67 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from flagmatic.all import *
 
+import os, sys, datetime, time
+import cStringIO
+
+class Tee:
+
+	def __init__(self, *args):
+		self.files = list(args)
+		self.start_time = time.time()
+		self.needs_stamp = True
+
+	def write(self, text):
+		if self.needs_stamp:
+			ts = "[%s] " % datetime.timedelta(seconds=int(time.time() - self.start_time))
+			for f in self.files:
+				f.write(ts)
+		for f in self.files:
+			f.write(text)
+		self.needs_stamp = text[-1] == "\n"
+
+	def flush(self):
+		for f in self.files:
+			f.flush()
+
+
+class Example:
+	def __init__(self, problem, construction, output):
+		self.problem = problem
+		self.construction = construction
+		self.output = output
+
+
+def run_example(name):
+
+	P = None
+	C = None
+	base_filename = os.path.join("examples", name)
+	
+	buffer = cStringIO.StringIO()
+	saved_stdout = sys.stdout
+	sys.stdout = Tee(sys.stdout, buffer)
+
+	with open(base_filename + ".sage", "r") as f:
+		for line in f:
+			if line[-1] != "\n": # last line of file might not have a \n
+				line += "\n"
+			sys.stdout.write("sage: %s" % line)
+			exec(preparse(line))
+
+	line = 'P.save("' + base_filename + '")\n'
+	sys.stdout.write("sage: %s" % line)
+	exec(preparse(line))
+	
+	sys.stdout = saved_stdout
+
+	output = buffer.getvalue()
+
+	with open(base_filename + ".txt", "w") as f:
+		f.write(output)
+		
+	return Example(P, C, output)
+
 
 def test_graphs():
 

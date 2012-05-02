@@ -1,0 +1,11 @@
+P = ThreeGraphProblem()
+P.forbid_subgraph("4:123124134234", "6:123124125345346", "6:123124345156256", "6:123124125346356456")
+P.forbid_homomorphic_images()
+P.n = 6
+C = BlowupConstruction(ThreeGraphFlag("4:123124134"), weights=[1/3,2/9,2/9,2/9])
+P.set_extremal_construction(C)
+P.compute_products()
+P.solve_sdp(True)
+P.change_solution_bases()
+P.make_exact(2^30)
+P.check_exact_bound()
