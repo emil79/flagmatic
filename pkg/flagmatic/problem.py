@@ -1369,6 +1369,56 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in norms)))
 
 
+	def find_extra_zero_eigenvectors(self, ti, threshold=1e-10, denominator=None):
+	
+		self._register_progression("run_sdp_solver", "ensure")
+	
+		if not ti in self._active_types:
+			raise ValueError("Type is not active.")
+	
+		M = self._zero_eigenvectors[ti].echelon_form()
+		E = copy(self.get_zero_eigenvectors(ti, use_bases=False))
+			
+		pivots = M.pivots()
+		for i in range(len(pivots)):
+			c = pivots[i]
+			for r in range(E.nrows()):
+				E[r, :] -= E[r, c] * M[i, :]
+	
+		for r in range(E.nrows()):
+			for c in range(E.ncols()):
+				if abs(E[r, c]) > threshold:
+					E[r, :] /= E[r, c]
+					for s in range(E.nrows()):
+						if s != r:
+							E[s, :] -= E[s, c] * E[r, :]
+					break
+	
+		for r in range(E.nrows()):
+			for c in range(E.ncols()):
+				if abs(E[r, c]) < threshold:
+					 E[r, c] = 0
+	
+		r = E.nrows() - 1
+		while r >= 0 and E[r, :].is_zero():
+			E = E[:r, :]
+			r -= 1
+	
+		if denominator is None:
+			return E
+		
+		ER = matrix(QQ, E.nrows(), E.ncols())
+	
+		def rationalize (f):
+			return Integer(round(f * denominator)) / denominator
+	
+		for r in range(E.nrows()):
+			for c in range(E.ncols()):
+				ER[r, c] = rationalize(E[r, c])
+	
+		return ER
+
+
 	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, use_bases=True):
 
 		self._register_progression("run_sdp_solver", "ensure")
