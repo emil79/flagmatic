@@ -1725,31 +1725,35 @@ class Problem(SageObject):
 				else:
 					bounds[gi] -= d * value
 
+		if self._field == RationalField():
+			if not self._minimize:
+				bound = max(bounds)
+			else:
+				bound = min(bounds)
+		else:
+			# Sorting doesn't currently work for number fields with embeddings, so use float approximation.
+			if not self._minimize:
+				bound = max(bounds, key = lambda x : float(x))
+			else:
+				bound = min(bounds, key = lambda x : float(x))
+
 		self._bounds = bounds
+		self._bound = bound
 
 		if self._register_progression("set_construction", "query") != "set":
 			return
 
 		if self._field == RationalField():
-
 			if not self._minimize:
-				bound = max(bounds)
 				violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
 			else:
-				bound = min(bounds)
 				violators = [gi for gi in range(num_graphs) if bounds[gi] < self._target_bound]
-
 		else:
-
-			# Sorting doesn't currently work for number fields with embeddings, so use float approximation.
-
 			if not self._minimize:
-				bound = max(bounds, key = lambda x : float(x))
 				violators = [gi for gi in range(num_graphs) if float(bounds[gi]) > float(self._target_bound)]
 			else:
-				bound = min(bounds, key = lambda x : float(x))
 				violators = [gi for gi in range(num_graphs) if float(bounds[gi]) < float(self._target_bound)]
-			
+
 		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
 		for gi in range(num_graphs):
 			if bounds[gi] == self._target_bound:
@@ -1765,7 +1769,7 @@ class Problem(SageObject):
 
 	def diagonalize(self):
 		
-		def LDLdecomposition(M):
+		def LDLdecomposition(M):	# TODO: does this handle matrices with zero eigenvalues?
 	
 			MS = M.parent()
 			D = MS.matrix()
@@ -1787,14 +1791,48 @@ class Problem(SageObject):
 
 		sys.stdout.write("Diagonalizing")
 
+		# TODO: what to do if problem has been transformed?
+
 		for ti in range(len(self._types)):
 			R, M = LDLdecomposition(self._exact_Qdash_matrices[ti])
 			self._exact_diagonal_matrices.append(M)
-			self._exact_r_matrices.append(R)			
+			if self._register_progression("transform_solution", "query") == "set":
+				R = self._inverse_flag_bases[ti] * R
+			self._exact_r_matrices.append(R)
+			sys.stdout.write(".")
+			sys.stdout.flush()
+		
+		# Q can now be computed as Q = R * D * R.T
+		
+		sys.stdout.write("\nVerifying")
+
+		for ti in range(len(self._types)):
+			Q = self._exact_r_matrices[ti] * self._exact_diagonal_matrices[ti] * self._exact_r_matrices[ti].T
+			if Q != self._exact_Q_matrices[ti]:
+				raise ValueError # TODO: choose appropriate error
 			sys.stdout.write(".")
 			sys.stdout.flush()
 		
 		sys.stdout.write("\n")
+
+
+# 	def write_certificate(self, filename):
+# 
+# 
+# 		data = {
+# 			"description" : flags.description,
+# 			"bound" : self._bound,
+# 			"order_of_admissible_graphs" : self._n,
+# 			"number_of_admissible_graphs" : len(self._graphs),
+# 			"admissible_graphs" : self._graphs,
+# 			"admissible_graph_densities" : array_to_json(self._densities[0]), # TODO: multiple densities
+# 			"number_of_types" : len(self._types),
+# 			"types" : self._types,
+# 			"numbers_of_flags" : [len(L) for L in self._flags],
+# 			"flags" : self._flags,
+# 			"qdash_matrices" : array_to_json(self._exact_diagonal_matrices),
+# 			"r_matrices" : array_to_json(self._exact_r_matrices)
+# 		}
 
 
 def ThreeGraphProblem():
