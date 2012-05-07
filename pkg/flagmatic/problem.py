@@ -1445,6 +1445,7 @@ class Problem(SageObject):
 		return block_diagonal_matrix(B)
 
 
+
 	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False,
 		use_densities=True):
 	
@@ -1569,7 +1570,7 @@ class Problem(SageObject):
 		
 		density_cols_to_use = []
 		DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
-		DI = None
+		EDR = DR.T
 		
 		sys.stdout.write("Constructing DR matrix")
 		
@@ -1578,17 +1579,15 @@ class Problem(SageObject):
 			
 			for j in range(num_densities):
 				new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
-				if new_col.is_zero():
-					continue
-				if not DI is None and (DI * new_col).is_zero():
-					sys.stdout.write("'")
+				EDR = EDR.stack(new_col.T)
+				EDR.echelonize()
+				if EDR[-1, :].is_zero():
+					EDR = EDR[:-1, :]
+					sys.stdout.write("~")
 					sys.stdout.flush()
 					continue		
 				
 				DR = DR.augment(new_col)
-				DI = DR * (DR.T * DR).inverse() * DR.T
-				DI -= identity_matrix(self._field, DI.nrows())
-
 				density_cols_to_use.append(j)
 				sys.stdout.write(".")
 				sys.stdout.flush()
@@ -1613,17 +1612,15 @@ class Problem(SageObject):
 			if ti in protect: # don't use protected types
 				continue
 			new_col = R[:, i : i + 1]
-			if new_col.is_zero():
-				continue
-			if not DI is None and (DI * new_col).is_zero():
+			EDR = EDR.stack(new_col.T)
+			EDR.echelonize()
+			if EDR[-1, :].is_zero():
+				EDR = EDR[:-1, :]
 				sys.stdout.write("~")
 				sys.stdout.flush()
-				continue
+				continue		
 			
 			DR = DR.augment(new_col)
-			DI = DR * (DR.T * DR).inverse() * DR.T
-			DI -= identity_matrix(self._field, DI.nrows())
-							
 			cols_to_use.append(i)
 			sys.stdout.write(".")
 			sys.stdout.flush()
