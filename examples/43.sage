@@ -1,10 +1,11 @@
 P = GraphProblem()
-P.forbid_subgraph((3, 3))
-P.generate_flags(5, type_orders=[3])
-P.set_density("5:1223344551")
-C = BlowupConstruction(GraphFlag("5:1223344551"))
+P.forbid_induced_subgraph((3, 0))
+P.n = 6
+P.set_density((4, 6))
+C = BlowupConstruction(GraphFlag("5:12233445511122334455"))
 P.set_extremal_construction(C)
 P.compute_products()
+P.minimize=True
 P.solve_sdp()
 P.change_solution_bases()
 P.make_exact()
