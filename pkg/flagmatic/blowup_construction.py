@@ -218,6 +218,9 @@ class BlowupConstruction(Construction):
 		if s > k:
 			raise ValueError
 
+		if k == 0:
+			return (1, {() : 1})
+
 		gens = self._graph.automorphism_group_gens()
 		
 		# Pass generators to GAP to create a group for us.
