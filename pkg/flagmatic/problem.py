@@ -1369,15 +1369,15 @@ class Problem(SageObject):
 					" ".join("%s" % e for e in norms)))
 
 
-	def find_extra_zero_eigenvectors(self, ti, threshold=1e-10, denominator=None):
+	def find_extra_zero_eigenvectors(self, ti, tolerance=1e-5, threshold=1e-10, denominator=None):
 	
 		self._register_progression("run_sdp_solver", "ensure")
 	
 		if not ti in self._active_types:
 			raise ValueError("Type is not active.")
 	
-		M = self._zero_eigenvectors[ti].echelon_form()
-		E = copy(self.get_zero_eigenvectors(ti, use_bases=False))
+		M = matrix(self._approximate_field, self._zero_eigenvectors[ti].echelon_form())
+		E = copy(self.get_zero_eigenvectors(ti, tolerance=tolerance, use_bases=False))
 			
 		pivots = M.pivots()
 		for i in range(len(pivots)):
@@ -1419,7 +1419,7 @@ class Problem(SageObject):
 		return ER
 
 
-	def get_zero_eigenvectors(self, ti, tolerance = 0.00001, use_bases=True):
+	def get_zero_eigenvectors(self, ti, tolerance=1e-5, use_bases=True):
 
 		self._register_progression("run_sdp_solver", "ensure")
 	
