@@ -29,6 +29,51 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from flagmatic.all import *
 
+
+def guess_zero_eigenvectors(P, ti, target=None):
+
+	#x = polygen(QQ)
+	#K = NumberField(x^3 - 2*x^2 + 2*x - 2/3, 'x', embedding=RDF(0.5))
+	x = P._field.gen()
+	a = x/4
+	b = (1-x)/4
+	af = RDF(a)
+	bf = RDF(b)
+	
+	nf = len(P._flags[ti])
+	Z = matrix(RDF, [[0.0 for i in range(nf)]]).T
+	M = matrix(RDF, P._sdp_Q_matrices[ti])
+	found_zero_eigenvectors = matrix(P._field, 0, nf)
+	echelon_found_zero_eigenvectors = matrix(P._field, 0, nf)
+
+	#print IntegerVectors(4, max_length=nf, min_length=nf).cardinality() ** 2
+	count = 0
+	for p1 in IntegerVectors(4, max_length=nf, min_length=nf):
+		for p2 in IntegerVectors(4, max_length=nf, min_length=nf):
+			for i in range(nf):
+				Z[i, 0] = (p1[i] * af) + (p2[i] * bf)
+			R = M * Z
+			norm = R.norm()
+			if norm < 1e-10:
+				NZ = matrix(P._field, [[(p1[i] * a) + (p2[i] * b) for i in range(nf)]])
+				echelon_found_zero_eigenvectors = echelon_found_zero_eigenvectors.stack(NZ)
+				echelon_found_zero_eigenvectors.echelonize()
+				if echelon_found_zero_eigenvectors[-1, :].is_zero():
+					echelon_found_zero_eigenvectors = echelon_found_zero_eigenvectors[:-1, :]
+				else:
+					found_zero_eigenvectors = found_zero_eigenvectors.stack(NZ)
+					if not target is None and found_zero_eigenvectors.nrows() == target:
+						return found_zero_eigenvectors
+					print norm
+				
+				sys.stdout.write("+")
+				sys.stdout.flush()
+			count += 1
+			if count % 1000 == 0:
+				sys.stdout.write(".")
+				sys.stdout.flush()
+	return found_zero_eigenvectors
+
 import cStringIO, datetime, os, sys, time, traceback
 
 class Tee:
