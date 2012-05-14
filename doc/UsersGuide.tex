@@ -1,0 +1,193 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage[T1]{fontenc}
+\usepackage[bitstream-charter]{mathdesign}
+
+\usepackage{amsmath}
+\usepackage{url}
+%\usepackage{tikz}
+%\usetikzlibrary{shapes,arrows,decorations.markings}
+\usepackage{verbatim}
+\usepackage[bottom,symbol]{footmisc}
+\usepackage{minted}
+\usemintedstyle{manni}
+\definecolor{bg}{rgb}{0.95, 0.95, 0.95}
+\newminted[sage]{pycon}{bgcolor=bg, xleftmargin=10pt}
+
+\definecolor{flagcolor}{HTML}{005B9C}
+\definecolor{excolor}{HTML}{6B6B6B}
+
+\usepackage{lastpage} % for the number of the last page in the document
+\usepackage{geometry}
+\geometry{includehead, includefoot, left=30mm, right=30mm, top=30mm, bottom=30mm}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\color{flagcolor} Flagmatic User's Guide}
+\rhead{\color{flagcolor} version 1.5}
+\lfoot{}
+\rfoot{}
+\cfoot{\color{flagcolor} page \thepage\ of \pageref*{LastPage}}
+
+\renewcommand{\headrulewidth}{1pt}
+%\renewcommand{\footrulewidth}{1pt}
+
+\renewcommand{\footrule}{{\color{flagcolor}%
+  \hrule width\headwidth height\headrulewidth \vskip \headrulewidth}}
+
+\renewcommand{\headrule}{{\color{flagcolor}%
+  \hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}}
+
+\let\temptt\texttt
+\renewcommand\texttt[1]{{\color{excolor} \temptt{#1}}}
+
+\providecommand{\flagmatic}{Flagmatic}
+\providecommand{\flagmatics}{Flagmatic's}
+\providecommand{\flagmaticexe}{flagmatic}
+\providecommand{\csdp}{csdp}
+\providecommand{\sdpa}{sdpa}
+\providecommand{\numpy}{numpy}
+\providecommand{\sympy}{sympy}
+\providecommand{\sage}{Sage}
+\DeclareMathOperator{\ex}{ex}
+
+\usepackage{sectsty}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+
+\usepackage[breaklinks=false,pagebackref=true,unicode=true,pdfborder={0 0 0},colorlinks=true,citecolor=flagcolor, urlcolor=flagcolor]{hyperref}
+
+\makeatletter
+\g@addto@macro\@verbatim{\small\color{excolor}}
+\makeatother
+
+\sectionfont{\color{flagcolor} \sectionrule{3ex}{0pt}{-1ex}{1pt}}
+\subsectionfont{\color{flagcolor}}
+
+\title{\color{flagcolor} Flagmatic User's Guide}
+\author{
+Emil R. Vaughan\thanks{School of Electronic Engineering and Computer Science, Queen Mary, University of London. Email: \url{e.vaughan@qmul.ac.uk}} \\
+}
+\date{Version 2.0 \\ \ \\ \today}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+\emph{A tool for researchers in extremal graph theory.} 
+\end{center}
+
+\section{Introduction} \label{intro}
+
+\flagmatic\ implements the semi-definite method, part of the flag algebra calculus introduced by Razborov [CITE]. First, let us define the concept of \emph{Tur\'an $H$-density}.
+
+Let $H$ be an $r$-graph on $h$ vertices. Then for a set of $r$-graphs $\mathcal{F}$, the \emph{Tur\'an $H$-density} of $\mathcal{F}$ is defined as
+\[\pi_{H}(\mathcal{F})= \lim_{n\rightarrow \infty}\frac{\ex_{H}(n, \mathcal{F})}{\binom{n}{h}}, \]
+where $\ex_{H}(n, \mathcal{F})$ is the maximum number of induced copies of $H$ that an $\mathcal{F}$-free $r$-graph on $n$ vertices can contain.
+
+Note that this definition also works for \emph{oriented} $r$-graphs.
+
+\flagmatic\ is typically used to give upper bounds on Tur\'an $H$-densities. Sometimes a construction may be known that gives a lower bound equal to the upper bound found by Flagmatic, and in this situation, \flagmatic\ can be used to obtain exact values of $\pi_{H}(\mathcal{F})$. 
+
+\flagmatic\ can also be used to investigate some other types of problems. In fact, some of its features are not currently documented! This is, of course, a temporary situation caused by the developer not having enough time.
+
+\flagmatic\ can (currently) work on $2$-graph, $3$-graph and oriented $2$-graph problems. It is the intention of the developer to, over time, add support for other kinds of problems. In fact \flagmatic\ 2.0 is a ground-up rewrite of \flagmatic\ 1.0, written with extensibility in mind. \flagmatic\ 2.0 is also the first version of \flagmatic\ that runs entirely within the Sage mathematics system.
+
+\flagmatic\ is not hard to use, but it is highly recommended that new users spend some time reading this document and studying the examples provided.
+
+
+
+
+\begin{sage}
+sage: P = GraphProblem()
+sage: P.forbid_subgraph((3, 3))
+sage: P.generate_flags(5, type_orders=[3])
+sage: P.set_density("5:1223344551")
+sage: C = BlowupConstruction(GraphFlag("5:1223344551"))
+sage: P.set_extremal_construction(C)
+sage: P.compute_products()
+sage: P.solve_sdp()
+sage: P.change_solution_bases()
+sage: P.make_exact()
+sage: P.check_exact_bound()
+\end{sage}
+
+\section{Redistribution of flagmatic} \label{license}
+
+\emph{There are no restrictions on the use of flagmatic, and no license is required to use it.}
+
+The developer grants the right of redistribution of the software under the conditions of the following license (based on the 2-clause BSD license). To summarize, \emph{redistribution in source and binary form, with or without modification, is permitted, but credit must be given}.
+
+\begin{quote}
+Copyright (c) 2011, E. R. Vaughan. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+
+2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+\end{quote}
+
+\newpage
+
+\begin{thebibliography}{10}
+
+\bibitem{BT} R. Baber and J. Talbot, Hypergraphs do jump, \emph{Combin. Probab. Comput.} \textbf{20} (2011), 161--171. \\ %\url{http://dx.doi.org/10.1017/S0963548310000222} (journal) \ and  
+\url{http://arxiv.org/abs/1004.3733}
+
+\bibitem{dC} D. de Caen, Extension of a theorem of Moon and Moser on complete subgraphs, \emph{Ars Combin.} \textbf{16} (1983), 5--10.
+
+%\bibitem{dCF} D. de Caen and Z. Füredi, The maximum size of 3-uniform hypergraphs not %containing a Fano plane. \emph{J. Combin. Theory Ser. B} \textbf{78} (2000), 274--276. \\
+%\url{http://dx.doi.org/10.1006/jctb.1999.1938} (journal) and
+%\url{http://www.math.uiuc.edu/~z-furedi/PUBS/furedi_decaen_fano.pdf}
+
+\bibitem{FRV} V. Falgas-Ravry and E. R. Vaughan, On applications of Razborov's flag algebra calculus to extremal 3-graph theory, preprint (2011). \\
+\url{http://arxiv.org/abs/1110.1623}
+
+\bibitem{FRV2} V. Falgas-Ravry and E. R. Vaughan, Turán $H$-densities for 3-graphs, preprint (2012). \\
+\url{http://arxiv.org/abs/1201.4326}
+
+%\bibitem{FF} P. Frankl and Z. Füredi, An exact result for 3-graphs, \emph{Discrete Math.} \textbf{50} (1984), 323--328. \\ %\url{http://dx.doi.org/10.1016/0012-365X(84)90058-X} (journal) 
+%\url{http://www.math.uiuc.edu/~z-furedi/PUBS/furedi_frankl_exact-3-graphs.pdf}
+
+%\bibitem{FPS} Z. Füredi, O. Pikhurko and M. Simonovits, The Turán Density of the Hypergraph \{abc,ade,bde,cde\}, \textit{Electron. J. Combin.} \textbf{10} (2003), R18. \\ \url{http://www.combinatorics.org/Volume_10/PDF/v10i1r18.pdf}
+
+\bibitem{grzesik} A. Grzesik, On the maximum number of $C_5$'s in a triangle-free graph, preprint, 2011. \\ \url{http://arxiv.org/abs/1102.0962}
+
+\bibitem{hhknr} H. Hatami, J. Hladký, D. Král, S. Norine, A. Razborov, On the Number of Pentagons in Triangle-Free Graphs, preprint, 2011. \\
+\url{http://arxiv.org/abs/1102.1634}
+
+\bibitem{K} P. Keevash, Hypergraph Turán Problems, \emph{Surveys in Combinatorics 2011}, Springer, 2011. \\
+\url{http://www.maths.qmul.ac.uk/~keevash/papers/turan-survey.pdf}
+
+\bibitem{MR} D. Mubayi and V. R\"odl, On the Tur\'an number of triple systems, \emph{J. Combin. Theory Ser. A} \textbf{100} (2002), 136--152. \\
+\url{http://homepages.math.uic.edu/~mubayi/papers/hypturan.pdf}
+
+\bibitem{R07} A. A. Razborov, Flag algebras, \emph{J. Symbolic Logic} \textbf{72} (2007), 1239--1282. \\ %\url{http://dx.doi.org/10.2178/jsl/1203350785} (journal) and 
+\url{http://people.cs.uchicago.edu/~razborov/files/flag.pdf}
+
+\bibitem{R10} A. A. Razborov, On 3-hypergraphs with forbidden 4-vertex configurations, \emph{SIAM J. Discrete Math.} \textbf{24} (2010), 946--963. \\ %\url{http://dx.doi.org/10.1137/090747476} (journal) and
+\url{http://people.cs.uchicago.edu/~razborov/files/turan.pdf}
+
+\end{thebibliography}
+
+\end{document}
