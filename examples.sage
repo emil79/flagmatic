@@ -46,16 +46,23 @@ def guess_zero_eigenvectors(P, ti, target=None):
 	found_zero_eigenvectors = matrix(P._field, 0, nf)
 	echelon_found_zero_eigenvectors = matrix(P._field, 0, nf)
 
-	#print IntegerVectors(4, max_length=nf, min_length=nf).cardinality() ** 2
+	MZ = P.get_zero_eigenvectors(ti, tolerance=1e-12, use_bases=False)
+	good_cols = [i for i in range(MZ.ncols()) if MZ[:,i].norm() > 1e-7]
+	ngc = len(good_cols)
+	print nf, ngc
+
+	total = IntegerVectors(4, max_length=ngc, min_length=ngc).cardinality() ** 2
 	count = 0
-	for p1 in IntegerVectors(4, max_length=nf, min_length=nf):
-		for p2 in IntegerVectors(4, max_length=nf, min_length=nf):
-			for i in range(nf):
-				Z[i, 0] = (p1[i] * af) + (p2[i] * bf)
+	for p1 in IntegerVectors(4, max_length=ngc, min_length=ngc):
+		for p2 in IntegerVectors(4, max_length=ngc, min_length=ngc):
+			for i in range(ngc):
+				Z[good_cols[i], 0] = (p1[i] * af) + (p2[i] * bf)
 			R = M * Z
 			norm = R.norm()
 			if norm < 1e-10:
-				NZ = matrix(P._field, [[(p1[i] * a) + (p2[i] * b) for i in range(nf)]])
+				NZ = matrix(P._field, 1, nf)
+				for i in range(ngc):
+					NZ[0, good_cols[i]] = (p1[i] * a) + (p2[i] * b)
 				echelon_found_zero_eigenvectors = echelon_found_zero_eigenvectors.stack(NZ)
 				echelon_found_zero_eigenvectors.echelonize()
 				if echelon_found_zero_eigenvectors[-1, :].is_zero():
@@ -69,9 +76,12 @@ def guess_zero_eigenvectors(P, ti, target=None):
 				sys.stdout.write("+")
 				sys.stdout.flush()
 			count += 1
-			if count % 1000 == 0:
-				sys.stdout.write(".")
-				sys.stdout.flush()
+			#if count % 1000 == 0:
+			#	sys.stdout.write(".")
+			#	sys.stdout.flush()
+			if count % 10000 == 0:
+				print "%.2f done." % (count * 100.0 / total,)
+			
 	return found_zero_eigenvectors
 
 import cStringIO, datetime, os, sys, time, traceback

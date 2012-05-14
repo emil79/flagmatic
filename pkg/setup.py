@@ -77,6 +77,10 @@ setup (
 		Extension('flagmatic.oriented_graph_flag',
 			sources=['flagmatic/oriented_graph_flag.pyx'],
 			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
+		),
+		Extension('flagmatic.multigraph_flag',
+			sources=['flagmatic/multigraph_flag.pyx'],
+			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		)
 	]
 )
