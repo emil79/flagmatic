@@ -46,7 +46,7 @@ from hypergraph_flag import make_graph_block
 from three_graph_flag import *
 from graph_flag import *
 from oriented_graph_flag import *
-
+from multigraph_flag import *
 
 # pexpect in Sage has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
@@ -105,7 +105,7 @@ class Problem(SageObject):
 	
 		self._flagmatic_version = "2.0"
 	
-		if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag]:
+		if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag, TwoMultigraphFlag, ThreeMultigraphFlag]:
 			self._flag_cls = flag_cls
 		else:
 			raise ValueError
@@ -245,7 +245,7 @@ class Problem(SageObject):
 		self.generate_flags(n)
 
 	
-	def generate_flags(self, n, type_orders="all", max_flags=None):
+	def generate_flags(self, n, type_orders="all", max_flags=None, compute_products=True):
 
 		if type_orders == "all":
 			type_orders = range(n % 2, n - 1, 2)
@@ -308,6 +308,9 @@ class Problem(SageObject):
 			for ti in range(num_types)]
 
 		self._active_types = range(num_types)
+		
+		if compute_products:
+			self.compute_products()
 
 
 	@property
@@ -805,12 +808,10 @@ class Problem(SageObject):
 	 	self._register_progression("compute_products", "set")
  	
 	 	num_types = len(self._types)
- 	
-		graph_block = make_graph_block(self._graphs, self.n)
-		
+ 		graph_block = make_graph_block(self._graphs, self.n)
 		self._product_densities_arrays = []
  		
-		sys.stdout.write("Calculating product densities:\n")
+		sys.stdout.write("Computing products")
 
 		for ti in range(num_types):
 
@@ -818,12 +819,15 @@ class Problem(SageObject):
 			s = tg.n
 			m = (self._n + s) / 2
 			
-			sys.stdout.write("Doing type %d (order %d; flags %d)...\n" % (ti, s, m))
-
 			flags_block = make_graph_block(self._flags[ti], m)
 			rarray = self._flag_cls.flag_products(graph_block, tg, flags_block, None)
 			self._product_densities_arrays.append(rarray)
 	
+			sys.stdout.write(".")
+			sys.stdout.flush()
+			
+		sys.stdout.write("\n")
+
 
 	def _set_block_matrix_structure(self):
 	
@@ -1843,4 +1847,10 @@ def GraphProblem():
 
 def OrientedGraphProblem():
 	return Problem(OrientedGraphFlag)
+
+def TwoMultigraphProblem():
+	return Problem(TwoMultigraphFlag)
+
+def ThreeMultigraphProblem():
+	return Problem(ThreeMultigraphFlag)
 
