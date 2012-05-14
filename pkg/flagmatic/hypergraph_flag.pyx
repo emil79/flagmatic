@@ -60,13 +60,14 @@ from sage.modules.misc import gram_schmidt
 cdef class HypergraphFlag (Flag):
 
 
-	def __init__(self, string_rep=None, r=3, oriented=False):
+	def __init__(self, string_rep=None, r=3, oriented=False, multiplicity=1):
 	
 		if oriented and r != 2:
 			raise NotImplementedError("only 2-graphs can be oriented.")
 	
 		self._r = r
 		self._oriented = oriented
+		self._multiplicity = multiplicity
 	
 		if string_rep:
 			self.init_from_string(string_rep)
@@ -124,6 +125,24 @@ cdef class HypergraphFlag (Flag):
 				raise ValueError
 			
 			self._oriented = value
+
+
+	# TODO: sanity checking
+
+	property multiplicity:
+		"""
+		The maximum number of parallel edges allowed.
+		"""
+
+		def __get__(self):
+			return self._multiplicity
+	
+		def __set__(self, value):
+
+			if not value >= 1:
+				raise ValueError
+			
+			self._multiplicity = value
 
 
 	property n:
@@ -380,7 +399,7 @@ cdef class HypergraphFlag (Flag):
 	
 
 	@classmethod
-	def generate_flags(cls, n, tg, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+	def generate_flags(cls, n, tg, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
 		"""
 		For an integer n, and a type tg, returns a list of all tg-flags on n
 		vertices, that satisfy certain constraints.
@@ -423,13 +442,13 @@ cdef class HypergraphFlag (Flag):
 			ntg.t = s
 			return [ntg]
 	
-		max_ne = binomial(n - 1, r - 1)
-		max_e = binomial(n, r)
+		max_ne = binomial(n - 1, r - 1) * multiplicity
+		max_e = binomial(n, r) * multiplicity
 		
 		new_graphs = []
 		hashes = set()
 		
-		smaller_graphs = cls.generate_flags(n - 1, tg, r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
+		smaller_graphs = cls.generate_flags(n - 1, tg, r, oriented, multiplicity, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 		
 		possible_edges = []
@@ -443,6 +462,9 @@ cdef class HypergraphFlag (Flag):
 				possible_edges.append((x, n))
 				if oriented:
 					possible_edges.append((n, x))
+	
+		if multiplicity > 1:
+			possible_edges = sum(([e] * multiplicity for e in possible_edges), [])
 	
 		for sg in smaller_graphs:
 		
@@ -484,8 +506,8 @@ cdef class HypergraphFlag (Flag):
 
 
 	@classmethod
-	def generate_graphs(cls, n, r=3, oriented=False, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
-		return cls.generate_flags(n, cls(r=r, oriented=oriented), r, oriented, forbidden_edge_numbers=forbidden_edge_numbers,
+	def generate_graphs(cls, n, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+		return cls.generate_flags(n, cls(r=r, oriented=oriented, multiplicity=multiplicity), r, oriented, multiplicity, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
 
@@ -694,6 +716,9 @@ cdef class HypergraphFlag (Flag):
 		
 		if self.oriented:
 			raise NotImplementedError("Cannot take complements of oriented graphs.")
+
+		if self.multiplicity != 1:
+			raise NotImplementedError("Cannot take complements of multigraphs.")
 		
 		if self.is_degenerate:
 			raise NotImplementedError
@@ -744,7 +769,12 @@ cdef class HypergraphFlag (Flag):
 		self.minimize_edges()
 
 
+	# TODO: handle multigraphs somehow
+
 	def identify_vertices(self, v1, v2, remove_duplicate_edges=True):
+
+		if self.multiplicity != 1:
+			raise NotImplementedError("Cannot identify vertices of multigraphs.")
 
 		cdef int i, j, k, v, x, y
 		cdef bint is_dup
@@ -778,8 +808,8 @@ cdef class HypergraphFlag (Flag):
 			i = 0
 			while i < self.ne - 1:
 
-# 				The following shorter code produces a SIGSEGV
-#  				if all(self._edges[self._r * i + j] == self._edges[self._r * (i + 1) + j] for j in range(self._r)):
+				# The following shorter code produces a SIGSEGV
+				# if all(self._edges[self._r * i + j] == self._edges[self._r * (i + 1) + j] for j in range(self._r)):
 
 				is_dup = True
 				for j in range(self._r):
@@ -844,6 +874,8 @@ cdef class HypergraphFlag (Flag):
 		free(winning_edges)
 
 
+	# TODO: error if bad (or repeated) things in verts
+	
 	def induced_subgraph(self, verts):
 		"""
 		Returns subgraphs induced by verts. Returned flag is always unlabelled.
@@ -874,6 +906,7 @@ cdef class HypergraphFlag (Flag):
 		ig.n = num_verts
 		ig.r = self._r
 		ig.oriented = self._oriented
+		ig.multiplicity = self._multiplicity
 		ig.t = 0
 
 		if self._r == 3:
@@ -926,7 +959,7 @@ cdef class HypergraphFlag (Flag):
 		Determines if it contains h as a subgraph. Labels are ignored.
 		"""
 	
-		cdef int i, j, k, l, *p, np, *new_edges, got_all, got_edge, got
+		cdef int i, j, k, l, *p, np, *new_edges, *can_use, got_all, got_edge, got
 	
 		if self.is_degenerate:
 			raise NotImplementedError("degenerate graphs are not supported.")
@@ -935,6 +968,7 @@ cdef class HypergraphFlag (Flag):
 			raise ValueError
 			
 		new_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
+		can_use = <int *> malloc (sizeof(int) * self.ne)
 		
 		p = generate_permutations(self._n, &np)
 	
@@ -942,13 +976,18 @@ cdef class HypergraphFlag (Flag):
 		
 			for j in range(self._r * self.ne):
 				new_edges[j] = p[self._n * i + self._edges[j] - 1]
-				
+			
+			for j in range(self.ne):
+				can_use[j] = 1
+			
 			got_all = 1
 			for j in range(h.ne):
 				got_edge = 0
 				
 				if self._r == 3:
 					for k in range(self.ne):
+						if can_use[k] == 0:
+							continue
 						got = 0
 						for l in range(3):
 							if (h._edges[3 * j] == new_edges[(3 * k) + l] or 
@@ -957,6 +996,7 @@ cdef class HypergraphFlag (Flag):
 								got += 1
 						if got == 3:
 							got_edge = 1
+							can_use[k] = 0
 							break
 					if got_edge == 0:
 						got_all = 0
@@ -964,12 +1004,15 @@ cdef class HypergraphFlag (Flag):
 				
 				elif self._r == 2:
 					for k in range(self.ne):
+						if can_use[k] == 0:
+							continue
 						if (h._edges[2 * j] == new_edges[2 * k]
-							and h._edges[2 * j + 1] == new_edges[2 * k + 1]):
+							and h._edges[2 * j + 1] == new_edges[2 * k + 1]) or (
+							not self._oriented and (h._edges[2 * j] == new_edges[2 * k + 1]
+							and h._edges[2 * j + 1] == new_edges[2 * k])):
 							got_edge = 1
-						elif not self._oriented and (h._edges[2 * j] == new_edges[2 * k + 1]
-							and h._edges[2 * j + 1] == new_edges[2 * k]):
-							got_edge = 1
+							can_use[k] = 0
+							break
 					if got_edge == 0:
 						got_all = 0
 						break						
@@ -1128,6 +1171,9 @@ cdef class HypergraphFlag (Flag):
 		if self._oriented and self.is_degenerate:
 			raise NotImplementedError
 
+		if self.multiplicity != 1:
+			raise NotImplementedError("Cannot split vertices of multigraphs.")
+
 		if x < 1 or x > self._n:
 			raise ValueError
 	
@@ -1171,6 +1217,9 @@ cdef class HypergraphFlag (Flag):
 
 		if self._oriented and self.is_degenerate:
 			raise NotImplementedError
+		
+		if self.multiplicity != 1:
+			raise NotImplementedError("Multigraphs not supported.")
 		
 		cg = self.__copy__()
 		vertices = []
