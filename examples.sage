@@ -28,7 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from flagmatic.all import *
-
+import time
 
 def guess_zero_eigenvectors(P, ti, target=None):
 
@@ -52,7 +52,10 @@ def guess_zero_eigenvectors(P, ti, target=None):
 	print nf, ngc
 
 	total = IntegerVectors(4, max_length=ngc, min_length=ngc).cardinality() ** 2
+	sys.stdout.write("%d possibilities to check.\n" % total)
 	count = 0
+	start_time = time.time()
+	
 	for p1 in IntegerVectors(4, max_length=ngc, min_length=ngc):
 		for p2 in IntegerVectors(4, max_length=ngc, min_length=ngc):
 			for i in range(ngc):
@@ -80,7 +83,10 @@ def guess_zero_eigenvectors(P, ti, target=None):
 			#	sys.stdout.write(".")
 			#	sys.stdout.flush()
 			if count % 10000 == 0:
-				print "%.2f done." % (count * 100.0 / total,)
+				time_elapsed = time.time() - start_time
+				proportion_done = count * 1.0 / total
+				sys.stdout.write("%3f%% done. (ETA: %.0f seconds)\n" % (proportion_done * 100, time_elapsed * (1 / proportion_done - 1)))
+				
 			
 	return found_zero_eigenvectors
 
