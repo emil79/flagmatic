@@ -555,12 +555,14 @@ class Problem(SageObject):
 			sharp_graphs = c.subgraph_densities(self._n)
 			target_densities = [0 for j in range(num_densities)]
 			self._sharp_graphs = []
+			self._sharp_graph_densities = []
 			
 			for pair in sharp_graphs:
 				g, den = pair
 				for gi in range(num_graphs):
 					if g.is_labelled_isomorphic(self._graphs[gi]):
 						self._sharp_graphs.append(gi)
+						self._sharp_graph_densities.append(den)
 						for j in range(num_densities):
 							target_densities[j] += self._densities[j][gi] * den
 						break
@@ -957,6 +959,71 @@ class Problem(SageObject):
 				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, num_blocks + 3, j + 1, j + 1))
 		
 			self._write_blocks(f)
+
+
+	# Blocks not supported
+
+	def write_initial_point_file(self):
+	
+		num_graphs = len(self._graphs)
+		num_types = len(self._types)
+		num_densities = len(self._densities)
+		
+		self._sdp_initial_point_filename = os.path.join(SAGE_TMP, "sdp.ini-s")
+	
+		self._set_block_matrix_structure()
+		num_blocks = len(self._block_matrix_structure)
+		
+		sys.stdout.write("Writing SDP initial point file...\n")
+				
+		with open(self._sdp_initial_point_filename, "w") as f:
+	
+			for gi in range(num_graphs):
+				if gi in self._sharp_graphs:
+					si = self._sharp_graphs.index(gi)
+					f.write("%s " % self._sharp_graph_densities[si].n(digits=64))
+				else:
+					f.write("0.0 ")
+			
+			f.write("%s\n" % (-self._target_bound).n(digits=64))
+			
+			for ti in range(num_types):
+				
+				nf = len(self._flags[ti])
+				z_matrix = matrix(QQ, nf, nf)
+				
+				for row in self._product_densities_arrays[ti]:
+					gi = row[0]
+					if not gi in self._sharp_graphs:
+						continue
+					si = self._sharp_graphs.index(gi)
+					j = row[1]
+					k = row[2]
+					value = Integer(row[3]) / Integer(row[4])
+					z_matrix[j, k] += value * self._sharp_graph_densities[si]
+
+				for j in range(nf):
+					for k in range(j, nf):
+						if z_matrix[j, k] != 0:
+							f.write("1 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, z_matrix[j, k].n(digits=64)))
+
+			for gi in range(num_graphs):
+				if gi in self._sharp_graphs:
+					si = self._sharp_graphs.index(gi)
+					f.write("1 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, self._sharp_graph_densities[si].n(digits=64)))
+
+			f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
+			for ti in range(num_types):
+				nf = len(self._flags[ti])
+				for j in range(nf):
+					for k in range(j, nf):
+						value = self._exact_Q_matrices[ti][j, k]
+						if value != 0:
+							f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, value.n(digits=64)))
+			
+			for gi in range(num_graphs):
+				f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, (self._bound - self._bounds[gi]).n(digits=64)))
+			f.write("2 %d 1 1 1.0\n" % (num_types + 3,))
 
 
 	# TODO: report error if problem infeasible
@@ -1453,7 +1520,7 @@ class Problem(SageObject):
 
 
 
-	def make_exact(self, denominator=1024, cholesky=[], protect=[], show_changes=False,
+	def make_exact(self, denominator=1024, cholesky=[], protect=[], meet_target_bound=True, show_changes=False,
 		use_densities=True):
 	
 		self._register_progression("make_exact", "set")
@@ -1465,13 +1532,14 @@ class Problem(SageObject):
 		if cholesky == "all":
 			cholesky = self._active_types
 
-		if self._register_progression("set_construction", "query") != "set":
+		if meet_target_bound:
+			self._register_progression("set_construction", "ensure")
+			num_sharps = len(self._sharp_graphs)
+		else:
 			if not all(ti in cholesky for ti in self._active_types):
 				raise NotImplementedError("If construction is not set, then cholesky must be used.")
 			num_sharps = 0
-		else:
-			num_sharps = len(self._sharp_graphs)
-
+			
 		if self._register_progression("transform_solution", "query") != "set":
 			self._sdp_Qdash_matrices = self._sdp_Q_matrices
 
@@ -1519,8 +1587,7 @@ class Problem(SageObject):
 		else:
 			self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
 		
-		if self._register_progression("set_construction", "query") != "set":
-		
+		if not meet_target_bound:
 			for ti in range(num_types):
 				self._exact_Qdash_matrices[ti].set_immutable()
 			return
