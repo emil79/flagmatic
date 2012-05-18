@@ -965,6 +965,8 @@ class Problem(SageObject):
 
 	def write_initial_point_file(self):
 	
+		small_change = Integer(1) / 1000
+	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
@@ -987,6 +989,8 @@ class Problem(SageObject):
 			
 			f.write("%s\n" % (-self._target_bound).n(digits=64))
 			
+			f.write("1 1 1 1 %s\n" % small_change.n(digits=64))
+			
 			for ti in range(num_types):
 				
 				nf = len(self._flags[ti])
@@ -1003,6 +1007,9 @@ class Problem(SageObject):
 					z_matrix[j, k] += value * self._sharp_graph_densities[si]
 
 				for j in range(nf):
+					z_matrix[j, j] += small_change
+
+				for j in range(nf):
 					for k in range(j, nf):
 						if z_matrix[j, k] != 0:
 							f.write("1 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, z_matrix[j, k].n(digits=64)))
@@ -1010,7 +1017,13 @@ class Problem(SageObject):
 			for gi in range(num_graphs):
 				if gi in self._sharp_graphs:
 					si = self._sharp_graphs.index(gi)
-					f.write("1 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, self._sharp_graph_densities[si].n(digits=64)))
+					value = self._sharp_graph_densities[si]
+				else:
+					value = 0
+				value += small_change
+				f.write("1 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+
+			f.write("1 %d 1 1 %s\n" % (num_types + 3, small_change.n(digits=64)))
 
 			f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
 			for ti in range(num_types):
@@ -1018,11 +1031,15 @@ class Problem(SageObject):
 				for j in range(nf):
 					for k in range(j, nf):
 						value = self._exact_Q_matrices[ti][j, k]
+						if j == k:
+							value += small_change
 						if value != 0:
 							f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, value.n(digits=64)))
 			
 			for gi in range(num_graphs):
-				f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, (self._bound - self._bounds[gi]).n(digits=64)))
+				value = self._bound - self._bounds[gi]
+				value += small_change
+				f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
 			f.write("2 %d 1 1 1.0\n" % (num_types + 3,))
 
 
