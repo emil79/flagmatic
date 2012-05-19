@@ -961,11 +961,10 @@ class Problem(SageObject):
 			self._write_blocks(f)
 
 
-	# Blocks not supported
+	# TODO: Blocks not supported. Multiple densities not supported.
+	# minimize problems don't work properly.
 
-	def write_initial_point_file(self):
-	
-		small_change = Integer(1) / 1000
+	def write_sdp_initial_point_file(self, small_change=1/Integer(100)):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -987,7 +986,10 @@ class Problem(SageObject):
 				else:
 					f.write("0.0 ")
 			
-			f.write("%s\n" % (-self._target_bound).n(digits=64))
+			if not self._minimize:
+				f.write("%s\n" % (-self._target_bound).n(digits=64))
+			else:
+				f.write("%s\n" % self._target_bound.n(digits=64))
 			
 			f.write("1 1 1 1 %s\n" % small_change.n(digits=64))
 			
@@ -1025,27 +1027,51 @@ class Problem(SageObject):
 
 			f.write("1 %d 1 1 %s\n" % (num_types + 3, small_change.n(digits=64)))
 
-			f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
-			for ti in range(num_types):
-				nf = len(self._flags[ti])
-				for j in range(nf):
-					for k in range(j, nf):
-						value = self._exact_Q_matrices[ti][j, k]
-						if j == k:
-							value += small_change
-						if value != 0:
-							f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, value.n(digits=64)))
+			if hasattr(self, "_exact_Q_matrices"):
+
+				f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
 			
-			for gi in range(num_graphs):
-				value = self._bound - self._bounds[gi]
-				value += small_change
-				f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+				for ti in range(num_types):
+					nf = len(self._flags[ti])
+					for j in range(nf):
+						for k in range(j, nf):
+							value = self._exact_Q_matrices[ti][j, k]
+							if j == k:
+								value += small_change
+							if value != 0:
+								f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, value.n(digits=64)))
+
+				for gi in range(num_graphs):
+					value = self._bound - self._bounds[gi] + small_change
+					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+
+			else:
+
+				if not self._minimize:
+					bound = max(self._densities[0])
+				else:
+					bound = min(self._densities[0])
+			
+				f.write("2 1 1 1 %s\n" % bound.n(digits=64))
+			
+				for ti in range(num_types):
+					nf = len(self._flags[ti])
+					for j in range(nf):
+						f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, j + 1, small_change.n(digits=64)))
+				
+				for gi in range(num_graphs):
+					if not self._minimize:
+						value = bound - self._densities[0][gi] + small_change
+					else:
+						value = self._densities[0][gi] - bound + small_change
+					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+			
 			f.write("2 %d 1 1 1.0\n" % (num_types + 3,))
 
 
 	# TODO: report error if problem infeasible
 	
-	def run_sdp_solver(self, show_output=False, sdpa=False, output_file=None):
+	def run_sdp_solver(self, show_output=False, sdpa=False, output_file=None, use_initial_point=True):
 	
 		self._register_progression("run_sdp_solver", "set")
 	
@@ -1059,6 +1085,9 @@ class Problem(SageObject):
 		if not sdpa:
 
 			cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
+
+			if use_initial_point and hasattr(self, "_sdp_initial_point_filename"):
+				cmd += " %s" % self._sdp_initial_point_filename
 
 		else:
 		
@@ -1299,6 +1328,7 @@ class Problem(SageObject):
 		
 		if output_file is None:
 			self.write_sdp_input_file()
+			self.write_sdp_initial_point_file()
 			self.run_sdp_solver(show_output=show_output, sdpa=sdpa)
 		else:
 			self.write_sdp_input_file(no_output=True)
