@@ -604,6 +604,8 @@ class Problem(SageObject):
 		self._zero_eigenvectors[ti].set_immutable()
 
 	
+	# TODO: is good idea to assume zero densities?
+	
 	def add_sharp_graphs(self, *args):
 	
 		self._register_progression("add_sharp_graphs", "set")
@@ -616,6 +618,7 @@ class Problem(SageObject):
 				raise ValueError
 			if not si in self._sharp_graphs:
 				self._sharp_graphs.append(si)
+				self._sharp_graph_densities.append(Integer(0))
 			else:
 				sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
 
@@ -856,34 +859,22 @@ class Problem(SageObject):
 				self._block_matrix_structure.append((ti, block_sizes[bi], block_offsets[bi]))
 
 
-	def _write_blocks(self, f):
+	def _get_block_matrix_structure(self, ti):
+		
+		num_blocks = 0
+		block_indices = []
+		block_offsets = []
+		block_sizes = []
 
-		for ti in self._active_types:
-
-			num_blocks = 0
-			block_indices = []
-			block_offsets = []
-
-			for bi in range(len(self._block_matrix_structure)):
-				b = self._block_matrix_structure[bi]
-				if b[0] == ti:
-					num_blocks += 1
-					block_indices.append(bi)
-					block_offsets.append(b[2])
-	
-			for row in self._product_densities_arrays[ti]:
-				gi = row[0]
-				j = row[1]
-				k = row[2]
-				bi = num_blocks - 1
-				if bi > 0:
-					while block_offsets[bi] > j:
-						bi -= 1
-					j -= block_offsets[bi]
-					k -= block_offsets[bi]
-				value = Integer(row[3]) / Integer(row[4])
-				f.write("%d %d %d %d %s\n" % (gi + 1, block_indices[bi] + 2, j + 1, k + 1,
-					value.n(digits=64)))
+		for bi in range(len(self._block_matrix_structure)):
+			b = self._block_matrix_structure[bi]
+			if b[0] == ti:
+				num_blocks += 1
+				block_indices.append(bi)
+				block_sizes.append(b[1])
+				block_offsets.append(b[2])
+		
+		return (num_blocks, block_sizes, block_offsets, block_indices)
 
 
 	# TODO: helpful error message if product densities have not been computed.
@@ -908,7 +899,7 @@ class Problem(SageObject):
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 	
 		self._set_block_matrix_structure()
-		num_blocks = len(self._block_matrix_structure)
+		total_num_blocks = len(self._block_matrix_structure)
 		
 		if no_output:
 			return
@@ -918,7 +909,7 @@ class Problem(SageObject):
 		with open(self._sdp_input_filename, "w") as f:
 	
 			f.write("%d\n" % (num_graphs + 1,))
-			f.write("%d\n" % (num_blocks + 3,))
+			f.write("%d\n" % (total_num_blocks + 3,))
 			
 			f.write("1 ")
 			for b in self._block_matrix_structure:
@@ -939,7 +930,7 @@ class Problem(SageObject):
 				else:
 					f.write("%d 1 1 1 1.0\n" % (i + 1,))
 				if not (self._force_sharps and i in self._sharp_graphs):
-					f.write("%d %d %d %d 1.0\n" % (i + 1, num_blocks + 2, i + 1, i + 1))
+					f.write("%d %d %d %d 1.0\n" % (i + 1, total_num_blocks + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
 				for j in range(num_densities):
@@ -947,7 +938,7 @@ class Problem(SageObject):
 					if d != 0:
 						if self._minimize:
 							d *= -1
-						f.write("%d %d %d %d %s\n" % (i + 1, num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
+						f.write("%d %d %d %d %s\n" % (i + 1, total_num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
 
 			non_free_densities = range(num_densities)
 			if hasattr(self, "_free_densities"):
@@ -955,18 +946,33 @@ class Problem(SageObject):
 					non_free_densities.remove(j)
 			
 			for j in non_free_densities:
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, num_blocks + 3, j + 1, j + 1))
+				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, total_num_blocks + 3, j + 1, j + 1))
 		
-			self._write_blocks(f)
+			for ti in self._active_types:
 
+				num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+		
+				for row in self._product_densities_arrays[ti]:
+					gi = row[0]
+					j = row[1]
+					k = row[2]
+					bi = num_blocks - 1
+					if bi > 0:
+						while block_offsets[bi] > j:
+							bi -= 1
+						j -= block_offsets[bi]
+						k -= block_offsets[bi]
+					value = Integer(row[3]) / Integer(row[4])
+					f.write("%d %d %d %d %s\n" %
+						(gi + 1, block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
 
-	# TODO: Blocks not supported. Multiple densities not supported.
 
 	def write_sdp_initial_point_file(self, small_change=1/Integer(10)):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
+		total_num_blocks = len(self._block_matrix_structure)
 		
 		self._sdp_initial_point_filename = os.path.join(SAGE_TMP, "sdp.ini-s")
 	
@@ -1009,10 +1015,14 @@ class Problem(SageObject):
 				for j in range(nf):
 					z_matrix[j, j] += small_change
 
-				for j in range(nf):
-					for k in range(j, nf):
-						if z_matrix[j, k] != 0:
-							f.write("1 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, z_matrix[j, k].n(digits=64)))
+				num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+
+				for bi in range(num_blocks):
+					for j in range(block_sizes[bi]):
+						for k in range(j, block_sizes[bi]):
+							value = z_matrix[block_offsets[bi] + j, block_offsets[bi] + k]
+							if value != 0:
+								f.write("1 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
 
 			for gi in range(num_graphs):
 				if gi in self._sharp_graphs:
@@ -1022,36 +1032,39 @@ class Problem(SageObject):
 					value = 0
 				if value <= 0:
 					value = small_change
-				f.write("1 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+				f.write("1 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
 
 			for j in range(num_densities):
-				f.write("1 %d %d %d %s\n" % (num_types + 3, j + 1, j + 1, small_change.n(digits=64)))
+				f.write("1 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, small_change.n(digits=64)))
 
 			if hasattr(self, "_exact_Q_matrices"):
 
 				f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
-			
-				for ti in self._active_types:
-					nf = len(self._flags[ti])
-					for j in range(nf):
-						for k in range(j, nf):
-							value = self._exact_Q_matrices[ti][j, k]
-							if j == k:
-								value += small_change
-							if value != 0:
-								f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, value.n(digits=64)))
+
+				for ti in range(num_types):
+
+					num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+	
+					for bi in range(num_blocks):
+						for j in range(block_sizes[bi]):
+							for k in range(j, block_sizes[bi]):
+								value = self._exact_Q_matrices[ti][block_offsets[bi] + j, block_offsets[bi] + k]
+								if j == k:
+									value += small_change
+								if value != 0:
+									f.write("2 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
 
 				for gi in range(num_graphs):
 					value = self._bound - self._bounds[gi]
 					if value <= 0:
 						value = small_change
-					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+					f.write("2 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
 
 				for j in range(num_densities):
 					value = self._exact_density_coeffs[j]
 					if value <= 0:
 						value = small_change
-					f.write("2 %d %d %d %s\n" % (num_types + 3, j + 1, j + 1, value.n(digits=64)))
+					f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
 
 			else:
 
@@ -1065,20 +1078,25 @@ class Problem(SageObject):
 					value = small_change
 				f.write("2 1 1 1 %s\n" % value.n(digits=64))
 				
-				for ti in self._active_types:
-					nf = len(self._flags[ti])
-					for j in range(nf):
-						f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, j + 1, small_change.n(digits=64)))
+				num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+	
+				for ti in range(num_types):
+				
+					num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+					
+					for bi in range(num_blocks):
+						for j in range(block_sizes[bi]):
+							f.write("2 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, j + 1, small_change.n(digits=64)))
 				
 				for gi in range(num_graphs):
 					value = (bound - densities[gi]) * (-1 if self._minimize else 1)
 					if value <= 0:
 						value = small_change
-					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+					f.write("2 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
 				
 				value = Integer(1) / num_densities
 				for j in range(num_densities):
-					f.write("2 %d %d %d %s\n" % (num_types + 3, j + 1, j + 1, value.n(digits=64)))
+					f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
 
 
 	# TODO: report error if problem infeasible
