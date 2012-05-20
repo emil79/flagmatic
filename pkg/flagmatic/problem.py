@@ -888,6 +888,7 @@ class Problem(SageObject):
 
 	# TODO: helpful error message if product densities have not been computed.
 	# TODO: add option for forcing sharps
+	# TODO: should block matrix structure be set elsewhere?
 	
 	def write_sdp_input_file(self, no_output=False):
 	
@@ -960,7 +961,6 @@ class Problem(SageObject):
 
 
 	# TODO: Blocks not supported. Multiple densities not supported.
-	# minimize problems don't work properly.
 
 	def write_sdp_initial_point_file(self, small_change=1/Integer(10)):
 	
@@ -1020,10 +1020,12 @@ class Problem(SageObject):
 					value = self._sharp_graph_densities[si]
 				else:
 					value = 0
-				value += small_change
+				if value <= 0:
+					value = small_change
 				f.write("1 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
 
-			f.write("1 %d 1 1 %s\n" % (num_types + 3, small_change.n(digits=64)))
+			for j in range(num_densities):
+				f.write("1 %d %d %d %s\n" % (num_types + 3, j + 1, j + 1, small_change.n(digits=64)))
 
 			if hasattr(self, "_exact_Q_matrices"):
 
@@ -1040,15 +1042,23 @@ class Problem(SageObject):
 								f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, k + 1, value.n(digits=64)))
 
 				for gi in range(num_graphs):
-					value = self._bound - self._bounds[gi] + small_change
+					value = self._bound - self._bounds[gi]
+					if value <= 0:
+						value = small_change
 					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
+
+				for j in range(num_densities):
+					value = self._exact_density_coeffs[j]
+					if value <= 0:
+						value = small_change
+					f.write("2 %d %d %d %s\n" % (num_types + 3, j + 1, j + 1, value.n(digits=64)))
 
 			else:
 
-				if not self._minimize:
-					bound = max(self._densities[0])
-				else:
-					bound = min(self._densities[0])
+				densities = [sum([self._densities[j][gi] for j in range(num_densities)])
+						/ num_densities for gi in range(num_graphs)]
+				
+				bound = min(densities) if self._minimize else max(densities)
 				
 				value = bound
 				if value <= 0:
@@ -1061,15 +1071,14 @@ class Problem(SageObject):
 						f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, j + 1, small_change.n(digits=64)))
 				
 				for gi in range(num_graphs):
-					if not self._minimize:
-						value = bound - self._densities[0][gi]
-					else:
-						value = self._densities[0][gi] - bound
+					value = (bound - densities[gi]) * (-1 if self._minimize else 1)
 					if value <= 0:
 						value = small_change
 					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
-			
-			f.write("2 %d 1 1 1.0\n" % (num_types + 3,))
+				
+				value = Integer(1) / num_densities
+				for j in range(num_densities):
+					f.write("2 %d %d %d %s\n" % (num_types + 3, j + 1, j + 1, value.n(digits=64)))
 
 
 	# TODO: report error if problem infeasible
