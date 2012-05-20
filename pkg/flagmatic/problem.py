@@ -897,11 +897,9 @@ class Problem(SageObject):
 		num_types = len(self._types)
 		num_densities = len(self._densities)
 		
-		if not self._minimize:
-			# Multiply SDP solver objective value by -1
-			self._obj_value_factor = -1.0
-		else:
-			self._obj_value_factor = 1.0
+		# For maximization problems, the objective value returned by the SDP solver
+		# must be negated.
+		self._obj_value_factor = 1.0 if self._minimize else -1.0
 		
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")
@@ -964,7 +962,7 @@ class Problem(SageObject):
 	# TODO: Blocks not supported. Multiple densities not supported.
 	# minimize problems don't work properly.
 
-	def write_sdp_initial_point_file(self, small_change=1/Integer(100)):
+	def write_sdp_initial_point_file(self, small_change=1/Integer(10)):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -1031,7 +1029,7 @@ class Problem(SageObject):
 
 				f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
 			
-				for ti in range(num_types):
+				for ti in self._active_types:
 					nf = len(self._flags[ti])
 					for j in range(nf):
 						for k in range(j, nf):
@@ -1051,19 +1049,24 @@ class Problem(SageObject):
 					bound = max(self._densities[0])
 				else:
 					bound = min(self._densities[0])
-			
-				f.write("2 1 1 1 %s\n" % bound.n(digits=64))
-			
-				for ti in range(num_types):
+				
+				value = bound
+				if value <= 0:
+					value = small_change
+				f.write("2 1 1 1 %s\n" % value.n(digits=64))
+				
+				for ti in self._active_types:
 					nf = len(self._flags[ti])
 					for j in range(nf):
 						f.write("2 %d %d %d %s\n" % (ti + 2, j + 1, j + 1, small_change.n(digits=64)))
 				
 				for gi in range(num_graphs):
 					if not self._minimize:
-						value = bound - self._densities[0][gi] + small_change
+						value = bound - self._densities[0][gi]
 					else:
-						value = self._densities[0][gi] - bound + small_change
+						value = self._densities[0][gi] - bound
+					if value <= 0:
+						value = small_change
 					f.write("2 %d %d %d %s\n" % (num_types + 2, gi + 1, gi + 1, value.n(digits=64)))
 			
 			f.write("2 %d 1 1 1.0\n" % (num_types + 3,))
