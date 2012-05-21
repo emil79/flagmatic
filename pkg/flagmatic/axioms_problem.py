@@ -51,7 +51,7 @@ class AxiomsProblem(Problem):
 
 	def add_axiom(self, tg, terms, make_free=True):
 
-		self._register_progression("set_objective", "set")
+		self.state("set_objective", "yes")
 
 		m = self.n - max([t[0].n for t in terms]) + tg.n
 
@@ -120,6 +120,30 @@ class AxiomsProblem(Problem):
 			f1 = GraphFlag("2:12(1)")
 			f2 = GraphFlag("1:(1)")
 			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
+
+
+	def add_equal_degrees_axiom(self, make_free=True):
+	
+		if self._flag_cls().oriented:
+			raise NotImplementedError
+	
+		if self._flag_cls().r == 3:
+	
+			tg = ThreeGraphFlag("2:")
+			f1 = ThreeGraphFlag("4:134(2)")
+			f2 = ThreeGraphFlag("4:234(2)")
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -Integer(1))], make_free=make_free)
+
+		elif self._flag_cls().r == 2:
+
+			tg = GraphFlag("2:")
+			f1 = GraphFlag("3:13(2)")
+			f2 = GraphFlag("3:23(2)")
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -Integer(1))], make_free=make_free)
+			tg = GraphFlag("2:12")
+			f1 = GraphFlag("3:1213(2)")
+			f2 = GraphFlag("3:1223(2)")
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, -Integer(1))], make_free=make_free)
 		
 	
 	def add_out_degree_axiom(self, value, make_free=True):
@@ -146,7 +170,7 @@ class AxiomsProblem(Problem):
 
 	def show_large_densities(self, larger_than=0.0):
 
-		self._register_progression("run_sdp_solver", "ensure")
+		self.state("run_sdp_solver", "ensure_yes")
 
 		num_densities = len(self._densities)
 
@@ -162,7 +186,7 @@ class AxiomsProblem(Problem):
 
 	def show_independent_densities(self):
 
-		self._register_progression("run_sdp_solver", "ensure")
+		self.state("run_sdp_solver", "ensure_yes")
 	
 		num_sharps = len(self._sharp_graphs)
 		num_densities = len(self._densities)
@@ -234,7 +258,7 @@ class AxiomsProblem(Problem):
 		if hasattr(new_problem, "_bounds"):
 			del new_problem._bounds
 		
-		new_problem._register_progression("set_objective", "set")
+		new_problem.state("set_objective", "yes")
 
 		return new_problem
 
