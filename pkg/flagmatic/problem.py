@@ -991,72 +991,91 @@ class Problem(SageObject):
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
-		total_num_blocks = len(self._block_matrix_structure)
-		
+				
 		self._sdp_initial_point_filename = os.path.join(SAGE_TMP, "sdp.ini-s")
 	
-		self._set_block_matrix_structure()
-		num_blocks = len(self._block_matrix_structure)
-		
+		# TODO: check block matrix structure set
+		#self._set_block_matrix_structure()
+		total_num_blocks = len(self._block_matrix_structure)
+				
 		sys.stdout.write("Writing SDP initial point file...\n")
 				
 		with open(self._sdp_initial_point_filename, "w") as f:
 	
-			for gi in range(num_graphs):
-				if gi in self._sharp_graphs:
-					si = self._sharp_graphs.index(gi)
-					f.write("%s " % self._sharp_graph_densities[si].n(digits=64))
+			if self.state("set_construction") == "yes":
+	
+				for gi in range(num_graphs):
+					if gi in self._sharp_graphs:
+						si = self._sharp_graphs.index(gi)
+						f.write("%s " % self._sharp_graph_densities[si].n(digits=64))
+					else:
+						f.write("0.0 ")
+				
+				if not self._minimize:
+					f.write("%s\n" % (-self._target_bound).n(digits=64))
 				else:
-					f.write("0.0 ")
-			
-			if not self._minimize:
-				f.write("%s\n" % (-self._target_bound).n(digits=64))
+					f.write("%s\n" % self._target_bound.n(digits=64))
+				
+				f.write("1 1 1 1 %s\n" % small_change.n(digits=64))
+				
+				for ti in range(num_types):
+					
+					nf = len(self._flags[ti])
+					z_matrix = matrix(QQ, nf, nf)
+					
+					for row in self._product_densities_arrays[ti]:
+						gi = row[0]
+						if not gi in self._sharp_graphs:
+							continue
+						si = self._sharp_graphs.index(gi)
+						j = row[1]
+						k = row[2]
+						value = Integer(row[3]) / Integer(row[4])
+						z_matrix[j, k] += value * self._sharp_graph_densities[si]
+	
+					for j in range(nf):
+						z_matrix[j, j] += small_change
+	
+					num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+	
+					for bi in range(num_blocks):
+						for j in range(block_sizes[bi]):
+							for k in range(j, block_sizes[bi]):
+								value = z_matrix[block_offsets[bi] + j, block_offsets[bi] + k]
+								if value != 0:
+									f.write("1 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
+	
+				for gi in range(num_graphs):
+					if gi in self._sharp_graphs:
+						si = self._sharp_graphs.index(gi)
+						value = self._sharp_graph_densities[si]
+					else:
+						value = 0
+					if value <= 0:
+						value = small_change
+					f.write("1 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
+	
+				for j in range(num_densities):
+					f.write("1 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, small_change.n(digits=64)))
+
 			else:
-				f.write("%s\n" % self._target_bound.n(digits=64))
 			
-			f.write("1 1 1 1 %s\n" % small_change.n(digits=64))
-			
-			for ti in range(num_types):
-				
-				nf = len(self._flags[ti])
-				z_matrix = matrix(QQ, nf, nf)
-				
-				for row in self._product_densities_arrays[ti]:
-					gi = row[0]
-					if not gi in self._sharp_graphs:
-						continue
-					si = self._sharp_graphs.index(gi)
-					j = row[1]
-					k = row[2]
-					value = Integer(row[3]) / Integer(row[4])
-					z_matrix[j, k] += value * self._sharp_graph_densities[si]
+				for gi in range(num_graphs + 1):
+					f.write("0.0 ")
+				f.write("\n")
+				f.write("1 1 1 1 %s\n" % small_change.n(digits=64))
+				for ti in range(num_types):
+					num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
+					for bi in range(num_blocks):
+						for j in range(block_sizes[bi]):
+							f.write("1 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, j + 1, small_change.n(digits=64)))
+				for gi in range(num_graphs):
+					f.write("1 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, small_change.n(digits=64)))
+				for j in range(num_densities):
+					f.write("1 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, small_change.n(digits=64)))	
 
-				for j in range(nf):
-					z_matrix[j, j] += small_change
-
-				num_blocks, block_sizes, block_offsets, block_indices = self._get_block_matrix_structure(ti)
-
-				for bi in range(num_blocks):
-					for j in range(block_sizes[bi]):
-						for k in range(j, block_sizes[bi]):
-							value = z_matrix[block_offsets[bi] + j, block_offsets[bi] + k]
-							if value != 0:
-								f.write("1 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
-
-			for gi in range(num_graphs):
-				if gi in self._sharp_graphs:
-					si = self._sharp_graphs.index(gi)
-					value = self._sharp_graph_densities[si]
-				else:
-					value = 0
-				if value <= 0:
-					value = small_change
-				f.write("1 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
-
-			for j in range(num_densities):
-				f.write("1 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, small_change.n(digits=64)))
-
-			if hasattr(self, "_exact_Q_matrices"):
+			# TODO: make this an exact Q check.
+			if self.state("check_exact") == "yes":
 
 				f.write("2 1 1 1 %s\n" % self._bound.n(digits=64))
 
