@@ -1,0 +1,11 @@
+P = ThreeGraphProblem()
+P.forbid_subgraph((5, 10))
+P.forbid_induced_subgraph((5, 8))
+P.n = 6
+C = BlowupConstruction(ThreeGraphFlag("2:112122"))
+P.set_extremal_construction(C)
+P.compute_products()
+P.solve_sdp(True)
+P.change_solution_bases()
+P.make_exact()
+P.check_exact_bound()
