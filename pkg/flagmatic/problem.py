@@ -55,7 +55,7 @@ cdsp_cmd = "csdp"
 sdpa_cmd = "sdpa"
 sdpa_dd_cmd = "sdpa_dd"
 sdpa_qd_cmd = "sdpa_qd"
-
+dsdp_cmd = "dsdp"
 
 def block_structure(M):
 	"""
@@ -257,15 +257,20 @@ class Problem(SageObject):
 	def n(self, n):
 		self.generate_flags(n)
 
-	
-	def generate_flags(self, n, type_orders="all", max_flags=None, compute_products=True):
 
-		if type_orders == "all":
-			type_orders = range(n % 2, n - 1, 2)
+	# TODO: sanity checking of type orders
+	
+	def generate_flags(self, n, type_orders=None, max_flags=None, compute_products=True):
+
+		if type_orders is None:
+			orders = [(s, floor((n + s) / 2)) for s in range(n % 2, n - 1, 2)]
 		else:
-			if not all(s in range(n + 1) for s in type_orders):
-				raise ValueError
-			type_orders = sorted(list(set(type_orders)))
+			orders = []
+			for to in type_orders:
+				if type(to) is tuple:
+					orders.append(to)
+				else:
+					orders.append((to, floor((n + to) / 2)))
 
 		self.state("compute_flags", "yes")
 
@@ -284,7 +289,7 @@ class Problem(SageObject):
 		self._types = []
 		self._flags = []
 		
-		for s in type_orders:
+		for s, m in orders:
 			
 			these_types = self._flag_cls.generate_graphs(s,
 				forbidden_edge_numbers=self._forbidden_edge_numbers,
@@ -293,7 +298,6 @@ class Problem(SageObject):
 			sys.stdout.write("Generated %d types of order %d, " % (
 				len(these_types), s))
 
-			m = floor((n + s) / 2)
 			these_flags = []
 			for tg in these_types:
 				these_flags.append(self._flag_cls.generate_flags(m, tg,
@@ -980,6 +984,8 @@ class Problem(SageObject):
 						(gi + 1, block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
 
 
+	# TODO: handle no sharp graphs
+
 	def write_sdp_initial_point_file(self, small_change=1/Integer(10)):
 	
 		num_graphs = len(self._graphs)
@@ -1114,7 +1120,7 @@ class Problem(SageObject):
 
 	# TODO: report error if problem infeasible
 	
-	def run_sdp_solver(self, show_output=False, sdpa=False, output_file=None, use_initial_point=True):
+	def run_sdp_solver(self, show_output=False, solver="csdp", output_file=None, use_initial_point=True):
 	
 		self.state("run_sdp_solver", "yes")
 	
@@ -1123,31 +1129,31 @@ class Problem(SageObject):
 			self._read_sdp_output_file()
 			return
 	
-		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
-
-		if not sdpa:
-
-			cmd = "%s %s %s" % (cdsp_cmd, self._sdp_input_filename, self._sdp_output_filename)
+		previous_directory = os.getcwd()
+		os.chdir(SAGE_TMP)
+		
+		if solver == "csdp":
+			cmd = "%s %s sdp.out" % (cdsp_cmd, self._sdp_input_filename)
 
 			if use_initial_point and hasattr(self, "_sdp_initial_point_filename"):
 				cmd += " %s" % self._sdp_initial_point_filename
 
-		else:
+		elif solver == "dsdp":
+			cmd = "%s %s -gaptol 1e-18 -print 1 -save sdp.out" % (dsdp_cmd, self._sdp_input_filename)
+			
+		elif solver == "sdpa":
+			cmd = "%s -ds %s -o sdpa.out" % (sdpa_cmd, self._sdp_input_filename)
+	
+		elif solver == "sdpa_dd":
+			cmd = "%s -ds %s -o sdpa.out" % (sdpa_dd_cmd, self._sdp_input_filename)
 		
-			if sdpa == "dd":
-				solver_cmd = sdpa_dd_cmd
-			elif sdpa == "qd":
-				solver_cmd = sdpa_qd_cmd
-			else:
-				solver_cmd = sdpa_cmd
-		
-			sdpa_output_filename = os.path.join(SAGE_TMP, "sdpa.out")
-			cmd = "%s -ds %s -o %s" % (solver_cmd, self._sdp_input_filename, sdpa_output_filename)
-
-		if not sdpa:
-			sys.stdout.write("Running csdp...\n")
+		elif solver == "sdpa_qd":
+			cmd = "%s -ds %s -o sdpa.out" % (sdpa_qd_cmd, self._sdp_input_filename)
+	
 		else:
-			sys.stdout.write("Running sdpa...\n")
+			raise ValueError("unknown solver.")	
+		
+		sys.stdout.write("Running SDP solver...\n")
 
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
 		obj_val = None
@@ -1161,6 +1167,8 @@ class Problem(SageObject):
 					obj_val = self._approximate_field(line.split()[-1]) * self._obj_value_factor
 				elif "objValPrimal" in line: # SDPA
 					obj_val = self._approximate_field(line.split()[-1]) * self._obj_value_factor
+				elif "DSDP Solution" in line: # DSDP: seems to print absolute value
+					obj_val = self._approximate_field(line.split()[-1])
 				if show_output:
 					sys.stdout.write(line)
 			except pexpect.EOF:
@@ -1174,10 +1182,10 @@ class Problem(SageObject):
 		# TODO: if program is infeasible, a returncode of 1 is given,
 		# and output contains "infeasible"
 
-		if sdpa:
+		if "sdpa" in solver:
 		
-			with open(sdpa_output_filename, "r") as inf:
-				with open(self._sdp_output_filename, "w") as f:
+			with open("sdpa.out", "r") as inf:
+				with open("sdp.out", "w") as f:
 
 					found, diagonal = False, False
 					t, row, col = 0, 1, 1
@@ -1220,6 +1228,8 @@ class Problem(SageObject):
 						if col > 1: # at least one number found...
 							row += 1
 
+		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
+		os.chdir(previous_directory)
 		self._read_sdp_output_file()
 
 
@@ -1268,7 +1278,7 @@ class Problem(SageObject):
 				j += offset
 				k += offset 
 
-				self._sdp_Q_matrices[ti][j, k] = numbers[4]
+				self._sdp_Q_matrices[ti][j, k] = self._approximate_field(numbers[4])
 				self._sdp_Q_matrices[ti][k, j] = self._sdp_Q_matrices[ti][j, k]
 
 		for ti in range(num_types):
@@ -1360,7 +1370,7 @@ class Problem(SageObject):
 
 
 
-	def solve_sdp(self, show_output=False, sdpa=False, tolerance=0.00001, show_all=False, output_file=None):
+	def solve_sdp(self, show_output=False, solver="csdp", tolerance=0.00001, show_all=False, output_file=None):
 		"""
 		Creates and solves the semi-definite program corresponding to the problem.
 		
@@ -1372,10 +1382,10 @@ class Problem(SageObject):
 		if output_file is None:
 			self.write_sdp_input_file()
 			self.write_sdp_initial_point_file()
-			self.run_sdp_solver(show_output=show_output, sdpa=sdpa)
+			self.run_sdp_solver(show_output=show_output, solver=solver)
 		else:
 			self.write_sdp_input_file(no_output=True)
-			self.run_sdp_solver(show_output=show_output, sdpa=sdpa, output_file=output_file)
+			self.run_sdp_solver(show_output=show_output, solver=solver, output_file=output_file)
 
 		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
 
