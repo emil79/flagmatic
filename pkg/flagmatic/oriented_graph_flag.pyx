@@ -54,12 +54,12 @@ cdef class OrientedGraphFlag (HypergraphFlag):
 
 
 	@classmethod
-	def generate_flags(cls, n, tg, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+	def generate_flags(cls, n, tg, forbidden_edge_numbers=None, forbidden_graphs=None, forbidden_induced_graphs=None):
 		return HypergraphFlag.generate_flags(n, tg, r=2, oriented=True, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 
 	@classmethod
-	def generate_graphs(cls, n, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+	def generate_graphs(cls, n, forbidden_edge_numbers=None, forbidden_graphs=None, forbidden_induced_graphs=None):
 		return HypergraphFlag.generate_flags(n, cls(), r=2, oriented=True, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 

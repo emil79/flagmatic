@@ -399,7 +399,7 @@ cdef class HypergraphFlag (Flag):
 	
 
 	@classmethod
-	def generate_flags(cls, n, tg, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+	def generate_flags(cls, n, tg, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers=None, forbidden_graphs=None, forbidden_induced_graphs=None):
 		"""
 		For an integer n, and a type tg, returns a list of all tg-flags on n
 		vertices, that satisfy certain constraints.
@@ -487,13 +487,13 @@ cdef class HypergraphFlag (Flag):
 					for e in nb:
 						ng.add_edge(e)
 	
-					if ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
+					if not forbidden_edge_numbers is None and ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
 						continue
 	
-					if ng.has_forbidden_graphs(forbidden_graphs, must_have_highest=True):
+					if not forbidden_graphs is None and ng.has_forbidden_graphs(forbidden_graphs, must_have_highest=True):
 						continue
 	
-					if ng.has_forbidden_graphs(forbidden_induced_graphs, must_have_highest=True, induced=True):
+					if not forbidden_induced_graphs is None and ng.has_forbidden_graphs(forbidden_induced_graphs, must_have_highest=True, induced=True):
 						continue
 	
 					ng.make_minimal_isomorph()
@@ -506,7 +506,7 @@ cdef class HypergraphFlag (Flag):
 
 
 	@classmethod
-	def generate_graphs(cls, n, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers={}, forbidden_graphs=[], forbidden_induced_graphs=[]):
+	def generate_graphs(cls, n, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers=None, forbidden_graphs=None, forbidden_induced_graphs=None):
 		return cls.generate_flags(n, cls(r=r, oriented=oriented, multiplicity=multiplicity), r, oriented, multiplicity, forbidden_edge_numbers=forbidden_edge_numbers,
 			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
 

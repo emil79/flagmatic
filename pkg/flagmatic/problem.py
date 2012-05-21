@@ -1610,7 +1610,7 @@ class Problem(SageObject):
 
 
 
-	def make_exact(self, denominator=1024, cholesky=[], protect=[], meet_target_bound=True, show_changes=False,
+	def make_exact(self, denominator=1024, cholesky=None, protect=None, meet_target_bound=True, show_changes=False,
 		use_densities=True):
 	
 		self.state("make_exact", "yes")
@@ -1621,6 +1621,11 @@ class Problem(SageObject):
 
 		if cholesky == "all":
 			cholesky = self._active_types
+		elif cholesky is None:
+			cholesky = []
+	
+		if protect is None:
+			protect = []
 
 		if meet_target_bound:
 			self.state("set_construction", "ensure_yes")

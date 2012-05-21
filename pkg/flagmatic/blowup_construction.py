@@ -211,7 +211,10 @@ class BlowupConstruction(Construction):
 	# ways to form k-tuples. This results in more representatives than is strictly
 	# necessary, but it is much faster than doing otherwise.
 
-	def tuple_orbit_reps(self, k, prefix=[]):
+	def tuple_orbit_reps(self, k, prefix=None):
+		
+		if prefix is None:
+			prefix = []
 		
 		s = len(prefix)
 		tp = tuple(prefix)
