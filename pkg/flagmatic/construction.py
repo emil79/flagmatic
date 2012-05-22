@@ -27,17 +27,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import sys
-
 from sage.structure.sage_object import SageObject
-from sage.rings.all import Integer, QQ, polygen, RationalField
+from sage.rings.all import RationalField
 from sage.matrix.all import matrix
-from sage.misc.all import sage_eval
 from copy import copy
-
-from three_graph_flag import *
-from graph_flag import *
-from oriented_graph_flag import *
 
 
 def matrix_of_independent_rows(field, rows, width):
