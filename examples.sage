@@ -193,20 +193,19 @@ class Example:
 
 		P = None
 		C = None
-		base_filename = os.path.join("examples", name)
-		
-		buffer = cStringIO.StringIO()
-		saved_stdout = sys.stdout
-		sys.stdout = Tee(sys.stdout, buffer)
-	
+
+		base_filename = os.path.join("examples", name)	
 		with open(base_filename + ".sage", "r") as f:
 			lines = f.readlines()
 		
 		# last line of file might not end in a newline
 		if lines[-1][-1] != "\n":
 			lines[-1] += "\n"
-		
 		lines.append('P.save("' + base_filename + '")\n')
+
+		buffer = cStringIO.StringIO()
+		saved_stdout = sys.stdout
+		sys.stdout = Tee(sys.stdout, buffer)
 		
 		for line in lines:
 			sys.stdout.write("sage: %s" % line)
