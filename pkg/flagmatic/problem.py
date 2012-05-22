@@ -321,9 +321,6 @@ class Problem(SageObject):
 		
 		num_types = len(self._types) # may have changed!
 		
-		self._zero_eigenvectors = [matrix(self._field, 0, len(self._flags[ti]), sparse=True)
-			for ti in range(num_types)]
-
 		self._active_types = range(num_types)
 		
 		if compute_products:
@@ -546,48 +543,62 @@ class Problem(SageObject):
 				sys.stdout.write("Warning: type %d is already inactive.\n" % ti)
 
 
-	def set_extremal_construction(self, c):
+	# TODO: sanity check ad hoc
+
+	def set_extremal_construction(self, construction=None, field=None, target_bound=None):
 
 		self.state("set_construction", "yes")
 
-		num_graphs = len(self._graphs)
 		num_types = len(self._types)
-		num_densities = len(self._densities)
 
-		self._construction = c
-		self._field = c.field
-
-		# Ad Hoc constructions use target_bound() instead of subgraph_densities()
-		pair = c.target_bound()
-
-		if not pair is None:
+		if construction is None:
 		
-			self._target_bound = pair[0]
-			self._sharp_graphs = pair[1]
-
-		else:
-
-			sys.stdout.write("Determining which graphs appear in construction...\n")
+			self._construction = None
+			self._field = field
+			sys.stdout.write("Field is \"%s\" with embedding x=%s.\n" %
+				(str(self._field), self._field.gen_embedding().n(digits=10)))
+			self._target_bound = target_bound
+			sys.stdout.write("Set target bound to be %s (%s).\n" %
+				(self._target_bound, self._target_bound.n(digits=10)))
 			
-			sharp_graphs = c.subgraph_densities(self._n)
-			target_densities = [0 for j in range(num_densities)]
+			self._zero_eigenvectors = []
+			for ti in range(num_types):
+				M = matrix(self._field, 0, len(self._flags[ti]), sparse=True)
+				M.set_immutable()
+				self._zero_eigenvectors.append(M)
+			
 			self._sharp_graphs = []
 			self._sharp_graph_densities = []
 			
-			for pair in sharp_graphs:
-				g, den = pair
-				for gi in range(num_graphs):
-					if g.is_labelled_isomorphic(self._graphs[gi]):
-						self._sharp_graphs.append(gi)
-						self._sharp_graph_densities.append(den)
-						for j in range(num_densities):
-							target_densities[j] += self._densities[j][gi] * den
-						break
-				else:
-					sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % g)
-	
-			# set target_bound to equal the maximum - probably this will always be what is wanted...
-			self._target_bound = max(target_densities)
+			return
+
+		num_graphs = len(self._graphs)
+		num_densities = len(self._densities)
+
+		self._construction = construction
+		self._field = construction.field
+
+		sys.stdout.write("Determining which graphs appear in construction...\n")
+		
+		sharp_graphs = construction.subgraph_densities(self._n)
+		target_densities = [0 for j in range(num_densities)]
+		self._sharp_graphs = []
+		self._sharp_graph_densities = []
+		
+		for pair in sharp_graphs:
+			g, den = pair
+			for gi in range(num_graphs):
+				if g.is_labelled_isomorphic(self._graphs[gi]):
+					self._sharp_graphs.append(gi)
+					self._sharp_graph_densities.append(den)
+					for j in range(num_densities):
+						target_densities[j] += self._densities[j][gi] * den
+					break
+			else:
+				sys.stdout.write("Warning: non-admissible graph %s appears in construction!\n" % g)
+
+		# set target_bound to equal the maximum - probably this will always be what is wanted...
+		self._target_bound = max(target_densities)
 			
 		sys.stdout.write("Density of construction is %s.\n" % self._target_bound)
 		
@@ -595,14 +606,13 @@ class Problem(SageObject):
 		
 		for ti in range(len(self._types)):
 
-			self._zero_eigenvectors.append(c.zero_eigenvectors(self._types[ti], self._flags[ti]))
+			self._zero_eigenvectors.append(construction.zero_eigenvectors(self._types[ti], self._flags[ti]))
 		
 			sys.stdout.write("Found %d zero eigenvectors for type %d.\n" % (
 				self._zero_eigenvectors[ti].nrows(), ti))
 		
 		for ti in range(len(self._types)):
 			self._zero_eigenvectors[ti].set_immutable()
-
 	
 
 	# TODO: reinstate the per-block option?
