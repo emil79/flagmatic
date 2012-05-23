@@ -1,5 +1,5 @@
 
-def easy_guess(problem, ti, guesses, tolerance=1e-8, column_threshold=1e-6):
+def easy_guess(problem, ti, guesses, target=None, tolerance=1e-8, column_threshold=1e-6):
 
 	K = problem._field
 	Q = matrix(RDF, problem._sdp_Q_matrices[ti])
@@ -20,15 +20,17 @@ def easy_guess(problem, ti, guesses, tolerance=1e-8, column_threshold=1e-6):
 			R = Z * Q
 			norm = R.norm()
 			if norm < tolerance:
-				sys.stdout.write("%.3g %s\n" % (norm, Z.list()))
 				FZ = FZ.stack(Z)
 				FZ.echelonize()
 				if FZ[-1,:].is_zero():
 					FZ = FZ[:-1,:]
+				else:
+					sys.stdout.write("%d. %.3g %s\n" % (FZ.nrows(), norm, Z.list()))
+					if FZ.nrows() == target:
+						return FZ
 			for i in range(l):
 				Z[0, tup[i]] = 0
 
-	sys.stdout.write("%d\n" % FZ.nrows())
 	return FZ
 	
 
