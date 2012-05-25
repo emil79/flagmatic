@@ -159,21 +159,12 @@ class BlowupConstruction(Construction):
 			
 			using_phantom_edge = False
 
-# 			if hasattr(self, "_phantom_edge") and it.ne == tg.ne - 1:
-# 				extra_edges = [e for e in tg if not e in it]
-# 				if len(extra_edges) == 1:
-# 					phantom_edge = extra_edges[0]
-# 					if all(tv[phantom_edge[i] - 1] == self._phantom_edge[i] for i in range(tg.r)):
-# 						it.add_edge(phantom_edge)
-# 						using_phantom_edge = True
-
-			if hasattr(self, "_phantom_edge") and it.ne == tg.ne - 2:
+			if hasattr(self, "_phantom_edge") and it.ne == tg.ne - 1:
 				extra_edges = [e for e in tg if not e in it]
-				if len(extra_edges) == 2:
-					extra_edges_trans = [tuple(sorted([tv[v - 1] for v in e])) for e in extra_edges]
-					if (1,3) in extra_edges_trans and (1,4) in extra_edges_trans:
-						it.add_edge(extra_edges[0])
-						it.add_edge(extra_edges[1])
+				if len(extra_edges) == 1:
+					phantom_edge = extra_edges[0]
+					if all(tv[phantom_edge[i] - 1] == self._phantom_edge[i] for i in range(tg.r)):
+						it.add_edge(phantom_edge)
 						using_phantom_edge = True
 		
 			if not (using_phantom_edge or it.is_labelled_isomorphic(tg)):
@@ -194,10 +185,7 @@ class BlowupConstruction(Construction):
 				
 				ig = self._graph.degenerate_induced_subgraph(tv + ov)
 				if using_phantom_edge:
-					#ig.add_edge(phantom_edge)
-					ig.add_edge(extra_edges[0])
-					ig.add_edge(extra_edges[1])
-					
+					ig.add_edge(phantom_edge)
 				ig.t = s
 				ig.make_minimal_isomorph()
 				
