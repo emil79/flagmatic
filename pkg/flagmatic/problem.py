@@ -1705,9 +1705,9 @@ class Problem(SageObject):
 
 
 	def make_exact(self, denominator=1024, cholesky=None, protect=None, meet_target_bound=True, show_changes=False,
-		use_densities=True, transform_solution=True, use_blocks=True, check_exact_bound=True):
+		use_densities=True, transform=True, use_blocks=True, check_exact_bound=True):
 	
-		if transform_solution and self.state("transform_solution") != "yes":
+		if transform and not self.state("transform_problem") == "yes" and self.state("transform_solution") != "yes":
 			self.change_solution_bases(use_blocks=use_blocks)
 	
 		self.state("make_exact", "yes")
