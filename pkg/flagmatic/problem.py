@@ -27,12 +27,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import gzip
-import json
+import gzip, json, os, sys
 import numpy
-import os
 import pexpect
-import sys
 
 from sage.structure.sage_object import SageObject
 from sage.rings.all import Integer, QQ, RationalField, RDF
@@ -43,12 +40,13 @@ from sage.misc.misc import SAGE_TMP
 from copy import copy
 
 from hypergraph_flag import make_graph_block
+from flag import *
 from three_graph_flag import *
 from graph_flag import *
 from oriented_graph_flag import *
 from multigraph_flag import *
 
-# pexpect in Sage has a bug, which prevents it using commands with full paths.
+# pexpect in Sage 4.8 has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
 
 cdsp_cmd = "csdp"
@@ -57,11 +55,13 @@ sdpa_dd_cmd = "sdpa_dd"
 sdpa_qd_cmd = "sdpa_qd"
 dsdp_cmd = "dsdp"
 
+
 def block_structure(M):
-	"""
-	Returns a tuple. The first entry is the number of blocks, the second is a list of
-	the block sizes, and the third is a list containing the row in which each block begins.
-	Note that only the row subdivisions are looked at.
+	r"""
+	Given a matrix, this function returns a tuple. The first entry is the number of
+	row subdivisions that the matrix has. The second entry is a list of the sizes of the
+	row subdivisions, and the third entry is a list containing the rows at which each
+	subdivision begins. (Note that column subdivisions are ignored.)
 	"""
 	row_div = M.subdivisions()[0]
 	div_offsets = [0] + row_div
@@ -75,37 +75,64 @@ def block_structure(M):
 
 
 def safe_gram_schmidt(M):
-	"""
-	In Sage 4.8, .gram_schmidt() is broken for matrices over number fields. This function
-	will use the new implementation for matrices over the rationals, and the old
-	implementation in all other cases. In addition, the sparsity and subdivisions are
-	preserved.
+	r"""
+	Performs Gram Schmidt orthogonalization using Sage functions. The returned matrix
+	will have the same subdivisions are the input matrix, and it will be sparse if and
+	only if the input matrix is sparse.
+	
+	In addition, the new matrix.gram_schmidt method appears to have certain issues, at
+	least under Sage 4.8, when dealing with number fields (in particular the ones used
+	by the 'maxs3' and 'maxs4' problems.
+	
+	So, this function uses the old gram_schmidt function, whenever the base ring of the
+	matrix is not the rational field.
 	"""
 
-	div = M.subdivisions()
+	subdivision = M.subdivisions()
 	BR = M.base_ring()
+	sparse = M.is_sparse()
 
 	if BR == QQ:
 		M, mu = M.gram_schmidt()
-		# .gram_schmidt doesn't appear to preserve sparsity
-		M = matrix(QQ, M.rows(), sparse=True)
+		# .gram_schmidt doesn't appear to preserve sparsity, so recreate matrix from rows.
+		M = matrix(QQ, M.rows(), sparse=sparse)
 
 	else: # .gram_schmidt is broken for number fields in 4.8 !
 		rows, mu = gram_schmidt(M.rows())
-		M = matrix(BR, rows, sparse=True)
+		M = matrix(BR, rows, sparse=sparse)
 
-	M.subdivide(div)
+	M.subdivide(subdivision)
 	return M
 
 
 class Problem(SageObject):
+	r"""
+	This is the principal class of flagmatic. Objects of this class represent Turán-type
+	problems.
+	"""
 
+	def __init__(self, flag_cls, order=None, forbid=None, forbid_induced=None, density=None, minimize=False):
+		r"""
+		Creates a new Problem object. Generally it is not necessary to call this method
+		directly, as Problem objects are more easily created using the helper functions:
+		
+		sage: problem = GraphProblem()
+		sage: problem = ThreeGraphProblem()
+		sage: problem = OrientedGraphProblem()
+		sage: problem = TwoMultigraphProblem()
+		sage: problem = ThreeMultigraphProblem()
+		
+		If this method is called directory, then a class that inherits from Flag should be
+		provided, for example:
+		
+		sage: problem = Problem(GraphFlag)
 
-	def __init__(self, flag_cls):
+		"""
 	
 		self._flagmatic_version = "2.0"
 	
-		if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag, TwoMultigraphFlag, ThreeMultigraphFlag]:
+		#if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag, TwoMultigraphFlag, ThreeMultigraphFlag]:
+		if issubclass(flag_cls, Flag):
 			self._flag_cls = flag_cls
 		else:
 			raise ValueError
@@ -120,14 +147,40 @@ class Problem(SageObject):
 		self._forbidden_graphs = []
 		self._forbidden_induced_graphs = []
 		
-		self._obj_value_factor = -1
-		self._minimize = False
 		self._force_sharps = False
 
 		self.state("specify", "yes")
+		self.set_objective(minimize=minimize)
+
+		if not density is None:
+			self.set_density(density)
+		
+		if not forbid is None:
+			self.forbid(forbid)
+		
+		if not forbid_induced is None:
+			self.forbid_induced(forbid_induced)
+		
+		if not order is None:
+			self.generate_flags(order)
 		
 
 	def state(self, state_name=None, action=None):
+		r"""
+		Keeps track of which things have been done. To get a list of all the states, enter
+		
+		sage: problem.state()
+		
+		If the argument state_name is supplied, then the value of the state called
+		state_name is returned. This will be either "yes", "no" or "stale". "yes" means
+		that the thing has been done, "no" means that it has not. "stale" means that it
+		has been done, but subsequent actions mean that it needs to be re-done.
+		
+		If an action is supplied, it will change the value of the state state_name. The
+		action must be one of "yes", "no" or "stale". It is not recommended that the
+		value of any states be changed by the user. 
+		
+		"""
 
 		# We use tuples here because there is an order to the states.
 		state_list = [
@@ -365,50 +418,25 @@ class Problem(SageObject):
 		return copy(self._density_graphs)
 
 
-	@property
-	def minimize(self):
+	def set_objective(self, minimize=False):
+		r"""
+		Sets the Problem to be a "maximization" or a "minimization" problem. In a
+		maximization problem, the objective is to find the lowest upper bound on a
+		particular density. On the other hand, the objective in a minimization problem is
+		to find the greatest lower bound on a density. 
 		"""
-		If minimize is set to True, then the problem is a "minimization" problem;
-		this means that the SDP should be set up so that the largest possible lower bound
-		on the density is found.
-		
-		The minimize property is always the negation of the maximize property.
-		
-		By default, minimize is False.
-		
-		"""
-		return self._minimize
-
-	@minimize.setter
-	def minimize(self, value):
-		if not type(value) == bool:
+		if not type(minimize) is bool:
 			raise ValueError
-		self._minimize = value
-
-	@property
-	def maximize(self):
-		"""
-		If maximize is set to True, then the problem is a "maximization" problem;
-		this means that the SDP should be set up so that the smallest possible upper bound
-		on the density is found.
-		
-		The maximize property is always the negation of the minimize property.
-		
-		By default, maximize is True.
-		
-		"""
-
-		return not self._minimize
-
-	@maximize.setter
-	def maximize(self, value):
 
 		self.state("set_objective", "yes")
-	
-		if not type(value) == bool:
-			raise ValueError
-		self._minimize = not value
-
+		
+		if minimize:
+			self._obj_value_factor = 1
+			self._minimize = True
+		else:
+			self._obj_value_factor = -1
+			self._minimize = False
+		
 
 	def _compute_densities(self):
 	
@@ -423,12 +451,19 @@ class Problem(SageObject):
 		density_graphs = []
 		orders = []
 
+		flattened_args = []
 		for h in args:
+			if isinstance(h, list):
+				flattened_args.extend(h)
+			else:
+				flattened_args.append(h)
 		
-			if type(h) == str and "." in h:
+		for h in flattened_args:
+		
+			if isinstance(h, basestring) and "." in h:
 				h = tuple(map(int, h.split(".")))
 		
-			if type(h) == tuple:
+			if isinstance(h, tuple):
 				k, ne = h
 				if k < self._flag_cls().r:
 					raise ValueError
@@ -446,10 +481,10 @@ class Problem(SageObject):
 				orders.append(k)
 				continue
 			
-			if type(h) == str:
+			if isinstance(h, basestring):
 				h = self._flag_cls(h)
-				
-			if type(h) != self._flag_cls:
+			
+			if not isinstance(h, self._flag_cls):
 				raise ValueError
 
 			density_graphs.append(copy(h))
@@ -462,17 +497,19 @@ class Problem(SageObject):
 			raise ValueError("Density graphs must all contain the same number of vertices.")
 		
 		self._density_graphs = density_graphs
-		self._compute_densities()
+		
+		if self.state("compute_flags") == "yes":
+			self._compute_densities()
 
 
-	def _forbid_graph(self, h, induced):
+	def _forbid(self, h, induced):
 
 		self.state("specify", "yes")
 
-		if type(h) == str and "." in h:
+		if isinstance(h, basestring) and "." in h:
 			h = tuple(map(int, h.split(".")))
 		
-		if type(h) == tuple:
+		if isinstance(h, tuple):
 			k, ne = h
 			if k < self._flag_cls().r:
 				raise ValueError
@@ -486,10 +523,10 @@ class Problem(SageObject):
 					self._forbidden_edge_numbers.append((k, i))
 			return
 		
-		if type(h) == str:
+		if isinstance(h, basestring):
 			h = self._flag_cls(h)
 		
-		if type(h) != self._flag_cls:
+		if not isinstance(h, self._flag_cls):
 			raise ValueError
 
 		if induced:
@@ -500,16 +537,22 @@ class Problem(SageObject):
 			self._forbidden_graphs.sort(key = lambda g : (g.n, g.ne))
 
 
-	# TODO: allow lists
-
-	def forbid_subgraph(self, *args):
+	def forbid(self, *args):
 		for h in args:
-			self._forbid_graph(h, False)
+			if isinstance(h, list):
+				for x in h:
+					self._forbid(x, False)
+			else:
+				self._forbid(h, False)
 
 
-	def forbid_induced_subgraph(self, *args):
+	def forbid_induced(self, *args):
 		for h in args:
-			self._forbid_graph(h, True)
+			if isinstance(h, list):
+				for x in h:
+					self._forbid(x, True)
+			else:
+				self._forbid(h, True)
 	
 
 	def forbid_homomorphic_images(self):
@@ -1031,7 +1074,7 @@ class Problem(SageObject):
 				for ti in range(num_types):
 					
 					nf = len(self._flags[ti])
-					z_matrix = matrix(QQ, nf, nf)
+					z_matrix = matrix(self._field, nf, nf)
 					
 					for row in self._product_densities_arrays[ti]:
 						gi = row[0]
@@ -2040,18 +2083,48 @@ class Problem(SageObject):
 # 		}
 
 
-def ThreeGraphProblem():
-	return Problem(ThreeGraphFlag)
+def ThreeGraphProblem(order=None, **kwargs):
+	r"""
+	Returns a Problem object, that will represent a Turán-type 3-graph problem. For help
+	with Problem objects, enter
 
-def GraphProblem():
-	return Problem(GraphFlag)
+	sage: help(Problem)
+	"""
+	return Problem(ThreeGraphFlag, order, **kwargs)
 
-def OrientedGraphProblem():
-	return Problem(OrientedGraphFlag)
+def GraphProblem(order=None, **kwargs):
+	r"""
+	Returns a Problem object, that will represent a Turán-type graph problem. For help
+	with Problem objects, enter
 
-def TwoMultigraphProblem():
-	return Problem(TwoMultigraphFlag)
+	sage: help(Problem)
+	"""
+	return Problem(GraphFlag, order, **kwargs)
 
-def ThreeMultigraphProblem():
-	return Problem(ThreeMultigraphFlag)
+def OrientedGraphProblem(order=None, **kwargs):
+	r"""
+	Returns a Problem object, that will represent a Turán-type oriented graph problem. For
+	help with Problem objects, enter
+
+	sage: help(Problem)
+	"""
+	return Problem(OrientedGraphFlag, order, **kwargs)
+
+def TwoMultigraphProblem(order=None, **kwargs):
+	r"""
+	Returns a Problem object, that will represent a Turán-type 2-multigraph problem. For
+	help with Problem objects, enter
+
+	sage: help(Problem)
+	"""
+	return Problem(TwoMultigraphFlag, order, **kwargs)
+
+def ThreeMultigraphProblem(order=None, **kwargs):
+	r"""
+	Returns a Problem object, that will represent a Turán-type 3-multigraph problem. For
+	help with Problem objects, enter
+
+	sage: help(Problem)
+	"""
+	return Problem(ThreeMultigraphFlag, order, **kwargs)
 
