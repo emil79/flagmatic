@@ -32,7 +32,7 @@ import numpy
 import pexpect
 
 from sage.structure.sage_object import SageObject
-from sage.rings.all import Integer, QQ, RationalField, RDF
+from sage.rings.all import Integer, QQ, RDF
 from sage.functions.other import floor
 from sage.matrix.all import matrix, identity_matrix, block_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
@@ -97,7 +97,7 @@ def safe_gram_schmidt(M):
 		# .gram_schmidt doesn't appear to preserve sparsity, so recreate matrix from rows.
 		M = matrix(QQ, M.rows(), sparse=sparse)
 
-	else: # .gram_schmidt is broken for number fields in 4.8 !
+	else: # .gram_schmidt is broken for some number fields in 4.8.
 		rows, mu = gram_schmidt(M.rows())
 		M = matrix(BR, rows, sparse=sparse)
 
@@ -111,7 +111,9 @@ class Problem(SageObject):
 	problems.
 	"""
 
-	def __init__(self, flag_cls, order=None, forbid=None, forbid_induced=None, density=None, minimize=False):
+	def __init__(self, flag_cls, order=None, forbid=None, forbid_induced=None,
+			density=None, minimize=False, type_orders=None, max_flags=None,
+			compute_products=True):
 		r"""
 		Creates a new Problem object. Generally it is not necessary to call this method
 		directly, as Problem objects are more easily created using the helper functions:
@@ -162,7 +164,8 @@ class Problem(SageObject):
 			self.forbid_induced(forbid_induced)
 		
 		if not order is None:
-			self.generate_flags(order)
+			self.generate_flags(order, type_orders=type_orders, max_flags=max_flags,
+			compute_products=compute_products)
 		
 
 	def state(self, state_name=None, action=None):
@@ -228,12 +231,20 @@ class Problem(SageObject):
 				"requires" : ["compute_flags"],
 				"depends" : ["set_objective", "transform_problem", "set_active_types"]
 			}),
+			("write_sdp_initial_point_file", {
+				"requires" : ["compute_flags"],
+				"depends" : ["set_objective", "transform_problem", "set_active_types"]
+			}),
 			("run_sdp_solver", {
 				"requires" : ["write_sdp_input_file"],
 				"depends" : []
 			}),
+			("check_solution", {
+				"requires" : ["run_sdp_solver"],
+				"depends" : []
+			}),
 			("transform_solution", {
-				"requires" : ["compute_flag_bases", "run_sdp_solver"],
+				"requires" : ["compute_flag_bases", "check_solution"],
 				"depends" : []
 			}),
 			("add_sharp_graphs", {
@@ -241,7 +252,7 @@ class Problem(SageObject):
 				"depends" : []
 			}),
 			("make_exact", {
-				"requires" : ["run_sdp_solver"],
+				"requires" : ["check_solution"],
 				"depends" : ["transform_solution", "add_sharp_graphs"]
 			}),
 			("check_exact", {
@@ -302,19 +313,19 @@ class Problem(SageObject):
 
 
 	@property
+	def order(self):
+		return self._n
+
+	# Deprecated - use order instead.
+	@property
 	def n(self):
 		return self._n
 
-
-	@n.setter
-	def n(self, n):
-		self.generate_flags(n)
-
-
 	# TODO: sanity checking of type orders
 	
-	def generate_flags(self, n, type_orders=None, max_flags=None, compute_products=True):
+	def generate_flags(self, order, type_orders=None, max_flags=None, compute_products=True):
 
+		n = order
 		if type_orders is None:
 			orders = [(s, floor((n + s) / 2)) for s in range(n % 2, n - 1, 2)]
 		else:
@@ -326,7 +337,6 @@ class Problem(SageObject):
 					orders.append((to, floor((n + to) / 2)))
 
 		self.state("compute_flags", "yes")
-
 		self._n = n
 
 		sys.stdout.write("Generating graphs...\n")
@@ -883,7 +893,7 @@ class Problem(SageObject):
 	 	self.state("compute_products", "yes")
  	
 	 	num_types = len(self._types)
- 		graph_block = make_graph_block(self._graphs, self.n)
+ 		graph_block = make_graph_block(self._graphs, self._n)
 		self._product_densities_arrays = []
  		
 		sys.stdout.write("Computing products")
@@ -1190,17 +1200,41 @@ class Problem(SageObject):
 					f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
 
 
+	def solve_sdp(self, show_output=False, solver="csdp", tolerance=0.00001,
+		check_solution=True, show_sorted=False, show_all=False, use_initial_point=False,
+		import_solution_file=None):
+		r"""
+		Solves a semi-definite program to get a bound on the problem.				
+		"""
+		
+		if import_solution_file is None:
+		
+			if self.state("write_sdp_input_file") != "yes":
+				self.write_sdp_input_file()
+			if use_initial_point and self.state("write_sdp_initial_point_file") != "yes":
+				self.write_sdp_initial_point_file()
+			self._run_sdp_solver(show_output=show_output, solver=solver,
+				use_initial_point=use_initial_point)
+		
+		else:
+		
+			if self.state("write_sdp_input_file") != "yes":
+				self.write_sdp_input_file(no_output=True)
+			self._sdp_output_filename = import_solution_file
+
+		self._read_sdp_output_file()
+
+		if check_solution:
+			self.check_solution(tolerance=tolerance, show_sorted=show_sorted,
+				show_all=show_all)
+
+
 	# TODO: report error if problem infeasible
 	
-	def run_sdp_solver(self, show_output=False, solver="csdp", output_file=None, use_initial_point=True):
+	def _run_sdp_solver(self, show_output=False, solver="csdp", use_initial_point=False):
 	
 		self.state("run_sdp_solver", "yes")
-	
-		if not output_file is None:
-			self._sdp_output_filename = output_file
-			self._read_sdp_output_file()
-			return
-	
+		
 		previous_directory = os.getcwd()
 		os.chdir(SAGE_TMP)
 		
@@ -1302,7 +1336,6 @@ class Problem(SageObject):
 
 		self._sdp_output_filename = os.path.join(SAGE_TMP, "sdp.out")
 		os.chdir(previous_directory)
-		self._read_sdp_output_file()
 
 
 	def _read_sdp_output_file(self):
@@ -1357,9 +1390,9 @@ class Problem(SageObject):
 			self._sdp_Q_matrices[ti].set_immutable()
 
 
-	def check_floating_point_bound(self, tolerance = 0.00001, show_sorted=False, show_all=False):
+	def check_solution(self, tolerance = 0.00001, show_sorted=False, show_all=False):
 	
-		self.state("run_sdp_solver", "ensure_yes")
+		self.state("check_solution", "yes")
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
@@ -1441,27 +1474,6 @@ class Problem(SageObject):
 			sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
 
 
-
-	def solve_sdp(self, show_output=False, solver="csdp", tolerance=0.00001, show_all=False, output_file=None):
-		"""
-		Creates and solves the semi-definite program corresponding to the problem.
-		
-		Equivalent to calling write_sdp_input_file, followed by run_sdp_solver,
-		followed by check_floating_point_bound.
-		
-		"""
-		
-		if output_file is None:
-			self.write_sdp_input_file()
-			self.write_sdp_initial_point_file()
-			self.run_sdp_solver(show_output=show_output, solver=solver)
-		else:
-			self.write_sdp_input_file(no_output=True)
-			self.run_sdp_solver(show_output=show_output, solver=solver, output_file=output_file)
-
-		self.check_floating_point_bound(tolerance=tolerance, show_all=show_all)
-
-
 	def import_solution(self, directory, complement=False):
 	
 		self.state("write_sdp_input_file", "yes")
@@ -1486,7 +1498,7 @@ class Problem(SageObject):
 
 		# TODO: check admissible graphs, target bound, (sharps?).
 
-		if flags.n != self.n:
+		if flags.n != self._n:
 			raise ValueError
 
 		if self._flag_cls().oriented:
@@ -1693,7 +1705,10 @@ class Problem(SageObject):
 
 
 	def make_exact(self, denominator=1024, cholesky=None, protect=None, meet_target_bound=True, show_changes=False,
-		use_densities=True):
+		use_densities=True, transform_solution=True, use_blocks=True, check_exact_bound=True):
+	
+		if transform_solution and self.state("transform_solution") != "yes":
+			self.change_solution_bases(use_blocks=use_blocks)
 	
 		self.state("make_exact", "yes")
 	
@@ -1763,12 +1778,17 @@ class Problem(SageObject):
 			self._exact_density_coeffs = [Integer(1)]
 		else:
 			self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
-		
+	
+		# If we are not required to meet the bound, then we can finish early.
 		if not meet_target_bound:
+			
 			for ti in range(num_types):
 				self._exact_Qdash_matrices[ti].set_immutable()
+
+			if check_exact_bound:
+				self.check_exact_bound()
+			
 			return
-		
 		
 		triples = [(ti, j, k) for ti in self._active_types for j in range(q_sizes[ti])
 			for k in range(j, q_sizes[ti])]
@@ -1921,6 +1941,9 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			self._exact_Qdash_matrices[ti].set_immutable()
 	
+		if check_exact_bound:
+			self.check_exact_bound()
+
 
 	def compare_eigenvalues(self, only_smallest=True):
 	
@@ -1973,13 +1996,14 @@ class Problem(SageObject):
 				else:
 					bounds[gi] -= d * value
 
-		if self._field == RationalField():
+		if self._field == QQ:
 			if not self._minimize:
 				bound = max(bounds)
 			else:
 				bound = min(bounds)
 		else:
 			# Sorting doesn't currently work for number fields with embeddings, so use float approximation.
+			# TODO: Check if Sage 5.0 fixes this.
 			if not self._minimize:
 				bound = max(bounds, key = lambda x : float(x))
 			else:
@@ -1991,7 +2015,7 @@ class Problem(SageObject):
 		if self.state("set_construction") != "yes":
 			return
 
-		if self._field == RationalField():
+		if self._field == QQ:
 			if not self._minimize:
 				violators = [gi for gi in range(num_graphs) if bounds[gi] > self._target_bound]
 			else:
@@ -2011,6 +2035,22 @@ class Problem(SageObject):
 			sys.stdout.write("Bound violated by:")
 			for gi in violators:
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
+
+		negative_types = []
+		very_small_types = []
+		for ti in self._active_types:
+			eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
+			if eigvals[0] < 0.0:
+				negative_types.append(ti)
+			elif eigvals[0] < 1e-6:
+				very_small_types.append(ti)
+		
+		if len(negative_types) > 0:
+			sys.stdout.write("Warning! Types %s have negative eigenvalues, so the bound is not valid.\n" % negative_types)
+		else:
+			sys.stdout.write("All eigenvalues appear to be positive.\n")
+			if len(very_small_types) > 0:
+				sys.stdout.write("Types %s have very small eigenvalues (but this is probably OK).\n" % very_small_types)
 
 
 	# TODO: use self.state
