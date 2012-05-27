@@ -225,7 +225,29 @@ cdef class HypergraphFlag (Flag):
 	
 			if x == y:
 				self.is_degenerate = True
+
+
+	# TODO: consider writing more of this in Cython
+
+	def delete_edge(self, edge):
+
+		cdef int k
+	
+		if not len(edge) == self._r:
+			raise ValueError("bad edge size.")
+	
+		se = tuple(sorted(edge))
+		edges = [tuple(sorted(e)) for e in self.edges]
 		
+		for i in range(self.ne):
+			if edges[i] == se:
+				for k in range(i * self._r, (self.ne - 1) * self._r):
+					self._edges[k] = self._edges[k + self._r]
+				self.ne -= 1
+				return
+
+		raise ValueError("edge not present.")
+
 
 	def __getitem__(self, name):
 	
