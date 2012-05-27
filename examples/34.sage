@@ -1,11 +1,5 @@
-P = GraphProblem()
-P.forbid_induced_subgraph((4, 0))
-P.n = 5
-P.set_density((3, 3))
+P = GraphProblem(5, forbid_induced=(4,0), density=(3,3), minimize=True)
 C = BlowupConstruction(GraphFlag("3:112233"), phantom_edge=[1,2])
 P.set_extremal_construction(C)
-P.minimize = True
 P.solve_sdp()
-P.change_solution_bases()
 P.make_exact()
-P.check_exact_bound()
