@@ -15,11 +15,10 @@ class Construction44(BlowupConstruction):
 
 		self._weights = [x/4,x/4,x/4,x/4,(1-x)/4,(1-x)/4,(1-x)/4,(1-x)/4]
 	
+		self._phantom_edges = [(1, 3), (1, 4)]
+	
 
 	def subgraph_densities(self, n):
-
-		if self._use_symmetry:
-			return self.symm_subgraph_densities(n)
 
 		cn = self._graph.n
 		total = Integer(0)
@@ -49,24 +48,22 @@ class Construction44(BlowupConstruction):
 
 			total += factor
 		
-			if hasattr(self, "_phantom_edge") and all(x in P for x in self._phantom_edge):
-				phantom_edge = [P.index(x) + 1 for x in self._phantom_edge]
-				igc.add_edge(phantom_edge)
-				igc.make_minimal_isomorph()
+			for pes in Subsets(self._phantom_edges, 1):
+				if all(all(x in P for x in pe) for pe in pes):
+					ig = copy(igc)
+					for pe in pes:
+						ig.add_edge([P.index(x) + 1 for x in pe])
+					ig.make_minimal_isomorph()
 
-				ghash = hash(igc)
-				if not ghash in sharp_graph_counts:
-					sharp_graphs.append(igc)
-					sharp_graph_counts[ghash] = Integer(0)
+					ghash = hash(ig)
+					if not ghash in sharp_graph_counts:
+						sharp_graphs.append(ig)
+						sharp_graph_counts[ghash] = Integer(0)
 				
-		
 		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
 
 
 	def zero_eigenvectors(self, tg, flags):
-
-		if self._use_symmetry:
-			return self.symm_zero_eigenvectors(tg, flags)
 
 		cn = self._graph.n
 		s = tg.n
