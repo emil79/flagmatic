@@ -1,0 +1,6 @@
+P = ThreeGraphProblem(6, forbid=[(4,4,), "6:123124134125245136346156"])
+#C = Construction17()
+C = BlowupConstruction(ThreeGraphFlag("3:112223331123"))
+P.set_extremal_construction(C)
+P.solve_sdp()
+P.make_exact()
