@@ -324,7 +324,29 @@ class Problem(SageObject):
 	# TODO: sanity checking of type orders
 	
 	def generate_flags(self, order, type_orders=None, max_flags=None, compute_products=True):
-
+		r"""
+		Generates the types and flags that will be used in the problem.
+		
+		INPUT:
+		
+		 - ``order`` -- an integer. The order for the unlabelled flags (the admissible
+		   graphs).
+		
+		 - ``type_orders`` -- (default: None) None, or a list of integers. If a list of
+		   integers is given, then types of these orders will be generated. If None is
+		   given then types of all orders less than ``order``, and congruent modulo 2 to
+		   ``order`` will be generated.
+		
+		 - ``max_flags`` -- (default: None) None, or an integer. If an integer is given,
+		   then it provides an upper bound on the number of flags each type can have. If a
+		   type has more than this many flags, it will be removed.
+		
+		 - ``compute_products`` -- (default: True) Boolean. If True then the flag products
+		   will be computed. For some large problems this may take a long time. If False,
+		   then the flag products must be computed later using the ``compute_products``
+		   method.
+		"""
+	
 		n = order
 		if type_orders is None:
 			orders = [(s, floor((n + s) / 2)) for s in range(n % 2, n - 1, 2)]
@@ -574,7 +596,7 @@ class Problem(SageObject):
 		sys.stdout.write("Forbidding")
 		for g in LM:
 			sys.stdout.write(" %s" % repr(g))
-			self._forbid_graph(g, False)
+			self._forbid(g, False)
 		sys.stdout.write("\n")
 
 
@@ -595,6 +617,17 @@ class Problem(SageObject):
 			else:
 				sys.stdout.write("Warning: type %d is already inactive.\n" % ti)
 
+
+	def set_approximate_field(self, field):
+
+		if not field.is_field():
+			raise ValueError("not a field.")
+			
+		if field.is_exact():
+			raise ValueError("field must be floating point.")
+
+		self._approximate_field = field
+	
 
 	# TODO: sanity check ad hoc
 
@@ -1221,6 +1254,7 @@ class Problem(SageObject):
 			if self.state("write_sdp_input_file") != "yes":
 				self.write_sdp_input_file(no_output=True)
 			self._sdp_output_filename = import_solution_file
+			self.state("run_sdp_solver", "yes") # pretend we have run the solver!
 
 		self._read_sdp_output_file()
 

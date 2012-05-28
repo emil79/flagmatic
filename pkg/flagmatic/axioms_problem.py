@@ -122,6 +122,8 @@ class AxiomsProblem(Problem):
 			self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
 
 
+	# TODO: fix this!
+
 	def add_equal_degrees_axiom(self, make_free=True):
 	
 		if self._flag_cls().oriented:
