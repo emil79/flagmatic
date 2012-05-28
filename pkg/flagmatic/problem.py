@@ -848,6 +848,33 @@ class Problem(SageObject):
 	# TODO: handle non-rational flag bases?
 
 	def change_problem_bases(self, use_blocks=True):
+		r"""
+		Transforms the problem, so that the solution's Q matrices will (hopefully) be positive
+		definite. A construction should have been set previously, and this will be used to
+		determine forced zero eigenvectors.
+		
+		This method is an alternative to ``change_solution_bases``. Unlike the latter, it should
+		be run before ``solve_sdp`` rather than afterwards. Note that ``change_solution_bases`` is
+		called by ``make_exact`` by default, and is not normally explicitly invoked.
+		
+		INPUT:
+		
+		 - ``use_blocks`` - Boolean (default: True). Specifies whether to apply an additional
+		   change of basis so that the matrices have a block structure with two blocks. This uses
+		   the invariant anti-invariant idea of Razborov.
+		   
+		NOTES:
+		
+		 - This method can only be used when the field is the rational field.
+		 
+		 - If this method is used, then ``change_solution_bases`` cannot subsequently be used.
+		 
+		 - It is usually better to not use this function, and to use ``change_solution_bases``
+		   after ``solve_sdp``. (By default ``change_solution_bases`` is called from
+		   ``make_exact``.)
+		"""
+		if self._field != QQ:
+			raise NotImplementedError("can only be used when the field is the rational field.")
 
 		if self.state("compute_flag_bases") != "yes":
 			self.compute_flag_bases(use_blocks)
@@ -895,7 +922,23 @@ class Problem(SageObject):
 
 	
 	def change_solution_bases(self, use_blocks=True):
-
+		r"""
+		Transforms the solution's Q matrices, so that they are (hopefully) positive definite. A
+		construction should have been set previously, and this will be used to determine forced
+		zero eigenvectors. 
+		
+		This method is called from  ``make_exact`` by default, and so is not normally explicitly
+		invoked.
+		
+		INPUT:
+		
+		 - ``use_blocks`` - Boolean (default: True). Specifies whether to apply an additional
+		   change of basis so that the matrices have a block structure with two blocks. This uses
+		   the invariant anti-invariant idea of Razborov.
+		"""
+		if self.state("transform_problem") == "yes":
+			raise NotImplementedError("cannot transform solution: problem has already been transformed.")
+		
 		if self.state("compute_flag_bases") != "yes":
 			self.compute_flag_bases(use_blocks)
 
@@ -924,7 +967,12 @@ class Problem(SageObject):
 
 
 	def compute_block_bases(self):
-
+		r"""
+		Computes a basis for the solution's Q matrices, that will give them a block structure with
+		two blocks. This uses the invariant anti-invariant idea of Razborov. This method is not
+		normally explicitly invoked. By default, ``change_problem_bases`` and
+		``change_solution_bases`` call it.
+		"""
 		self.state("compute_block_bases", "yes")
 
 		self._block_bases = []
@@ -938,7 +986,11 @@ class Problem(SageObject):
 
 
 	def compute_flag_bases(self, use_blocks=True, keep_rows=False, use_smaller=False):
-
+		r"""
+		Computes a basis for the solution's Q matrices, using the construction to determine forced
+		zero eigenvectors. This method is used by ``change_problem_bases`` and
+		``change_solution_bases``, and would not usually be invoked directly.
+		"""
 		self.state("compute_flag_bases", "yes")
 
 		num_types = len(self._types)
@@ -1031,7 +1083,10 @@ class Problem(SageObject):
 
 
 	def compute_products(self):
- 	
+		r"""
+		Computes the products of the flags. This method is by default called from
+		``generate_flags``, and so would normally not need to be invoked directly.
+		"""
 	 	self.state("compute_products", "yes")
  	
 	 	num_types = len(self._types)
