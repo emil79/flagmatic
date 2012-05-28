@@ -33,14 +33,16 @@ from hypergraph_flag import make_graph_block
 from three_graph_flag import *
 from graph_flag import *
 from oriented_graph_flag import *
+from multigraph_flag import *
 from problem import *
 
 
 class AxiomsProblem(Problem):
 
-	def __init__(self, flag_cls):
+	def __init__(self, flag_cls, order=None, **kwargs):
 	
-		Problem.__init__(self, flag_cls)
+		Problem.__init__(self, flag_cls, order, **kwargs)
+
 		self._axioms = []
 		self._axiom_flags = []
 		
@@ -265,11 +267,47 @@ class AxiomsProblem(Problem):
 		return new_problem
 
 
-def ThreeGraphAxiomsProblem():
-	return AxiomsProblem(ThreeGraphFlag)
+def ThreeGraphAxiomsProblem(order=None, **kwargs):
+	r"""
+	Returns an AxiomsProblem object, that will represent a Turán-type 3-graph axioms
+	problem. For help with AxiomsProblem objects, enter
 
-def GraphAxiomsProblem():
-	return AxiomsProblem(GraphFlag)
+	sage: help(AxiomsProblem)
+	"""
+	return AxiomsProblem(ThreeGraphFlag, order, **kwargs)
 
-def OrientedGraphAxiomsProblem():
-	return AxiomsProblem(OrientedGraphFlag)
+def GraphAxiomsProblem(order=None, **kwargs):
+	r"""
+	Returns an AxiomsProblem object, that will represent a Turán-type graph axioms
+	problem. For help with AxiomsProblem objects, enter
+
+	sage: help(AxiomsProblem)
+	"""
+	return AxiomsProblem(GraphFlag, order, **kwargs)
+
+def OrientedGraphAxiomsProblem(order=None, **kwargs):
+	r"""
+	Returns an AxiomsProblem object, that will represent a Turán-type oriented graph
+	axioms problem. For help with AxiomsProblem objects, enter
+
+	sage: help(AxiomsProblem)
+	"""
+	return AxiomsProblem(OrientedGraphFlag, order, **kwargs)
+
+def TwoMultigraphAxiomsProblem(order=None, **kwargs):
+	r"""
+	Returns an AxiomsProblem object, that will represent a Turán-type 2-multigraph
+	axioms problem. For help with AxiomsProblem objects, enter
+
+	sage: help(AxiomsProblem)
+	"""
+	return AxiomsProblem(TwoMultigraphFlag, order, **kwargs)
+
+def ThreeMultigraphAxiomsProblem(order=None, **kwargs):
+	r"""
+	Returns an AxiomsProblem object, that will represent a Turán-type 3-multigraph
+	axioms problem. For help with AxiomsProblem objects, enter
+
+	sage: help(AxiomsProblem)
+	"""
+	return AxiomsProblem(ThreeMultigraphFlag, order, **kwargs)

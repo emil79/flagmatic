@@ -414,7 +414,7 @@ class Problem(SageObject):
 
 	@property
 	def graphs(self):
-		"""
+		r"""
 		Read-only. A (copy) of the list of admissible graphs. Modifying the list will have
 		no effect on the Problem.
 		 
@@ -452,10 +452,16 @@ class Problem(SageObject):
 
 	def set_objective(self, minimize=False):
 		r"""
-		Sets the Problem to be a "maximization" or a "minimization" problem. In a
-		maximization problem, the objective is to find the lowest upper bound on a
-		particular density. On the other hand, the objective in a minimization problem is
-		to find the greatest lower bound on a density. 
+		Sets the Problem to be a "maximization" or a "minimization" problem.
+		
+		INPUT:
+		
+		 - ``minimize`` - boolean (default: False) sets whether the problem is a
+		    minimization problem (or a maximization problem).
+		
+		In a maximization problem, the objective is to find a good (i.e. low) upper bound
+		on a density. In a minimization problem the objective is to find a good (i.e.
+		high) lower bound on a density.
 		"""
 		if not type(minimize) is bool:
 			raise ValueError
@@ -570,6 +576,16 @@ class Problem(SageObject):
 
 
 	def forbid(self, *args):
+		r"""
+		Sets the problem to be in the theory of graphs that do not have contain the given subgraphs.
+		
+		INPUT:
+		
+		 - arguments must be Flags, strings, or lists of these things. Flags must be of the
+		   appropriate class for the problem. Strings will be interpreted as representing flags
+		   of the appropriate class.
+		 
+		"""
 		for h in args:
 			if isinstance(h, list):
 				for x in h:
@@ -579,6 +595,17 @@ class Problem(SageObject):
 
 
 	def forbid_induced(self, *args):
+		r"""
+		Sets the problem to be in the theory of graphs that do not have contain the given
+		graphs as induced subgraphs.
+		
+		INPUT:
+		
+		 - arguments must be Flags, strings, or lists of these things. Flags must be of the
+		   appropriate class for the problem. Strings will be interpreted as representing flags
+		   of the appropriate class.
+		 
+		"""
 		for h in args:
 			if isinstance(h, list):
 				for x in h:
@@ -588,7 +615,11 @@ class Problem(SageObject):
 	
 
 	def forbid_homomorphic_images(self):
-	
+		r"""
+		Restricts the problem to be in the theory of graphs that do not contain homomorphic images
+		of graphs already specified using ``forbid``. For certain problems this will make the
+		computation simpler, without affecting the result. 
+		"""
 		L = sum([g.homomorphic_images() for g in self._forbidden_graphs], [])
 		LM = self._flag_cls.minimal_by_inclusion(L)
 		if len(LM) == 0:
@@ -603,7 +634,14 @@ class Problem(SageObject):
 	# TODO: warn if already solved
 
 	def set_inactive_types(self, *args):
-	
+		r"""
+		Specifies that the Q matrices for certain types should be zero matrices.
+		
+		INPUT:
+		
+		- arguments should be integers, specifying the indices of types in ``types``
+		  that should be marked as being "inactive".
+		"""
 		self.state("set_active_types", "yes")
 	
 		num_types = len(self._types)
@@ -619,7 +657,22 @@ class Problem(SageObject):
 
 
 	def set_approximate_field(self, field):
-
+		r"""
+		Specifies the approximate field used when reading in and transforming the solution
+		matrices.
+		
+		INPUT:
+		
+		- ``field`` - a field that uses finite precision, or in other words, a field that uses
+		  floating point arithmetic.
+		  
+		EXAMPLES:
+		
+		sage: problem.set_approximate_field(RealField(113))
+		
+		This specifies that quadruple precision should be used. The default approximate field is
+		the real dense field, RDF(), which uses 53 bits of precision.
+		"""
 		if not field.is_field():
 			raise ValueError("not a field.")
 			
@@ -629,15 +682,34 @@ class Problem(SageObject):
 		self._approximate_field = field
 	
 
-	# TODO: sanity check ad hoc
+	# TODO: sanity check target_bound ?
 
 	def set_extremal_construction(self, construction=None, field=None, target_bound=None):
-
-		self.state("set_construction", "yes")
-
+		r"""
+		Sets the extremal construction. This will be used to determine sharp graphs and forced
+		zero eigenvectors.
+		
+		INPUT:
+		
+		 - ``construction`` - a Construction object (default: None). None can be specified, in
+		   which case sharp graphs and forced zero eigenvectors can be added manually by using
+		   ``add_sharp_graphs`` and ``add_zero_eigenvectors``.
+		   
+		 - ``field`` - a field object (default: None). If ``construction`` is None, then this
+		   argument can be used to specify the exact field to use for computing the bound. This
+		   argument must be None if ``construction`` is not None, as the field will be taken from
+		   the Construction object.
+		
+		 - ``target_bound`` - a number (default: None). If ``construction`` is None, then this
+		   argument can be used to specify the bound that should be aimed for. This argument must
+		   be None if ``construction`` is not None, as the target bound will be taken from
+		   the Construction object.
+		"""
 		num_types = len(self._types)
 
 		if construction is None:
+				
+			self.state("set_construction", "yes")
 		
 			self._construction = None
 			self._field = field
@@ -657,6 +729,23 @@ class Problem(SageObject):
 			self._sharp_graph_densities = []
 			
 			return
+
+		if not isinstance(construction, Construction):
+			raise ValueError("not a valid construction.")
+
+		if not field.is_field():
+			raise ValueError("not a valid field.")
+
+		if not field.is_exact():
+			raise ValueError("field must be an exact field (not floating point).")
+		
+		if not field is None:
+			raise ValueError("field should be None if construction is given.")
+
+		if not target_bound is None:
+			raise ValueError("target_bound should be None if construction is given.")
+			
+		self.state("set_construction", "yes")
 
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
@@ -703,15 +792,28 @@ class Problem(SageObject):
 
 	# TODO: reinstate the per-block option?
 
-	def add_zero_eigenvectors(self, ti, M, use_bases=False):
-
+	def add_zero_eigenvectors(self, ti, vector, use_bases=False):
+		r"""
+		Adds a zero eigenvector. This method is necessary when not all the zero eigenvectors
+		can be determined from the construction.
+		
+		INPUT:
+		
+		 - ``ti`` - integer specifying which type the eigenvector is for.
+		
+		 - ``vector`` - a vector to add to the zero eigenvectors for type ``ti``.
+		
+		 - ``use_bases`` - specifies that the vector is given in the basis of the Q' matrix, as
+		   opposed to the standard basis. The vector will be tranformed before being added to the
+		   zero eigenvectors.
+		"""
 		self.state("add_zero_eigenvectors", "yes")
 
 		if use_bases:
 			self.state("compute_flag_bases", "ensure_yes_or_stale")
-			NZ = (self._flag_bases[ti].T).solve_left(M)
+			NZ = (self._flag_bases[ti].T).solve_left(vector)
 		else:
-			NZ = M
+			NZ = matrix(vector)
 
 		self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(NZ)
 		self._zero_eigenvectors[ti].set_immutable()
@@ -720,7 +822,14 @@ class Problem(SageObject):
 	# TODO: is good idea to assume zero densities?
 	
 	def add_sharp_graphs(self, *args):
-	
+		r"""
+		Adds a sharp graph. This method is necessary when not all the sharp graphs can be
+		determined from the construction.
+		
+		INPUT:
+		
+		 - arguments are integers specifying the indices of the graphs to set as sharp.
+		"""
 		self.state("add_sharp_graphs", "yes")
 	
 		num_graphs = len(self._graphs)
