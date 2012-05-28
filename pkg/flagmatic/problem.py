@@ -45,6 +45,7 @@ from three_graph_flag import *
 from graph_flag import *
 from oriented_graph_flag import *
 from multigraph_flag import *
+from construction import *
 
 # pexpect in Sage 4.8 has a bug, which prevents it using commands with full paths.
 # So for now, CSDP has to be in a directory in $PATH.
@@ -111,9 +112,9 @@ class Problem(SageObject):
 	problems.
 	"""
 
-	def __init__(self, flag_cls, order=None, forbid=None, forbid_induced=None,
-			density=None, minimize=False, type_orders=None, max_flags=None,
-			compute_products=True):
+	def __init__(self, flag_cls, order=None, forbid_induced=None, forbid=None,
+			forbid_homomorphic_images=False, density=None, minimize=False,
+			type_orders=None, max_flags=None, compute_products=True):
 		r"""
 		Creates a new Problem object. Generally it is not necessary to call this method
 		directly, as Problem objects are more easily created using the helper functions:
@@ -156,12 +157,15 @@ class Problem(SageObject):
 
 		if not density is None:
 			self.set_density(density)
+
+		if not forbid_induced is None:
+			self.forbid_induced(forbid_induced)
 		
 		if not forbid is None:
 			self.forbid(forbid)
 		
-		if not forbid_induced is None:
-			self.forbid_induced(forbid_induced)
+		if forbid_homomorphic_images:
+			self.forbid_homomorphic_images()
 		
 		if not order is None:
 			self.generate_flags(order, type_orders=type_orders, max_flags=max_flags,
@@ -227,6 +231,10 @@ class Problem(SageObject):
 				"requires" : ["compute_flags"],
 				"depends" : []
 			}),
+			("set_block_matrix_structure", {
+				"requires" : ["compute_flags"],
+				"depends" : ["set_active_types", "transform_problem"]
+			}),
 			("write_sdp_input_file", {
 				"requires" : ["compute_flags"],
 				"depends" : ["set_objective", "transform_problem", "set_active_types"]
@@ -236,11 +244,15 @@ class Problem(SageObject):
 				"depends" : ["set_objective", "transform_problem", "set_active_types"]
 			}),
 			("run_sdp_solver", {
-				"requires" : ["write_sdp_input_file"],
+				"requires" : ["compute_products"],
+				"depends" : ["write_sdp_input_file", "write_sdp_initial_point_file"]
+			}),
+			("read_solution", {
+				"requires" : ["run_sdp_solver"],
 				"depends" : []
 			}),
 			("check_solution", {
-				"requires" : ["run_sdp_solver"],
+				"requires" : ["read_solution"],
 				"depends" : []
 			}),
 			("transform_solution", {
@@ -468,12 +480,7 @@ class Problem(SageObject):
 
 		self.state("set_objective", "yes")
 		
-		if minimize:
-			self._obj_value_factor = 1
-			self._minimize = True
-		else:
-			self._obj_value_factor = -1
-			self._minimize = False
+		self._minimize = minimize
 		
 
 	def _compute_densities(self):
@@ -556,9 +563,11 @@ class Problem(SageObject):
 				raise ValueError
 			if induced:
 				self._forbidden_edge_numbers.append((k, ne))
+				sys.stdout.write("Forbidding %d-sets from spanning exactly %d edges.\n" % (k, ne))
 			else:
 				for i in range(ne, max_e + 1):
 					self._forbidden_edge_numbers.append((k, i))
+				sys.stdout.write("Forbidding %d-sets from spanning at least %d edges.\n" % (k, ne))
 			return
 		
 		if isinstance(h, basestring):
@@ -570,9 +579,11 @@ class Problem(SageObject):
 		if induced:
 			self._forbidden_induced_graphs.append(copy(h))
 			self._forbidden_induced_graphs.sort(key = lambda g : (g.n, g.ne))
+			sys.stdout.write("Forbidding %s as an induced subgraph.\n" % h)
 		else:
 			self._forbidden_graphs.append(copy(h))
 			self._forbidden_graphs.sort(key = lambda g : (g.n, g.ne))
+			sys.stdout.write("Forbidding %s as a subgraph.\n" % h)
 
 
 	def forbid(self, *args):
@@ -624,11 +635,11 @@ class Problem(SageObject):
 		LM = self._flag_cls.minimal_by_inclusion(L)
 		if len(LM) == 0:
 			return
-		sys.stdout.write("Forbidding")
+		#sys.stdout.write("Forbidding")
 		for g in LM:
-			sys.stdout.write(" %s" % repr(g))
+			#sys.stdout.write(" %s" % repr(g))
 			self._forbid(g, False)
-		sys.stdout.write("\n")
+		#sys.stdout.write("\n")
 
 
 	# TODO: warn if already solved
@@ -708,7 +719,13 @@ class Problem(SageObject):
 		num_types = len(self._types)
 
 		if construction is None:
-				
+			
+			if not field.is_field():
+				raise ValueError("not a valid field.")
+	
+			if not field.is_exact():
+				raise ValueError("field must be an exact field (not floating point).")
+
 			self.state("set_construction", "yes")
 		
 			self._construction = None
@@ -732,12 +749,6 @@ class Problem(SageObject):
 
 		if not isinstance(construction, Construction):
 			raise ValueError("not a valid construction.")
-
-		if not field.is_field():
-			raise ValueError("not a valid field.")
-
-		if not field.is_exact():
-			raise ValueError("field must be an exact field (not floating point).")
 		
 		if not field is None:
 			raise ValueError("field should be None if construction is given.")
@@ -792,7 +803,7 @@ class Problem(SageObject):
 
 	# TODO: reinstate the per-block option?
 
-	def add_zero_eigenvectors(self, ti, vector, use_bases=False):
+	def add_zero_eigenvectors(self, ti, eigenvectors, use_bases=False):
 		r"""
 		Adds a zero eigenvector. This method is necessary when not all the zero eigenvectors
 		can be determined from the construction.
@@ -801,7 +812,10 @@ class Problem(SageObject):
 		
 		 - ``ti`` - integer specifying which type the eigenvector is for.
 		
-		 - ``vector`` - a vector to add to the zero eigenvectors for type ``ti``.
+		 - ``eigenvectors`` - a vector, or matrix, of zero eigenvector(s) to add for type
+		   ``ti``. If adding more than one vector, the vectors can be given as the rows of a
+		   matrix. (Alternatively, they can be added one at a time with multiple calls to
+		   this method.)
 		
 		 - ``use_bases`` - specifies that the vector is given in the basis of the Q' matrix, as
 		   opposed to the standard basis. The vector will be tranformed before being added to the
@@ -811,9 +825,9 @@ class Problem(SageObject):
 
 		if use_bases:
 			self.state("compute_flag_bases", "ensure_yes_or_stale")
-			NZ = (self._flag_bases[ti].T).solve_left(vector)
+			NZ = (self._flag_bases[ti].T).solve_left(eigenvectors)
 		else:
-			NZ = matrix(vector)
+			NZ = eigenvectors
 
 		self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(NZ)
 		self._zero_eigenvectors[ti].set_immutable()
@@ -1113,6 +1127,8 @@ class Problem(SageObject):
 
 	def _set_block_matrix_structure(self):
 	
+		self.state("set_block_matrix_structure", "yes")
+	
 		self._block_matrix_structure = []
 
 		for ti in self._active_types:
@@ -1154,32 +1170,98 @@ class Problem(SageObject):
 		return (num_blocks, block_sizes, block_offsets, block_indices)
 
 
-	# TODO: helpful error message if product densities have not been computed.
-	# TODO: add option for forcing sharps
-	# TODO: should block matrix structure be set elsewhere?
-	
-	def write_sdp_input_file(self, no_output=False):
-	
-		self.state("write_sdp_input_file", "yes")
+	def solve_sdp(self, show_output=False, solver="csdp", check_solution=True,
+		tolerance=1e-5, show_sorted=False, show_all=False, use_initial_point=False,
+		import_solution_file=None):
+		r"""
+		Solves a semi-definite program to get a bound on the problem.
 		
+		INPUT:
+		
+		 - ``show_output`` - Boolean (default: False). Whether to display output from the SDP
+		   solver.
+		   
+		 - ``solver`` - String (default: "csdp"). The SDP solver command to use. This can be one
+		   of the following:
+		   
+			- "csdp" (Default) : the CSDP solver.
+			- "sdpa" : the SDPA solver.
+			- "sdpa_dd" : the double precision variant of SDPA
+			- "sdpa_qd" : the quadruple precision variant of SDPA
+			- "dsdp" : the DSDP solver.
+			
+			Note that the SDP solver must be present on the system; and it should be in a
+			directory listed in PATH. The name of the solver should be "csdp", "sdpa", "sdpa_dd",
+			"sdpa_qd" or "dsdp".
+		
+		 - ``check_solution`` - Boolean (default: True). Whether to run ``check_solution`` to see
+		   if the bound appears to be tight; i.e. whether it is sufficiently close to the density
+		   given by the extremal construction.
+		
+		 - ``tolerance`` - Number (default: 0.00001). This argument is passed to
+		   ``check_solution``. If a graph has a coefficient whose absolute difference with the
+		   bound is less than ``tolerance``, then it is considered to be sharp.
+		   
+		 - ``show_sorted`` - Boolean (default: False). This argument is passed to
+		   ``check_solution``. Whether to sort the sharp graphs according to their coefficients.
+		   If False, then they will be displayed in order of the graph indices.
+			
+		  - ``show_all`` - Boolean (default: False). This argument is passed to
+			``check_solution``. If True, then the coefficients of all the graphs will be displayed
+			instead of just the sharp graphs. In this case, the graphs that appear to be sharp are
+			annotated with an "S" and the graphs that are forced to be sharp by the construction
+			are annotated with a "C". (If these sets are not identical, then there is a problem.)
+			
+		  - ``use_initial_point`` - Boolean (default: False). Whether to write an initial point
+			file for the SDP solver. The initial point file is not used unless the solver is CSDP.
+			Using an initial point can speed up the computation, but occasionally causes problems;
+			so this option is False by default.
+			
+		  - ``import_solution_file`` - Filename or None (default: None). If not None, then the SDP
+			solver will not be run; instead the output file from a previous run of an SDP solver
+			will be read. Care should be taken to ensure that the file being imported is for
+			exactly the same problem, as minimal sanity-checking is done. 
+		"""
+		
+		if import_solution_file is None:
+		
+			if self.state("write_sdp_input_file") != "yes":
+				self.write_sdp_input_file()
+			if use_initial_point and self.state("write_sdp_initial_point_file") != "yes":
+				self.write_sdp_initial_point_file()
+			self._run_sdp_solver(show_output=show_output, solver=solver,
+				use_initial_point=use_initial_point)
+		
+		else:
+		
+			self._sdp_output_filename = import_solution_file
+			self.state("run_sdp_solver", "yes") # pretend we have run the solver!
+
+		self._read_sdp_output_file()
+
+		if check_solution:
+			self.check_solution(tolerance=tolerance, show_sorted=show_sorted,
+				show_all=show_all)
+
+
+	# TODO: add option for forcing sharps
+	
+	def write_sdp_input_file(self):
+			
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
-		
-		# For maximization problems, the objective value returned by the SDP solver
-		# must be negated.
-		self._obj_value_factor = 1.0 if self._minimize else -1.0
-		
+				
 		if num_densities < 1:
 			raise NotImplementedError("there must be at least one density.")
+
+		if self.state("set_block_matrix_structure") != "yes":
+			self._set_block_matrix_structure()
+		total_num_blocks = len(self._block_matrix_structure)
+	
+		self.state("write_sdp_input_file", "yes")
 		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
-	
-		self._set_block_matrix_structure()
-		total_num_blocks = len(self._block_matrix_structure)
-		
-		if no_output:
-			return
 		
 		sys.stdout.write("Writing SDP input file...\n")
 				
@@ -1248,14 +1330,16 @@ class Problem(SageObject):
 
 	def write_sdp_initial_point_file(self, small_change=1/Integer(10)):
 	
+		self.state("write_sdp_initial_point_file", "yes")
+	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
 				
 		self._sdp_initial_point_filename = os.path.join(SAGE_TMP, "sdp.ini-s")
 	
-		# TODO: check block matrix structure set
-		#self._set_block_matrix_structure()
+		if self.state("set_block_matrix_structure") != "yes":
+			self._set_block_matrix_structure()
 		total_num_blocks = len(self._block_matrix_structure)
 				
 		sys.stdout.write("Writing SDP initial point file...\n")
@@ -1397,36 +1481,6 @@ class Problem(SageObject):
 					f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
 
 
-	def solve_sdp(self, show_output=False, solver="csdp", tolerance=0.00001,
-		check_solution=True, show_sorted=False, show_all=False, use_initial_point=False,
-		import_solution_file=None):
-		r"""
-		Solves a semi-definite program to get a bound on the problem.				
-		"""
-		
-		if import_solution_file is None:
-		
-			if self.state("write_sdp_input_file") != "yes":
-				self.write_sdp_input_file()
-			if use_initial_point and self.state("write_sdp_initial_point_file") != "yes":
-				self.write_sdp_initial_point_file()
-			self._run_sdp_solver(show_output=show_output, solver=solver,
-				use_initial_point=use_initial_point)
-		
-		else:
-		
-			if self.state("write_sdp_input_file") != "yes":
-				self.write_sdp_input_file(no_output=True)
-			self._sdp_output_filename = import_solution_file
-			self.state("run_sdp_solver", "yes") # pretend we have run the solver!
-
-		self._read_sdp_output_file()
-
-		if check_solution:
-			self.check_solution(tolerance=tolerance, show_sorted=show_sorted,
-				show_all=show_all)
-
-
 	# TODO: report error if problem infeasible
 	
 	def _run_sdp_solver(self, show_output=False, solver="csdp", use_initial_point=False):
@@ -1439,7 +1493,7 @@ class Problem(SageObject):
 		if solver == "csdp":
 			cmd = "%s %s sdp.out" % (cdsp_cmd, self._sdp_input_filename)
 
-			if use_initial_point and hasattr(self, "_sdp_initial_point_filename"):
+			if use_initial_point and self.state("write_sdp_initial_point_file") == "yes":
 				cmd += " %s" % self._sdp_initial_point_filename
 
 		elif solver == "dsdp":
@@ -1459,29 +1513,39 @@ class Problem(SageObject):
 		
 		sys.stdout.write("Running SDP solver...\n")
 
+		# For maximization problems, the objective value returned by the SDP solver
+		# must be negated.
+		obj_value_factor = 1.0 if self._minimize else -1.0
+
 		p = pexpect.spawn(cmd, timeout=60*60*24*7)
 		obj_val = None
+		self._sdp_solver_output = ""
 		while True:
 			if p.eof():
 				break
 			try:
 				p.expect("\r\n")
 				line = p.before.strip() + "\n"
-				if "Primal objective value:" in line: # CSDP
-					obj_val = self._approximate_field(line.split()[-1]) * self._obj_value_factor
-				elif "objValPrimal" in line: # SDPA
-					obj_val = self._approximate_field(line.split()[-1]) * self._obj_value_factor
-				elif "DSDP Solution" in line: # DSDP: seems to print absolute value
-					obj_val = self._approximate_field(line.split()[-1])
+				self._sdp_solver_output += line
+
 				if show_output:
 					sys.stdout.write(line)
+				
+				if "Primal objective value:" in line: # CSDP
+					obj_val = self._approximate_field(line.split()[-1]) * obj_value_factor
+				elif "objValPrimal" in line: # SDPA
+					obj_val = self._approximate_field(line.split()[-1]) * obj_value_factor
+				elif "DSDP Solution" in line: # DSDP: seems to print absolute value
+					obj_val = self._approximate_field(line.split()[-1])
+			
 			except pexpect.EOF:
 				break
-		p.close()
-		returncode = p.exitstatus
 		
-		sys.stdout.write("Returncode is %d. Objective value is %s.\n" % (returncode,
-			obj_val))
+		p.close()
+		self._sdp_solver_returncode = p.exitstatus
+		
+		sys.stdout.write("Returncode is %d. Objective value is %s.\n" % (
+			self._sdp_solver_returncode, obj_val))
 			
 		# TODO: if program is infeasible, a returncode of 1 is given,
 		# and output contains "infeasible"
@@ -1536,11 +1600,19 @@ class Problem(SageObject):
 		os.chdir(previous_directory)
 
 
+	# TODO: read in dual solution
+
 	def _read_sdp_output_file(self):
+
+		self.state("read_solution", "yes")
 
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
+
+		if self.state("set_block_matrix_structure") != "yes":
+			self._set_block_matrix_structure()
+		num_blocks = len(self._block_matrix_structure)	
 
 		with open(self._sdp_output_filename, "r") as f:
 		
@@ -1561,8 +1633,6 @@ class Problem(SageObject):
 					len(self._flags[ti]), len(self._flags[ti])) for ti in range(num_types)]
 			
 			self._sdp_density_coeffs = [self._approximate_field(0) for i in range(num_densities)]
-
-			num_blocks = len(self._block_matrix_structure)
 			
 			for line in f:
 				numbers = line.split()
@@ -1588,8 +1658,27 @@ class Problem(SageObject):
 			self._sdp_Q_matrices[ti].set_immutable()
 
 
-	def check_solution(self, tolerance = 0.00001, show_sorted=False, show_all=False):
-	
+	def check_solution(self, tolerance=1e-5, show_sorted=False, show_all=False):
+		r"""
+		Checks the approximate floating point bound given by the SDP solver, and determines which
+		graphs appear to be sharp. The apparently sharp graphs are compared against the graphs
+		that the construction forces to be sharp.
+		
+		INPUT:
+		
+		 - ``tolerance`` - Number (default: 0.00001) If a graph has a coefficient whose absolute
+		   difference with the bound is less than ``tolerance``, then it is considered to be sharp.
+		   
+		 - ``show_sorted`` - Boolean (default: False). Whether to sort the sharp graphs according
+		   to their coefficients. If False, then they will be displayed in order of the graph
+		   indices.
+			
+		  - ``show_all`` - Boolean (default: False). If True, then the coefficients of all the
+			graphs will be displayed instead of just the sharp graphs. In this case, the graphs
+			that appear to be sharp are annotated with an "S" and the graphs that are forced to be
+			sharp by the construction are annotated with a "C". (If these sets are not identical,
+			then there is a problem.)
+		"""	
 		self.state("check_solution", "yes")
 	
 		num_types = len(self._types)
@@ -1712,8 +1801,8 @@ class Problem(SageObject):
 		if flags.num_types != num_types:
 			raise ValueError
 
-		ttr = []
-		ftrs = []
+		type_translations = []
+		flag_translations = []
 	
 		for ti in range(num_types):
 			tg = self._flag_cls(flags.types[ti])
@@ -1721,7 +1810,7 @@ class Problem(SageObject):
 				tg = tg.complement(True)
 			for tj in range(num_types):
 				if tg.is_labelled_isomorphic(self._types[tj]):
-					ttr.append(tj)
+					type_translations.append(tj)
 					break
 			else:
 				raise ValueError
@@ -1739,14 +1828,9 @@ class Problem(SageObject):
 						ftr.append(fj)
 						break
 				else:
-					#print ti
-					#print ftr
-					raise ValueError
+					raise ValueError("solution has a flag that is not present.")
 					
-			ftrs.append(ftr)
-		
-		#print ttr
-		#print ftrs
+			flag_translations.append(ftr)
 		
 		self._sdp_Q_matrices = [matrix(self._approximate_field, len(self._flags[ti]),
 			len(self._flags[ti])) for ti in range(num_types)]
@@ -1767,10 +1851,10 @@ class Problem(SageObject):
 				continue
 			ti = int(numbers[1]) - 2
 			if ti >= 0 and ti < num_types:
-				tj = ttr[ti]
+				tj = type_translations[ti]
 				if tj in self._active_types:
-					j = ftrs[ti][int(numbers[2]) - 1]
-					k = ftrs[ti][int(numbers[3]) - 1]
+					j = flag_translations[ti][int(numbers[2]) - 1]
+					k = flag_translations[ti][int(numbers[3]) - 1]
 					self._sdp_Q_matrices[tj][j, k] = numbers[4]
 					self._sdp_Q_matrices[tj][k, j] = self._sdp_Q_matrices[tj][j, k]
 
@@ -1785,7 +1869,7 @@ class Problem(SageObject):
 		sys.dont_write_bytecode = dont_write_bytecode
 
 
-	def show_zero_eigenvalues(self, tolerance=0.00001, types=None):
+	def show_zero_eigenvalues(self, tolerance=1e-5, types=None):
 	
 		self.state("run_sdp_solver", "ensure_yes")
 
@@ -1804,7 +1888,7 @@ class Problem(SageObject):
 
 	# TODO: transform with _flag_bases if present.
 
-	def check_construction(self, C, tolerance = 0.00001, types=None):
+	def check_construction(self, C, tolerance=1e-5, types=None):
 	
 		self.state("run_sdp_solver", "ensure_yes")
 		
