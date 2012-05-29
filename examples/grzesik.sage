@@ -1,5 +1,5 @@
 P = GraphProblem(5, forbid=(3,3), density="5:1223344551", type_orders=[3])
-C = BlowupConstruction(GraphFlag("5:1223344551"))
+C = GraphBlowupConstruction("5:1223344551")
 P.set_extremal_construction(C)
 P.solve_sdp()
 P.make_exact()
