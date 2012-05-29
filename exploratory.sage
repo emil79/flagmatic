@@ -24,6 +24,13 @@ def write_certificate(problem, filename):
 	def matrix_to_list (M):
 		return [list(M.row(i)) for i in range(M.nrows())]
 
+	if problem.state("diagonalize") == "yes":
+		qdash_matrices = problem._exact_diagonal_matrices
+		r_matrices = problem._exact_r_matrices
+	else:
+		qdash_matrices = problem._exact_Qdash_matrices
+		r_matrices = problem._inverse_flag_bases
+
 	data = {
 		"description" : description,
 		"bound" : problem._bound,
@@ -35,8 +42,8 @@ def write_certificate(problem, filename):
 		"types" : problem._types,
 		"numbers_of_flags" : [len(L) for L in problem._flags],
 		"flags" : problem._flags,
-		"qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in problem._exact_diagonal_matrices],
-		"r_matrices" : [matrix_to_list(M) for M in problem._exact_r_matrices]
+		"qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in qdash_matrices],
+		"r_matrices" : [matrix_to_list(M) for M in r_matrices]
 	}
 
 	def default_handler (O):
@@ -92,7 +99,7 @@ def find_extra_zero_eigenvectors(problem, ti, tolerance=1e-5, threshold=1e-10, e
 		raise ValueError("Type is not active.")
 
 	M = problem._zero_eigenvectors[ti].echelon_form()
-	E = copy(problem.get_zero_eigenvectors(ti, tolerance=tolerance, use_bases=False))
+	E = copy(get_zero_eigenvectors(problem, ti, tolerance=tolerance, use_bases=False))
 	
 	pivots = M.pivots()
 	for i in range(len(pivots)):
