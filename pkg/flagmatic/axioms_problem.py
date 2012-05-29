@@ -51,6 +51,15 @@ class AxiomsProblem(Problem):
 		self._densities = []
 
 
+	# TODO: handle multiple axioms. Would be better to have set_inactive_densities
+	def remove_densities(self, *args):
+	
+		num_densities = len(self._densities)
+	
+		self._densities = [self._densities[j] for j in range(num_densities) if not j in args]
+		self._axiom_flags =  [self._axiom_flags[0][j] for j in range(num_densities) if not j in args]
+
+
 	def add_axiom(self, tg, terms, make_free=True):
 
 		self.state("set_objective", "yes")
@@ -172,7 +181,7 @@ class AxiomsProblem(Problem):
 		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)	
 
 
-	def show_large_densities(self, larger_than=0.0):
+	def show_large_densities(self, larger_than=1e-4):
 
 		self.state("run_sdp_solver", "ensure_yes")
 
@@ -186,6 +195,8 @@ class AxiomsProblem(Problem):
 		sys.stdout.write("Densities: %s\n" % (densities_to_use,))
 
 		sys.stdout.write("Coefficients: %s\n" % ([self._sdp_density_coeffs[j] for j in densities_to_use],))
+
+		sys.stdout.write("Other densities: %s\n" % ([di for di in range(num_densities) if not di in densities_to_use],))
 
 
 	def show_independent_densities(self):
