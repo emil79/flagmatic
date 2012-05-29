@@ -2271,25 +2271,6 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 
 
-# 	def write_certificate(self, filename):
-# 
-# 
-# 		data = {
-# 			"description" : flags.description,
-# 			"bound" : self._bound,
-# 			"order_of_admissible_graphs" : self._n,
-# 			"number_of_admissible_graphs" : len(self._graphs),
-# 			"admissible_graphs" : self._graphs,
-# 			"admissible_graph_densities" : array_to_json(self._densities[0]), # TODO: multiple densities
-# 			"number_of_types" : len(self._types),
-# 			"types" : self._types,
-# 			"numbers_of_flags" : [len(L) for L in self._flags],
-# 			"flags" : self._flags,
-# 			"qdash_matrices" : array_to_json(self._exact_diagonal_matrices),
-# 			"r_matrices" : array_to_json(self._exact_r_matrices)
-# 		}
-
-
 def ThreeGraphProblem(order=None, **kwargs):
 	r"""
 	Returns a Problem object, that will represent a Turán-type 3-graph problem. For help

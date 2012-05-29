@@ -1,4 +1,58 @@
 
+
+
+def write_certificate(problem, filename):
+
+	problem.state("check_exact", "ensure_yes")
+
+	description = E.problem._flag_cls.description() + "; "
+	description += "minimize " if problem._minimize else "maximize "
+	description += ", ".join(str(g) for g in problem._density_graphs) + " density"
+	forbidden = []
+	for g in problem._forbidden_graphs:
+		forbidden.append(str(g))
+	for g in problem._forbidden_induced_graphs:
+		forbidden.append("induced %s" % g)
+	for pair in problem._forbidden_edge_numbers:
+		forbidden.append("induced %d.%d" % pair)
+	if len(forbidden) > 0:
+		description += "; forbid " + ", ".join(forbidden)
+
+	def upper_triangular_matrix_to_list (M):
+		return [list(M.row(i))[i:] for i in range(M.nrows())]
+
+	def matrix_to_list (M):
+		return [list(M.row(i)) for i in range(M.nrows())]
+
+	data = {
+		"description" : description,
+		"bound" : problem._bound,
+		"order_of_admissible_graphs" : problem._n,
+		"number_of_admissible_graphs" : len(problem._graphs),
+		"admissible_graphs" : problem._graphs,
+		"admissible_graph_densities" : problem._densities[0], # TODO: multiple densities
+		"number_of_types" : len(problem._types),
+		"types" : problem._types,
+		"numbers_of_flags" : [len(L) for L in problem._flags],
+		"flags" : problem._flags,
+		"qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in problem._exact_diagonal_matrices],
+		"r_matrices" : [matrix_to_list(M) for M in problem._exact_r_matrices]
+	}
+
+	def default_handler (O):
+		if O in ZZ:
+			return int(Integer(O))
+		return repr(O)
+
+	try:
+		with open(filename, "w") as f:
+			json.dump(data, f, indent=4, default=default_handler)
+		sys.stdout.write("Written certificate.\n")
+	
+	except IOError:
+		sys.stdout.write("Cannot open file for writing.\n")
+
+
 def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
 
 	if types is None:
