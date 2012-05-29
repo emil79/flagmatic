@@ -1,4 +1,112 @@
 
+def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
+
+	if types is None:
+		types = problem._active_types
+
+	for ti in types:
+		eigvals = numpy.linalg.eigvalsh(problem._sdp_Q_matrices[ti])
+		zero_eigvals = sorted([e for e in eigvals if e < tolerance])
+		if len(zero_eigvals) == 0:
+			sys.stdout.write("Type %d. None.\n" % ti)
+		else:
+			sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(zero_eigvals),
+				" ".join("%s" % e for e in zero_eigvals)))
+
+
+# TODO: transform with _flag_bases if present.
+
+def check_construction(problem, C, tolerance=1e-5, types=None):
+
+	if types is None:
+		types = problem._active_types
+	
+	for ti in types:
+		M = C.zero_eigenvectors(problem._types[ti], problem._flags[ti]) 
+		if M.nrows() == 0:
+			sys.stdout.write("Type %d. None.\n" % ti)
+		else:
+			R = M * problem._sdp_Q_matrices[ti]
+			norms = [R[i,:].norm() for i in range(R.nrows())]
+			sys.stdout.write("Type %d. %d possible: %s.\n" % (ti, len(norms),
+				" ".join("%s" % e for e in norms)))
+
+
+def find_extra_zero_eigenvectors(problem, ti, tolerance=1e-5, threshold=1e-10, echelonize=True, denominator=None):
+
+	if not ti in problem._active_types:
+		raise ValueError("Type is not active.")
+
+	M = problem._zero_eigenvectors[ti].echelon_form()
+	E = copy(problem.get_zero_eigenvectors(ti, tolerance=tolerance, use_bases=False))
+	
+	pivots = M.pivots()
+	for i in range(len(pivots)):
+		c = pivots[i]
+		for r in range(E.nrows()):
+			E[r, :] -= E[r, c] * M[i, :]
+
+	if not echelonize:
+		return E
+
+	for r in range(E.nrows()):
+		for c in range(E.ncols()):
+			if abs(E[r, c]) > threshold:
+				E[r, :] /= E[r, c]
+				for s in range(E.nrows()):
+					if s != r:
+						E[s, :] -= E[s, c] * E[r, :]
+				break
+
+	for r in range(E.nrows()):
+		for c in range(E.ncols()):
+			if abs(E[r, c]) < threshold:
+				 E[r, c] = 0
+
+	r = E.nrows() - 1
+	while r >= 0 and E[r, :].is_zero():
+		E = E[:r, :]
+		r -= 1
+
+	if denominator is None:
+		return E
+	
+	ER = matrix(QQ, E.nrows(), E.ncols())
+
+	def rationalize (f):
+		return Integer(round(f * denominator)) / denominator
+
+	for r in range(E.nrows()):
+		for c in range(E.ncols()):
+			ER[r, c] = rationalize(E[r, c])
+
+	return ER
+
+
+def get_zero_eigenvectors(problem, ti, tolerance=1e-5, use_bases=True):
+
+	if not ti in problem._active_types:
+		raise ValueError("Type is not active.")
+
+	if use_bases and problem.state("transform_solution") == "yes":
+		QM = problem._sdp_Qdash_matrices[ti]
+	else:
+		QM = problem._sdp_Q_matrices[ti]
+
+	ns = len(QM.subdivisions()[0]) + 1
+
+	B = []
+	for i in range(ns):
+		QB = QM.subdivision(i, i)
+		eigvals, T = numpy.linalg.eigh(QB)
+		M = matrix(problem._approximate_field, 0, QB.ncols())
+		for ei in range(len(eigvals)):
+			if eigvals[ei] < tolerance:
+				M = M.stack(matrix(numpy.matrix(T[:, ei])))
+		B.append(M)
+	return block_diagonal_matrix(B)
+
+
 def easy_guess(problem, ti, guesses, target=None, tolerance=1e-8, column_threshold=1e-6):
 
 	K = problem._field
@@ -100,6 +208,7 @@ def guess_zero_eigenvectors(P, ti, target=None):
 				
 			
 	return found_zero_eigenvectors
+
 
 def simple_guess_zero_eigenvectors(P, ti, target=None):
 
