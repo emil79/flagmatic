@@ -149,8 +149,6 @@ class Problem(SageObject):
 		self._forbidden_edge_numbers = []
 		self._forbidden_graphs = []
 		self._forbidden_induced_graphs = []
-		
-		self._force_sharps = False
 
 		self.state("specify", "yes")
 		self.set_objective(minimize=minimize)
@@ -1170,9 +1168,9 @@ class Problem(SageObject):
 		return (num_blocks, block_sizes, block_offsets, block_indices)
 
 
-	def solve_sdp(self, show_output=False, solver="csdp", check_solution=True,
-		tolerance=1e-5, show_sorted=False, show_all=False, use_initial_point=False,
-		import_solution_file=None):
+	def solve_sdp(self, show_output=False, solver="csdp", force_sharp_graphs=False,
+		check_solution=True, tolerance=1e-5, show_sorted=False, show_all=False,
+		use_initial_point=False, import_solution_file=None):
 		r"""
 		Solves a semi-definite program to get a bound on the problem.
 		
@@ -1193,6 +1191,10 @@ class Problem(SageObject):
 			Note that the SDP solver must be present on the system; and it should be in a
 			directory listed in PATH. The name of the solver should be "csdp", "sdpa", "sdpa_dd",
 			"sdpa_qd" or "dsdp".
+		
+		 - ``force_sharp_graphs`` - Boolean (default: False). If True, then the SDP is set up so
+		   that graphs that are supposed to be sharp are not given any "slack". Generally, this
+		   option is not particularly useful. It can sometimes improve the "quality" of a solution.
 		
 		 - ``check_solution`` - Boolean (default: True). Whether to run ``check_solution`` to see
 		   if the bound appears to be tight; i.e. whether it is sufficiently close to the density
@@ -1226,7 +1228,7 @@ class Problem(SageObject):
 		if import_solution_file is None:
 		
 			if self.state("write_sdp_input_file") != "yes":
-				self.write_sdp_input_file()
+				self.write_sdp_input_file(force_sharp_graphs=force_sharp_graphs)
 			if use_initial_point and self.state("write_sdp_initial_point_file") != "yes":
 				self.write_sdp_initial_point_file()
 			self._run_sdp_solver(show_output=show_output, solver=solver,
@@ -1246,7 +1248,7 @@ class Problem(SageObject):
 
 	# TODO: add option for forcing sharps
 	
-	def write_sdp_input_file(self):
+	def write_sdp_input_file(self, force_sharp_graphs=False):
 			
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -1288,7 +1290,7 @@ class Problem(SageObject):
 					f.write("%d 1 1 1 -1.0\n" % (i + 1,))
 				else:
 					f.write("%d 1 1 1 1.0\n" % (i + 1,))
-				if not (self._force_sharps and i in self._sharp_graphs):
+				if not (force_sharp_graphs and i in self._sharp_graphs):
 					f.write("%d %d %d %d 1.0\n" % (i + 1, total_num_blocks + 2, i + 1, i + 1))
 	
 			for i in range(num_graphs):
