@@ -1,12 +1,5 @@
-P = GraphProblem()
-P.forbid_induced_subgraph((3, 0))
-P.n = 6
-P.set_density((5, binomial(5, 2)))
-C = BlowupConstruction(GraphFlag("5:12233445511122334455"))
-P.set_extremal_construction(C)
-P.compute_products()
-P.minimize = True
-P.solve_sdp()
-P.change_solution_bases()
-P.make_exact(2^20)
-P.check_exact_bound()
+problem = GraphProblem(6, forbid_induced=(3,0), density=(5, binomial(5, 2)), minimize=True)
+construction = GraphBlowupConstruction("5:12233445511122334455")
+problem.set_extremal_construction(construction)
+problem.solve_sdp()
+problem.make_exact(2^20)

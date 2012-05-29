@@ -57,8 +57,8 @@ class Example:
 
 	def __init__(self, name):
 
-		P = None
-		C = None
+		problem = None
+		construction = None
 
 		base_filename = os.path.join("examples", name)	
 		with open(base_filename + ".sage", "r") as f:
@@ -67,7 +67,7 @@ class Example:
 		# last line of file might not end in a newline
 		if lines[-1][-1] != "\n":
 			lines[-1] += "\n"
-		lines.append('P.save("' + base_filename + '")\n')
+		lines.append('problem.save("' + base_filename + '")\n')
 
 		buffer = cStringIO.StringIO()
 		saved_stdout = sys.stdout
@@ -83,8 +83,8 @@ class Example:
 		
 		sys.stdout = saved_stdout
 	
-		self.problem = P
-		self.construction = C
+		self.problem = problem
+		self.construction = construction
 		self.output = buffer.getvalue()
 	
 		with open(base_filename + ".txt", "w") as f:
