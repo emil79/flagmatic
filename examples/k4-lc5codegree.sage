@@ -1,0 +1,7 @@
+problem = ThreeGraphAxiomsProblem(6, forbid=[(4, 3), "6:612623634645651"])
+problem.clear_densities()
+problem.add_codegree_axiom(1/4, False)
+construction = RandomTournamentConstruction()
+problem.set_extremal_construction(construction)
+problem.solve_sdp(True)
+problem.make_exact(2^20)
