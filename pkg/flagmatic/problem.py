@@ -268,6 +268,14 @@ class Problem(SageObject):
 			("check_exact", {
 				"requires" : ["make_exact"],
 				"depends" : []
+			}),
+			("diagonalize", {
+				"requires" : ["check_exact"],
+				"depends" : []
+			}),
+			("write_certificate", {
+				"requires" : ["check_exact"],
+				"depends" : ["diagonalize"]
 			})
 		]
 
@@ -1249,7 +1257,16 @@ class Problem(SageObject):
 	# TODO: add option for forcing sharps
 	
 	def write_sdp_input_file(self, force_sharp_graphs=False):
-			
+		r"""
+		Writes an input file for the SDP solver, specifying the SDP to be solved. This method is
+		by default called by ``solve_sdp``.
+		
+		INPUT:
+		
+		 - ``force_sharp_graphs`` - Boolean (default: False). If True, then the SDP is set up so
+		   that graphs that are supposed to be sharp are not given any "slack". Generally, this
+		   option is not particularly useful. It can sometimes improve the "quality" of a solution.
+		"""
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
 		num_densities = len(self._densities)
@@ -1331,7 +1348,19 @@ class Problem(SageObject):
 	# TODO: handle no sharp graphs
 
 	def write_sdp_initial_point_file(self, small_change=1/Integer(10)):
-	
+		r"""
+		Writes an initial point file for the SDP solver. The zero matrix gives a feasible primal
+		point. If a construction has been set, then this will be used to generate a feasible dual
+		point, otherwise a zero matrix will be used for this as well. Using this method can reduce
+		the time it takes the SDP solver to find a solution - typically by a third.
+		
+		INPUT:
+		
+		 - ``small_change`` - Number (default: 1/10). Both primal and dual points must be
+		   perturbed by adding a small positive amount to the leading diagonals, in order that the
+		   matrices have no zero eigenvalues. Smaller values are not necessarily better here. The
+		   optimal value seems to depend on the problem and solver used. 
+		"""
 		self.state("write_sdp_initial_point_file", "yes")
 	
 		num_graphs = len(self._graphs)
@@ -1680,7 +1709,7 @@ class Problem(SageObject):
 			that appear to be sharp are annotated with an "S" and the graphs that are forced to be
 			sharp by the construction are annotated with a "C". (If these sets are not identical,
 			then there is a problem.)
-		"""	
+		"""
 		self.state("check_solution", "yes")
 	
 		num_types = len(self._types)
@@ -1764,7 +1793,18 @@ class Problem(SageObject):
 
 
 	def import_solution(self, directory, complement=False):
-	
+		r"""
+		Imports a solution found by Flagmatic 1.0 or 1.5.
+		
+		INPUT:
+		
+		 - ``directory`` - the Flagmatic output directory, which must contain a flags.py file.
+		 
+		 - ``complement`` - Boolean (default: False). If True, then the solution will be assumed
+		   to be for the complementary problem. For example, if we are trying to minimize the
+		   density of k-cliques, the complementary problem is to minimize the density of
+		   independent sets of size k.
+		"""
 		self.state("write_sdp_input_file", "yes")
 		self.state("run_sdp_solver", "yes")
 	
@@ -1872,7 +1912,7 @@ class Problem(SageObject):
 
 
 	def make_exact(self, denominator=1024, cholesky=None, protect=None, meet_target_bound=True, show_changes=False,
-		use_densities=True, transform=True, use_blocks=True, check_exact_bound=True):
+		use_densities=True, transform=True, use_blocks=True, check_exact_bound=True, diagonalize=True):
 	
 		if transform and not self.state("transform_problem") == "yes" and self.state("transform_solution") != "yes":
 			self.change_solution_bases(use_blocks=use_blocks)
@@ -1953,7 +1993,7 @@ class Problem(SageObject):
 				self._exact_Qdash_matrices[ti].set_immutable()
 
 			if check_exact_bound:
-				self.check_exact_bound()
+				self.check_exact_bound(diagonalize=diagonalize)
 			
 			return
 		
@@ -2017,6 +2057,8 @@ class Problem(SageObject):
 			
 			for j in range(num_densities):
 				new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
+				if new_col.is_zero():
+					continue
 				EDR = EDR.stack(new_col.T)
 				EDR.echelonize()
 				if EDR[-1, :].is_zero():
@@ -2050,6 +2092,8 @@ class Problem(SageObject):
 			if ti in protect: # don't use protected types
 				continue
 			new_col = R[:, i : i + 1]
+			if new_col.is_zero():
+				continue
 			EDR = EDR.stack(new_col.T)
 			EDR.echelonize()
 			if EDR[-1, :].is_zero():
@@ -2128,16 +2172,35 @@ class Problem(SageObject):
 				sys.stdout.write("%.11f : %.11f\n" % (original_eigvals[i], new_eigvals[i]))
 
 
-	# TODO: check numerically for negative (and zero) eigenvalues
-	# TODO: check for negative density coefficients 
-
-	def check_exact_bound(self):
-	
-		self.state("check_exact", "yes")
+	def check_exact_bound(self, diagonalize=True):
 	
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
+
+		negative_densities = [j for j in range(num_densities) if self._exact_density_coeffs[j] < 0]
+		if len(negative_densities) > 0:
+			sys.stdout.write("Warning! Densities %s have negative coefficients, so the bound is not valid.\n" % negative_densities)
+			return
+		sys.stdout.write("All density coefficients are non-negative.\n")
+		
+		negative_types = []
+		very_small_types = []
+		for ti in self._active_types:
+			eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
+			if eigvals[0] < 0.0:
+				negative_types.append(ti)
+			elif eigvals[0] < 1e-6:
+				very_small_types.append(ti)
+		
+		if len(negative_types) > 0:
+			sys.stdout.write("Warning! Types %s have negative eigenvalues, so the bound is not valid.\n" % negative_types)
+			return
+		sys.stdout.write("All eigenvalues appear to be positive.\n")
+		if len(very_small_types) > 0:
+			sys.stdout.write("Types %s have very small eigenvalues (but this is probably OK).\n" % very_small_types)
+
+		self.state("check_exact", "yes")
 		
 		self._exact_Q_matrices = []
 		
@@ -2149,7 +2212,8 @@ class Problem(SageObject):
 		else:
 			self._exact_Q_matrices = self._exact_Qdash_matrices
 		
-		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j] for j in range(num_densities)]) for i in range(num_graphs)]
+		bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j]
+			for j in range(num_densities)]) for i in range(num_graphs)]
 
 		for ti in self._active_types:
 			for row in self._product_densities_arrays[ti]:
@@ -2180,6 +2244,10 @@ class Problem(SageObject):
 		self._bound = bound
 
 		if self.state("set_construction") != "yes":
+		
+			if diagonalize:
+				self.diagonalize()
+		
 			return
 
 		if self._field == QQ:
@@ -2203,21 +2271,8 @@ class Problem(SageObject):
 			for gi in violators:
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
 
-		negative_types = []
-		very_small_types = []
-		for ti in self._active_types:
-			eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
-			if eigvals[0] < 0.0:
-				negative_types.append(ti)
-			elif eigvals[0] < 1e-6:
-				very_small_types.append(ti)
-		
-		if len(negative_types) > 0:
-			sys.stdout.write("Warning! Types %s have negative eigenvalues, so the bound is not valid.\n" % negative_types)
-		else:
-			sys.stdout.write("All eigenvalues appear to be positive.\n")
-			if len(very_small_types) > 0:
-				sys.stdout.write("Types %s have very small eigenvalues (but this is probably OK).\n" % very_small_types)
+		if diagonalize:
+			self.diagonalize()
 
 
 	# TODO: use self.state
@@ -2241,25 +2296,31 @@ class Problem(SageObject):
 			D.set_immutable()
 			return L, D
 
+		self.state("diagonalize", "yes")
+
 		self._exact_diagonal_matrices = []
 		self._exact_r_matrices = []
 
 		sys.stdout.write("Diagonalizing")
 
-		# TODO: what to do if problem has been transformed?
-
 		for ti in range(len(self._types)):
 			R, M = LDLdecomposition(self._exact_Qdash_matrices[ti])
 			self._exact_diagonal_matrices.append(M)
-			if self.state("transform_solution") == "yes":
+			if self.state("transform_problem") == "yes" or self.state("transform_solution") == "yes":
 				R = self._inverse_flag_bases[ti] * R
 			self._exact_r_matrices.append(R)
 			sys.stdout.write(".")
 			sys.stdout.flush()
+		sys.stdout.write("\n")
 		
 		# Q can now be computed as Q = R * D * R.T
-		
-		sys.stdout.write("\nVerifying")
+
+		# TODO: what to do if problem has been transformed?
+
+		if self.state("transform_problem") == "yes":
+			return
+
+		sys.stdout.write("Verifying")
 
 		for ti in range(len(self._types)):
 			Q = self._exact_r_matrices[ti] * self._exact_diagonal_matrices[ti] * self._exact_r_matrices[ti].T
@@ -2267,7 +2328,6 @@ class Problem(SageObject):
 				raise ValueError # TODO: choose appropriate error
 			sys.stdout.write(".")
 			sys.stdout.flush()
-		
 		sys.stdout.write("\n")
 
 
