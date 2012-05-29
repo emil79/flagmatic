@@ -40,8 +40,8 @@ cdef class MultigraphFlag (HypergraphFlag):
 
 	def __reduce__(self):
 		return (type(self), (self._repr_(),))
-
-
+	
+	
 	@classmethod
 	def default_density_graphs(cls):
 		return [cls("2:12")]
@@ -87,6 +87,12 @@ cdef class TwoMultigraphFlag (MultigraphFlag):
 	def __init__(self, string_rep=None):
 		super(MultigraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False, multiplicity=2)
 
+
+	@classmethod
+	def description(cls):
+		return "2-multigraph"
+
+
 	@classmethod
 	def max_number_edges(cls, n):
 		return 2 * binomial(n, 2)
@@ -107,6 +113,12 @@ cdef class ThreeMultigraphFlag (MultigraphFlag):
 
 	def __init__(self, string_rep=None):
 		super(MultigraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False, multiplicity=3)
+
+
+	@classmethod
+	def description(cls):
+		return "3-multigraph"
+
 
 	@classmethod
 	def max_number_edges(cls, n):

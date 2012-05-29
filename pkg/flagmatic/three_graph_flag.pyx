@@ -42,6 +42,11 @@ cdef class ThreeGraphFlag (HypergraphFlag):
 
 
 	@classmethod
+	def description(cls):
+		return "3-graph"
+
+
+	@classmethod
 	def default_density_graphs(cls):
 		return [cls("3:123")]
 

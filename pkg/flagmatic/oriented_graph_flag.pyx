@@ -43,6 +43,12 @@ cdef class OrientedGraphFlag (HypergraphFlag):
 		return (type(self), (self._repr_(),))
 
 
+
+	@classmethod
+	def description(cls):
+		return "oriented 2-graph"
+	
+	
 	@classmethod
 	def default_density_graphs(cls):
 		return [cls("2:12")]
