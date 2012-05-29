@@ -1,5 +1,5 @@
 P = ThreeGraphProblem(6, forbid="5:123124125345")
-C = BlowupConstruction(ThreeGraphFlag("2:122"), weights=[1,2])
+C = ThreeGraphBlowupConstruction("2:122", weights=[1,2])
 P.set_extremal_construction(C)
 P.solve_sdp()
 P.make_exact()

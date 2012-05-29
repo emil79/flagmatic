@@ -342,3 +342,19 @@ class BlowupConstruction(Construction):
 				sharp_graph_counts[ghash] = factor
 
 		return [(g, sharp_graph_counts[hash(g)] / Integer(total)) for g in sharp_graphs]
+
+
+def GraphBlowupConstruction(graph, **kwargs):
+	if isinstance(graph, basestring):
+		graph = GraphFlag(graph)
+	return BlowupConstruction(graph, **kwargs)
+
+def ThreeGraphBlowupConstruction(graph, **kwargs):
+	if isinstance(graph, basestring):
+		graph = ThreeGraphFlag(graph)
+	return BlowupConstruction(graph, **kwargs)
+
+def OrientedGraphBlowupConstruction(graph, **kwargs):
+	if isinstance(graph, basestring):
+		graph = OrientedGraphFlag(graph)
+	return BlowupConstruction(graph, **kwargs)
