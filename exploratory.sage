@@ -60,6 +60,13 @@ def write_certificate(problem, filename):
 		sys.stdout.write("Cannot open file for writing.\n")
 
 
+def show_eigenvalues(problem, ti):
+
+	eigvals = sorted(numpy.linalg.eigvalsh(problem._sdp_Q_matrices[ti]))
+	for i in range(len(eigvals)):
+		sys.stdout.write("%d. %g\n" % (i + 1, eigvals[i]))
+
+
 def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
 
 	if types is None:
@@ -67,7 +74,10 @@ def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
 
 	for ti in types:
 		eigvals = numpy.linalg.eigvalsh(problem._sdp_Q_matrices[ti])
-		zero_eigvals = sorted([e for e in eigvals if e < tolerance])
+		if tolerance is None:
+			zero_eigvals = sorted(eigvals)
+		else:
+			zero_eigvals = sorted([e for e in eigvals if e < tolerance])
 		if len(zero_eigvals) == 0:
 			sys.stdout.write("Type %d. None.\n" % ti)
 		else:
@@ -77,7 +87,7 @@ def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
 
 # TODO: transform with _flag_bases if present.
 
-def check_construction(problem, C, tolerance=1e-5, types=None):
+def check_construction(problem, C, types=None):
 
 	if types is None:
 		types = problem._active_types

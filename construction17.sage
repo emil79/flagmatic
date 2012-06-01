@@ -112,19 +112,19 @@ class Construction17(BlowupConstruction):
 				it.delete_edge((a1, b1, x + 1))
 			for x in one_indices[2:]:
 				it.add_edge((a1, b1, x + 1))
-			
+			it.minimize_edges()
 			if not it.is_labelled_isomorphic(tg):
 				continue
 
-			print tv, it
-
 			total = Integer(0)
 			row = [0] * len(flags)
+
+			for ov in UnorderedTuples(range(1, cn + 1), k - s):
 		
-			for ov in Tuples(range(1, cn + 1), k - s):
-		
-				factor = 1
-				
+				factor = factorial(k - s)
+				for i in range(1, cn + 1):
+					factor /= factorial(ov.count(i))
+								
 				ig = self._graph.degenerate_induced_subgraph(tv + ov)
 				ext_one_indices = one_indices + [i + s for i in range(k - s) if ov[i] == 1]
 				ext_two_indices = two_indices + [i + s for i in range(k - s) if ov[i] == 2]
@@ -144,6 +144,5 @@ class Construction17(BlowupConstruction):
 			for j in range(len(flags)):
 				row[j] /= total	
 			rows.append(row)
-
 
 		return matrix_of_independent_rows(self._field, rows, len(flags))
