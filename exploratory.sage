@@ -47,7 +47,8 @@ def write_certificate(problem, filename):
 	}
 
 	def default_handler (O):
-		if O in ZZ:
+		# Only output an int if it is less than 2^53.
+		if O in ZZ and O < 9007199254740992:
 			return int(Integer(O))
 		return repr(O)
 
@@ -58,6 +59,30 @@ def write_certificate(problem, filename):
 	
 	except IOError:
 		sys.stdout.write("Cannot open file for writing.\n")
+
+
+def contributions(problem, threshold=1e-5):
+
+		num_graphs = len(problem._graphs)
+		small_types = []
+
+		for ti in problem._active_types:
+			if ti < 13:
+				continue
+			conts = [0 for i in range(num_graphs)]
+			for row in problem._product_densities_arrays[ti]:
+				gi, j, k, numer, denom = row
+				d = Integer(numer) / Integer(denom)
+				value = problem._sdp_Q_matrices[ti][j, k]
+				if j != k:
+					d *= 2
+				conts[gi] += d * value
+			sharp_cont = sum(abs(conts[i]) for i in problem._sharp_graphs)
+			sys.stdout.write("Type %d: %g\n" % (ti, sharp_cont))
+			if sharp_cont < threshold:
+				small_types.append(ti)
+		
+		sys.stdout.write("%s\n" % small_types)
 
 
 def show_eigenvalues(problem, ti):
