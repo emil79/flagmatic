@@ -1176,7 +1176,8 @@ class Problem(SageObject):
 		return (num_blocks, block_sizes, block_offsets, block_indices)
 
 
-	def solve_sdp(self, show_output=False, solver="csdp", force_sharp_graphs=False,
+	def solve_sdp(self, show_output=False, solver="csdp",
+		force_sharp_graphs=False, force_zero_eigenvectors=False,
 		check_solution=True, tolerance=1e-5, show_sorted=False, show_all=False,
 		use_initial_point=False, import_solution_file=None):
 		r"""
@@ -1236,7 +1237,8 @@ class Problem(SageObject):
 		if import_solution_file is None:
 		
 			if self.state("write_sdp_input_file") != "yes":
-				self.write_sdp_input_file(force_sharp_graphs=force_sharp_graphs)
+				self.write_sdp_input_file(force_sharp_graphs=force_sharp_graphs,
+					force_zero_eigenvectors=force_zero_eigenvectors)
 			if use_initial_point and self.state("write_sdp_initial_point_file") != "yes":
 				self.write_sdp_initial_point_file()
 			self._run_sdp_solver(show_output=show_output, solver=solver,
@@ -1256,7 +1258,7 @@ class Problem(SageObject):
 
 	# TODO: add option for forcing sharps
 	
-	def write_sdp_input_file(self, force_sharp_graphs=False):
+	def write_sdp_input_file(self, force_sharp_graphs=False, force_zero_eigenvectors=False):
 		r"""
 		Writes an input file for the SDP solver, specifying the SDP to be solved. This method is
 		by default called by ``solve_sdp``.
@@ -1278,30 +1280,44 @@ class Problem(SageObject):
 			self._set_block_matrix_structure()
 		total_num_blocks = len(self._block_matrix_structure)
 	
+		if force_zero_eigenvectors:
+			num_extra_matrices = sum(self._zero_eigenvectors[ti].nrows() for ti in self._active_types)
+		else:
+			num_extra_matrices = 0
+	
 		self.state("write_sdp_input_file", "yes")
 		
 		self._sdp_input_filename = os.path.join(SAGE_TMP, "sdp.dat-s")
 		
 		sys.stdout.write("Writing SDP input file...\n")
-				
+		
 		with open(self._sdp_input_filename, "w") as f:
 	
-			f.write("%d\n" % (num_graphs + 1,))
-			f.write("%d\n" % (total_num_blocks + 3,))
+			f.write("%d\n" % (num_graphs + 1 + num_extra_matrices,))
+			f.write("%d\n" % (total_num_blocks + 3 + (1 if force_zero_eigenvectors else 0),))
 			
 			f.write("1 ")
 			for b in self._block_matrix_structure:
 				f.write("%d " % b[1])
 			
-			f.write("-%d -%d\n" % (num_graphs, num_densities))
+			f.write("-%d -%d" % (num_graphs, num_densities))
+			if force_zero_eigenvectors:
+				f.write(" -%d" % num_extra_matrices)
+			f.write("\n")
 			f.write("0.0 " * num_graphs)
-			f.write("1.0\n")
+			f.write("1.0 ")
+			f.write("0.0 " * num_extra_matrices)
+			f.write("\n")
 			
 			if not self._minimize:
 				f.write("0 1 1 1 -1.0\n")
 			else:
 				f.write("0 1 1 1 1.0\n")
-	
+
+			if force_zero_eigenvectors:
+				for mi in range(num_extra_matrices):
+					f.write("0 %d %d %d %s\n" % (total_num_blocks + 4, mi + 1, mi + 1, "1.0" if self._minimize else "-1.0"))
+		
 			for i in range(num_graphs):
 				if not self._minimize:
 					f.write("%d 1 1 1 -1.0\n" % (i + 1,))
@@ -1344,6 +1360,20 @@ class Problem(SageObject):
 					f.write("%d %d %d %d %s\n" %
 						(gi + 1, block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
 
+			# TODO: get working with blocks, inactive types
+			if force_zero_eigenvectors:
+				mi = 0
+				for ti in self._active_types:
+					nf = len(self._flags[ti])
+					for zi in range(self._zero_eigenvectors[ti].nrows()):
+						for j in range(nf):
+							for k in range(j, nf):
+								value = self._zero_eigenvectors[ti][zi, j] * self._zero_eigenvectors[ti][zi, k]
+								if value != 0:
+									f.write("%d %d %d %d %s\n" %
+										(num_graphs + 2 + mi, ti + 2, j + 1, k + 1, value.n(digits=64)))
+						f.write("%d %d %d %d -1.0\n" % (num_graphs + 2 + mi, total_num_blocks + 4, mi + 1, mi + 1))
+						mi += 1
 
 	# TODO: handle no sharp graphs
 
