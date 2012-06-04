@@ -28,15 +28,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from sage.rings.arith import binomial
-from sage.graphs.all import DiGraph
+from sage.graphs.digraph import DiGraph
 from hypergraph_flag cimport HypergraphFlag
 
 
 cdef class OrientedGraphFlag (HypergraphFlag):
 
 
-	def __init__(self, string_rep=None):
-		super(OrientedGraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=True)
+	def __init__(self, representation=None):
+	
+		if type(representation) is DiGraph:
+			super(OrientedGraphFlag, self).__init__("", r=2, oriented=True)
+			g = representation
+			self.n = g.order()
+			vertices = g.vertices()
+			for edge in g.edge_iterator():
+				self.add_edge(map(lambda i : vertices.index(i) + 1, edge[:2]))
+		else:
+			super(OrientedGraphFlag, self).__init__(string_rep=representation, r=2, oriented=True)
 
 
 	def __reduce__(self):
