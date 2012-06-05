@@ -19,18 +19,46 @@ class Construction44(BlowupConstruction):
 		self._phantom_edges = [(1, 4)]
 
 
+
+	def k4_density_epsilon(self):
+
+		cn = self._graph.n
+
+		pr = PolynomialRing(self._field, ['epsilon','c1','c2','c3','c4','c5','c6','c7'])
+		pr_gens = pr.gens()
+		epsilon_weights = [pr_gens[0] * pr_gens[v] for v in range(1, cn)]
+		epsilon_weights.append(sum(-x for x in epsilon_weights))
+
+		#pr = PolynomialRing(self._field, ['epsilon','c1','c2','c3','c4','c5','c6','c7','c8'])
+		#pr_gens = pr.gens()
+		#epsilon_weights = [pr_gens[0] * pr_gens[v] for v in range(1, cn + 1)]
+
+		found = pr(0)
+		
+		for P in Tuples(range(1, cn + 1), 4):
+		
+			factor = pr(1)
+			for v in P:
+				factor *= self._weights[v - 1] + epsilon_weights[v - 1]
+
+			ig = self._graph.degenerate_induced_subgraph(P)
+			if ig.ne == 6:
+				found += factor
+		
+		return found
+
+
 	def subgraph_densities_epsilon(self, n):
 
 		cn = self._graph.n
-		total = Integer(0)
 		sharp_graph_counts = {}
 		sharp_graphs = []
 
 		pr = PolynomialRing(self._field, ['epsilon','c1','c2','c3','c4','c5','c6','c7'])
 		pr_gens = pr.gens()
-		epsilon_weights = [pr_gens[0] * pr_gens[v] for v in range(1, 8)] + [
-			pr_gens[0] * (1 - sum(pr_gens[i] for i in range(1,8)))]
-		print epsilon_weights
+		epsilon_weights = [pr_gens[0] * pr_gens[v] for v in range(1, cn)]
+		epsilon_weights.append(sum(-x for x in epsilon_weights))
+		total = pr(0)
 		
 		for P in UnorderedTuples(range(1, cn + 1), n):
 		
@@ -38,13 +66,10 @@ class Construction44(BlowupConstruction):
 			for i in range(1, cn + 1):
 				factor /= factorial(P.count(i))
 			
-			fac = factor
-			for v in P:
-				fac *= self._weights[v - 1]
-			total += fac
-
 			for v in P:
 				factor *= self._weights[v - 1] + epsilon_weights[v - 1]
+
+			total += factor
 			
 			ig = self._graph.degenerate_induced_subgraph(P)
 			ig.make_minimal_isomorph()
