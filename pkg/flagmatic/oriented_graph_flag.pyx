@@ -38,14 +38,13 @@ cdef class OrientedGraphFlag (HypergraphFlag):
 	def __init__(self, representation=None):
 	
 		if type(representation) is DiGraph:
-			super(OrientedGraphFlag, self).__init__("", r=2, oriented=True)
 			g = representation
-			self.n = g.order()
+			super(OrientedGraphFlag, self).__init__(g.order(), r=2, oriented=True)
 			vertices = g.vertices()
 			for edge in g.edge_iterator():
 				self.add_edge(map(lambda i : vertices.index(i) + 1, edge[:2]))
 		else:
-			super(OrientedGraphFlag, self).__init__(string_rep=representation, r=2, oriented=True)
+			super(OrientedGraphFlag, self).__init__(representation=representation, r=2, oriented=True)
 
 
 	def __reduce__(self):
@@ -84,7 +83,10 @@ cdef class OrientedGraphFlag (HypergraphFlag):
 		Returns a Sage DiGraph object.
 		"""
 
-		return DiGraph([e for e in self.edges])
+		g = DiGraph()
+		g.add_vertices(range(1, self._n + 1))
+		g.add_edges(self.edges)
+		return g
 
 
 	def automorphism_group_gens(self):

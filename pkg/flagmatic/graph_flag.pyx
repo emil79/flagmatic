@@ -37,14 +37,13 @@ cdef class GraphFlag (HypergraphFlag):
 	def __init__(self, representation=None):
 	
 		if type(representation) is Graph:
-			super(GraphFlag, self).__init__("", r=2, oriented=False)
 			g = representation
-			self.n = g.order()
+			super(GraphFlag, self).__init__(g.order(), r=2, oriented=False)
 			vertices = g.vertices()
 			for edge in g.edge_iterator():
 				self.add_edge(map(lambda i : vertices.index(i) + 1, edge[:2]))
 		else:
-			super(GraphFlag, self).__init__(string_rep=representation, r=2, oriented=False)
+			super(GraphFlag, self).__init__(representation=representation, r=2, oriented=False)
 			
 
 	def __reduce__(self):
@@ -83,7 +82,10 @@ cdef class GraphFlag (HypergraphFlag):
 		Returns a Sage Graph object.
 		"""
 		
-		return Graph([e for e in self.edges])
+		g = Graph()
+		g.add_vertices(range(1, self._n + 1))
+		g.add_edges(self.edges)
+		return g
 
 
 	def automorphism_group_gens(self):

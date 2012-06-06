@@ -34,8 +34,8 @@ from hypergraph_flag cimport HypergraphFlag
 cdef class MultigraphFlag (HypergraphFlag):
 
 
-	def __init__(self, multiplicity=1, string_rep=None):
-		super(MultigraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False, multiplicity=multiplicity)
+	def __init__(self, multiplicity=1, representation=None):
+		super(MultigraphFlag, self).__init__(representation=representation, r=2, oriented=False, multiplicity=multiplicity)
 
 
 	def __reduce__(self):
@@ -84,8 +84,8 @@ cdef class MultigraphFlag (HypergraphFlag):
 
 cdef class TwoMultigraphFlag (MultigraphFlag):
 
-	def __init__(self, string_rep=None):
-		super(MultigraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False, multiplicity=2)
+	def __init__(self, representation=None):
+		super(MultigraphFlag, self).__init__(representation=representation, r=2, oriented=False, multiplicity=2)
 
 
 	@classmethod
@@ -111,8 +111,8 @@ cdef class TwoMultigraphFlag (MultigraphFlag):
 
 cdef class ThreeMultigraphFlag (MultigraphFlag):
 
-	def __init__(self, string_rep=None):
-		super(MultigraphFlag, self).__init__(string_rep=string_rep, r=2, oriented=False, multiplicity=3)
+	def __init__(self, representation=None):
+		super(MultigraphFlag, self).__init__(representation=representation, r=2, oriented=False, multiplicity=3)
 
 
 	@classmethod

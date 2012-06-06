@@ -51,7 +51,7 @@ cimport numpy
 
 from sage.rings.arith import binomial, falling_factorial
 from sage.combinat.all import Combinations, Permutations, Tuples, Subsets
-from sage.rings.all import Integer, QQ
+from sage.rings.all import Integer, QQ, ZZ
 from sage.matrix.all import matrix, block_matrix
 from sage.modules.misc import gram_schmidt
 		
@@ -60,7 +60,7 @@ from sage.modules.misc import gram_schmidt
 cdef class HypergraphFlag (Flag):
 
 
-	def __init__(self, string_rep=None, r=3, oriented=False, multiplicity=1):
+	def __init__(self, representation=None, r=3, oriented=False, multiplicity=1):
 	
 		if oriented and r != 2:
 			raise NotImplementedError("only 2-graphs can be oriented.")
@@ -68,9 +68,24 @@ cdef class HypergraphFlag (Flag):
 		self._r = r
 		self._oriented = oriented
 		self._multiplicity = multiplicity
-	
-		if string_rep:
-			self.init_from_string(string_rep)
+
+		if representation is None:
+			self._n = 0
+			self.ne = 0
+			self._t = 0
+
+		elif isinstance(representation, basestring):
+			self.init_from_string(representation)
+
+		elif representation in ZZ:
+			if representation < 0:
+				raise ValueError
+			self._n = representation
+			self.ne = 0
+			self._t = 0
+
+		else:		
+			raise ValueError
 
 
 	property edges:

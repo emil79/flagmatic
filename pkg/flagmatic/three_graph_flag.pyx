@@ -33,8 +33,8 @@ from hypergraph_flag cimport HypergraphFlag
 cdef class ThreeGraphFlag (HypergraphFlag):
 
 
-	def __init__(self, string_rep=None):
-		super(ThreeGraphFlag, self).__init__(string_rep=string_rep, r=3, oriented=False)
+	def __init__(self, representation=None):
+		super(ThreeGraphFlag, self).__init__(representation=representation, r=3, oriented=False)
 
 
 	def __reduce__(self):
