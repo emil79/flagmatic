@@ -1,4 +1,4 @@
-
+		
 
 class Construction44(BlowupConstruction):
 
@@ -18,6 +18,24 @@ class Construction44(BlowupConstruction):
 		#self._phantom_edges = [(1, 3), (1, 4)]
 		self._phantom_edges = [(1, 4)]
 
+
+# C = Construction44()
+# k4den = C.k4_density_epsilon()
+# 
+# epsilon = k4den.parent().gens()[0]
+# gens = k4den.parent().gens()[1:]
+# 
+# cons_term = k4den.constant_coefficient()
+# lin_term = k4den.coefficient(epsilon)
+# quad_term = k4den.coefficient(epsilon^2)
+# 
+# M = matrix(C.field, 7, 7)
+# for j in range(7):
+# 	for k in range(7):
+# 		value = quad_term.coefficient(gens[j] * gens[k])
+# 		if j != k:
+# 			value /= 2
+# 		M[j, k] = value
 
 
 	def k4_density_epsilon(self):
@@ -375,7 +393,7 @@ class Construction44(BlowupConstruction):
 						
 				rows.append(row)
 
-		if True:
+		if False:
 			for tv in Tuples(range(1, cn + 1), s):
 	
 				one_indices = [i for i in range(s) if tv[i] == 1]
