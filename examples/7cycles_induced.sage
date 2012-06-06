@@ -1,0 +1,5 @@
+problem = GraphProblem(7, forbid=(3,3), density="7:12233445566771", type_orders=[3,5])
+construction = GraphBlowupConstruction("7:12233445566771")
+problem.set_extremal_construction(construction)
+problem.solve_sdp()
+problem.make_exact(2^30)
