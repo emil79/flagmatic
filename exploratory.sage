@@ -128,6 +128,54 @@ def check_construction(problem, C, types=None):
 				" ".join("%s" % e for e in norms)))
 
 
+def seven_cycles(graph):
+
+	n = graph.n
+	edges = graph.edges
+	for c in Permutations(range(2, n + 1)):
+		if c[0] > c[-1]:
+			continue
+		cc = [1] + c + [1]
+		for i in range(n):
+			if not (cc[i], cc[i + 1]) in edges and not (cc[i + 1], cc[i]) in edges:
+				break
+		else:
+			print cc[:-1]
+
+def num_seven_cycles(graph):
+
+	n = graph.n
+	edges = graph.edges
+	count = 0
+	
+	for c in Permutations(range(2, n + 1)):
+		if c[0] > c[-1]:
+			continue
+		cc = [1] + c + [1]
+		for i in range(n):
+			if not (cc[i], cc[i + 1]) in edges and not (cc[i + 1], cc[i]) in edges:
+				break
+		else:
+			count += 1
+	
+	return count
+	
+
+
+# def check_tranform(problem, C, types=None):
+# 
+# 	if types is None:
+# 		types = problem._active_types
+# 	
+# 	for ti in types:
+# 		MZ = C.zero_eigenvectors(problem._types[ti], problem._flags[ti]) 
+# 		if MZ.nrows() == 0:
+# 			M = problem._sdp_Q_matrices[ti]
+# 		else:
+# 			M = B * self._sdp_Q_matrices[ti] * B.T
+
+
+
 def find_extra_zero_eigenvectors(problem, ti, tolerance=1e-5, threshold=1e-10, echelonize=True, denominator=None):
 
 	if not ti in problem._active_types:
