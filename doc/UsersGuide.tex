@@ -99,22 +99,99 @@ Note that this definition also works for \emph{oriented} $r$-graphs.
 
 \flagmatic\ is not hard to use, but it is highly recommended that new users spend some time reading this document and studying the examples provided.
 
+\begin{sage}
+sage: problem = ThreeGraphProblem(6, forbid=(4,4), forbid_induced=(4,1))
+sage: construction = ThreeGraphBlowupConstruction("3:112223331123")
+sage: problem.set_extremal_construction(construction)
+sage: problem.solve_sdp()
+sage: problem.make_exact()
+\end{sage}
 
 
+\section{Flags}
+
+The most basic kind of object used by \flagmatic\ is the Flag. Flags come in different kinds, the most common being GraphFlag, ThreeGraphFlag and OrientedGraphFlag. We shall look here at GraphFlags, but the other kinds behave similarly.
+
+A GraphFlag is a graph where some of the vertices are marked as being ``fixed''. The vertices are always called $1, \dots, n$ for some $n \ge 0$, and the ``fixed'' vertices are always $1, \dots, k$ for some $k \ge 0$. To begin with, we shall look at graphs that have no fixed vertices (i.{e} $k=0$). A GraphFlag can be created by calling the \verb|GraphFlag| constructor. For example, the following creates a graph with two vertices joined by an edge:
 
 \begin{sage}
-sage: P = GraphProblem()
-sage: P.forbid_subgraph((3, 3))
-sage: P.generate_flags(5, type_orders=[3])
-sage: P.set_density("5:1223344551")
-sage: C = BlowupConstruction(GraphFlag("5:1223344551"))
-sage: P.set_extremal_construction(C)
-sage: P.compute_products()
-sage: P.solve_sdp()
-sage: P.change_solution_bases()
-sage: P.make_exact()
-sage: P.check_exact_bound()
+sage: G = GraphFlag("2:12")
 \end{sage}
+
+The notation is simply the number of vertices, followed by a colon, followed by a list of edges. The following creates a triangle:
+
+\begin{sage}
+sage: G = GraphFlag("3:122331")
+\end{sage}
+
+Specifying an integer to the constructor creates an empty graph. For example the following 
+creates a graph on four vertices with no edges:
+
+\begin{sage}
+sage: G = GraphFlag(4)
+\end{sage}
+
+We can then add edges to \verb|G| using the \verb|add_edge| method:
+
+\begin{sage}
+sage: G.add_edge((1,2))
+sage: G.add_edge((3,4))
+sage: G
+4:1234
+\end{sage}
+
+Edges can be removed with the \verb|delete_edge| method:
+
+\begin{sage}
+sage: G.delete_edge((3,4))
+sage: G
+4:12
+\end{sage}
+
+GraphFlags can also be created from native Sage graphs, by providing the constructor with a Sage Graph object. For example, we can create the Petersen graph as follows:
+
+\begin{sage}
+sage: G=GraphFlag(graphs.PetersenGraph())
+sage: G
+a:1215162327343845495a6869797a8a
+\end{sage}
+
+Note that the graph is displayed in a slightly odd way: the vertices are represented by $1$, $\dots,$ $9$, $a$, and the number of vertices by ``a''. Fortunately, we can display the edges in a more friendly way by using the \verb|edges| property:
+
+\begin{sage}
+sage: G.edges
+((1, 2), (1, 5), (1, 6), (2, 3), (2, 7), (3, 4), (3, 8), (4, 5), (4, 9),
+(5, 10), (6, 8), (6, 9), (7, 9), (7, 10), (8, 10))
+\end{sage}
+
+GraphFlag objects also provide an iterator, which gives the edges:
+
+\begin{sage}
+sage: [edge for edge in G]
+[(1, 2), (1, 5), (1, 6), (2, 3), (2, 7), (3, 4), (3, 8), (4, 5), (4, 9),
+(5, 10), (6, 8), (6, 9), (7, 9), (7, 10), (8, 10)]
+\end{sage}
+
+GraphFlags can be compared with the equality operator, which returns \verb|True| if the graphs are isomorphic. The \verb|is_labelled_isomorphic| method can be used to tell if graphs are \emph{labelled isomorphic}. For example:
+
+\begin{sage}
+sage: G = GraphFlag("5:1223344551")
+sage: H = GraphFlag(graphs.CycleGraph(5))
+sage: G == H
+True
+sage: G.is_labelled_isomorphic(H)
+False
+\end{sage}
+
+Here the second test returned \verb|False|, since Sage's 5-cycle is labelled differently to the one that we created:
+
+\begin{sage}
+sage: G
+5:1223344551
+sage: H
+5:1215233445
+\end{sage}
+
 
 \section{Redistribution of flagmatic} \label{license}
 
