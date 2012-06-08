@@ -192,6 +192,46 @@ sage: H
 5:1215233445
 \end{sage}
 
+\section{Constructions}
+
+A construction represents the limit of object of a sequence of extremal constructions $(G_n)_{n \in \mathbb{N}}$ for a problem. There are three kinds of Construction object: BlowupConstruction, RandomGraphConstruction and RandomTournament Construction. The most common Construction objects used as the BlowupConstruction ones.
+
+BlowupConstructions can be created using the functions GraphBlowupConstruction, ThreeGraphBlowupConstruction and OrientedGraphBlowupConstruction.
+
+An an example, we can consider a blow-up of a 3-cycle:
+
+\begin{sage}
+sage: C = GraphBlowupConstruction("3:122331")
+\end{sage}
+
+We can find the edge density:
+
+\begin{sage}
+sage: C.density()
+2/3
+\end{sage}
+
+And the triangle density:
+
+\begin{sage}
+sage: C.density("3:122331")
+2/9
+\end{sage}
+
+Or the 4-vertex induced subgraphs:
+
+\begin{sage}
+sage: C.subgraphs(4)
+[4:, 4:121314, 4:12132434, 4:1213142324]
+\end{sage}
+
+And the densities of each 4-vertex induced subgraph:
+
+\begin{sage}
+sage: C.subgraph_densities(4)
+[(4:, 1/27), (4:121314, 8/27), (4:12132434, 2/9), (4:1213142324, 4/9)]
+\end{sage}
+
 
 \section{Redistribution of flagmatic} \label{license}
 
