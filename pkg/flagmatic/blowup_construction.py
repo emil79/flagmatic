@@ -50,6 +50,7 @@ class BlowupConstruction(Construction):
 			raise NotImplementedError("degenerate oriented graphs not supported.")
 	
 		self._graph = copy(g)
+		self._flag_cls = type(g)
 
 		if weights is None:
 			self._weights = None

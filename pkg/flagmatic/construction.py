@@ -53,13 +53,41 @@ class Construction(SageObject):
 
 	def __init__(self):
 		self._field = RationalField()
+		self._flag_cls = None
 
 	@property
 	def field(self):
 		return self._field
 
+	@property
+	def flag_cls(self):
+		return self._flag_cls
+
+	def density(self, graph=None):
+		if self._flag_cls is None:
+			return 0
+
+		if graph is None:
+			dg = self._flag_cls.default_density_graph()
+		elif type(graph) is self._flag_cls:
+			dg = graph
+		else:
+			dg = self._flag_cls(graph)
+
+		sg = self.subgraph_densities(dg.n)
+		for g, den in sg:
+			if g == dg:
+				return den
+		return 0
+	
+
+	def subgraphs(self, n):
+		return [p[0] for p in self.subgraph_densities(n)]
+
+
 	def subgraph_densities(self, n):
 		return None
+
 
 	def zero_eigenvectors(self, tg, flags, flag_basis=None):
 		return None

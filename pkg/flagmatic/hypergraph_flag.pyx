@@ -64,7 +64,13 @@ cdef class HypergraphFlag (Flag):
 	
 		if oriented and r != 2:
 			raise NotImplementedError("only 2-graphs can be oriented.")
-	
+		
+		if multiplicity < 1:
+			raise ValueError
+		
+		if not isinstance(oriented, bool):
+			raise ValueError
+		
 		self._r = r
 		self._oriented = oriented
 		self._multiplicity = multiplicity
@@ -78,8 +84,8 @@ cdef class HypergraphFlag (Flag):
 			self.init_from_string(representation)
 
 		elif representation in ZZ:
-			if representation < 0:
-				raise ValueError
+			if representation < 0 or representation > MAX_NUMBER_OF_VERTICES:
+				raise ValueError("Unsupported number of vertices.")
 			self._n = representation
 			self.ne = 0
 			self._t = 0
@@ -121,7 +127,7 @@ cdef class HypergraphFlag (Flag):
 				raise NotImplementedError("only 2-graphs and 3-graphs are supported.")
 				
 			if self.ne != 0:
-				raise ValueError
+				raise NotImplementedError("cannot change edge size of a non-empty flag.")
 
 			self._r = value
 
@@ -136,7 +142,7 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
-			if not (value is True or value is False):
+			if not isinstance(value, bool):
 				raise ValueError
 			
 			self._oriented = value
@@ -154,7 +160,7 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
-			if not value >= 1:
+			if value < 1:
 				raise ValueError
 			
 			self._multiplicity = value
@@ -168,12 +174,17 @@ cdef class HypergraphFlag (Flag):
 		def __get__(self):
 			return self._n
 	
-		# TODO: allow decreasing number of vertices if no bad edges will result.
-	
 		def __set__(self, value):
 
+			cdef int i
+
+			if value < self._t:
+				raise ValueError("n cannot be less than t.")
+
 			if value < self._n:
-				raise ValueError("Cannot decrease the number of vertices.")
+				for i in range(self._r * self.ne):
+					if self._edges[i] >= value:
+						raise ValueError("Not possible due to edges.")
 
 			if value > MAX_NUMBER_OF_VERTICES:
 				raise ValueError("Too many vertices.")
@@ -191,7 +202,7 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
-			if value > self._n:
+			if value < 0 or value > self._n:
 				raise ValueError
 
 			self._t = value
@@ -287,22 +298,24 @@ cdef class HypergraphFlag (Flag):
 			try:
 				return "0123456789abcdefghijklmnopqrstuvwxyz".index(c)
 			except ValueError:
-				raise ValueError("String is not a representation of a flag.")
+				raise ValueError("Invalid representation.")
 		
 		if s[1] != ":":
-			raise ValueError("String is not a representation of a flag.")
+			raise ValueError("Invalid representation.")
 
 		n = decode_symbol(s[0])
+		if n < 0 or n > MAX_NUMBER_OF_VERTICES:
+			raise ValueError("Unsupported number of vertices.")
 		self._n = n
 		self.ne = 0
 		nei = len(s) - 2
 
 		if s[-1] == ")":
 			if s[-3] != "(":
-				raise ValueError
+				raise ValueError("Invalid representation.")
 			t = decode_symbol(s[-2])
-			if t > n:
-				raise ValueError
+			if t < 0 or t > n:
+				raise ValueError("Invalid t.")
 			nei -= 3
 		else:
 			t = 0
@@ -315,7 +328,7 @@ cdef class HypergraphFlag (Flag):
 		if self._r == 3:
 		
 			if nei % 3 != 0:
-				raise ValueError
+				raise ValueError("Invalid representation.")
 			
 			for i in range(2, 2 + nei, 3):
 				self.add_edge((decode_symbol(s[i]), decode_symbol(s[i + 1]), decode_symbol(s[i + 2])))
@@ -323,7 +336,7 @@ cdef class HypergraphFlag (Flag):
 		elif self._r == 2:
 		
 			if nei % 2 != 0:
-				raise ValueError
+				raise ValueError("Invalid representation.")
 			
 			for i in range(2, 2 + nei, 2):
 				self.add_edge((decode_symbol(s[i]), decode_symbol(s[i + 1])))
@@ -354,10 +367,11 @@ cdef class HypergraphFlag (Flag):
 		cdef HypergraphFlag ng
 		
 		ng = type(self)()
-		ng.n = self._n
-		ng.r = self._r
-		ng.oriented = self._oriented
-		ng.t = self._t
+		ng._n = self._n
+		ng._r = self._r
+		ng._oriented = self._oriented
+		ng._multiplicity = self._multiplicity
+		ng._t = self._t
 		ng.ne = self.ne
 		ng.is_degenerate = self.is_degenerate
 
@@ -374,13 +388,13 @@ cdef class HypergraphFlag (Flag):
  	# TODO: check that this is best way to do this.
  	
 	def __reduce__(self):
-		return (type(self), (self._repr_(), self._r, self._oriented))
+		return (type(self), (self._repr_(), self._r, self._oriented, self._multiplicity))
 
 
 	# TODO: work out how to make sets of these work
 	
 	def __hash__(self):
-		return hash(self._repr_() + str(self._r) + str(self._oriented))
+		return hash(self._repr_() + str(self._r) + str(self._oriented) + str(self._multiplicity))
  	
 
 	# TODO: Handle < > (subgraph)
@@ -412,6 +426,10 @@ cdef class HypergraphFlag (Flag):
 		if self._oriented != other._oriented:
 			return False
 
+		#  Should this be checked? 
+		# if self._multiplicity != other._multiplicity:
+		# 	return False
+
 		if self._n != other._n:
 			return False
 
@@ -429,10 +447,10 @@ cdef class HypergraphFlag (Flag):
 
 
 	@classmethod
-	def default_density_graphs(cls, r=3, oriented=False):
+	def default_density_graph(cls, r=3, oriented=False):
 		edge_graph = cls("%d:" % r, r, oriented)
 		edge_graph.add_edge(range(1, r + 1))
-		return [edge_graph]
+		return edge_graph
 	
 
 	@classmethod

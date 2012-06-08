@@ -140,7 +140,7 @@ class Problem(SageObject):
 		else:
 			raise ValueError
 		
-		self._density_graphs = flag_cls.default_density_graphs()
+		self._density_graphs = [flag_cls.default_density_graph()]
 		self._n = 0
 
 		self._field = QQ

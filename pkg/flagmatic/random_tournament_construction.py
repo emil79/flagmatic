@@ -42,9 +42,9 @@ class RandomTournamentConstruction(Construction):
 
 	def __init__(self, variant=False):
 
-		self._variant = variant	
+		self._variant = variant
 		self._field = RationalField()
-
+		self._flag_cls = ThreeGraphFlag
 
 	def subgraph_densities(self, n):
 
