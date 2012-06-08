@@ -144,8 +144,13 @@ class AxiomsProblem(Problem):
 	
 			tg = ThreeGraphFlag("2:")
 			f1 = ThreeGraphFlag("4:134(2)")
-			f2 = ThreeGraphFlag("4:234(2)")
-			self.add_axiom(tg, [(f1, Integer(1)), (f2, -Integer(1))], make_free=make_free)
+			f2 = ThreeGraphFlag("4:123134(2)")
+			f3 = ThreeGraphFlag("4:123124134(2)")
+			f4 = ThreeGraphFlag("4:234(2)")
+			f5 = ThreeGraphFlag("4:123234(2)")
+			f6 = ThreeGraphFlag("4:123124234(2)")
+			self.add_axiom(tg, [(f1, Integer(1)), (f2, Integer(1)), (f3, Integer(1)),
+				(f4, Integer(-1)), (f5, Integer(-1)), (f6, Integer(-1))], make_free=make_free)
 
 		elif self._flag_cls().r == 2:
 

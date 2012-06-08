@@ -98,6 +98,9 @@ class BlowupConstruction(Construction):
 
 	def subgraph_densities(self, n):
 
+		if n < 0:
+			raise ValueError
+
 		if self._use_symmetry:
 			return self.symm_subgraph_densities(n)
 

@@ -46,10 +46,14 @@ class RandomTournamentConstruction(Construction):
 		self._field = RationalField()
 		self._flag_cls = ThreeGraphFlag
 
+
 	def subgraph_densities(self, n):
 
+		if n < 0:
+			raise ValueError
+
 		tg = ThreeGraphFlag()
-		return self.induced_flags(n, tg, [])
+		return self._induced_flags(n, tg, [])
 
 
 	def zero_eigenvectors(self, tg, flags):
@@ -65,7 +69,7 @@ class RandomTournamentConstruction(Construction):
 					else:	
 						edges.append((j, i))
 					c += 1
-			graphs = self.induced_flags(flags[0].n, tg, edges)
+			graphs = self._induced_flags(flags[0].n, tg, edges)
 			row = [0 for f in flags]
 			for pair in graphs:
 				g, den = pair
@@ -78,7 +82,7 @@ class RandomTournamentConstruction(Construction):
 		return matrix_of_independent_rows(self._field, list(rows), len(flags))
 
 
-	def induced_flags(self, n, tg, type_edges):
+	def _induced_flags(self, n, tg, type_edges):
 	
 		flag_counts = {}
 		flags = []

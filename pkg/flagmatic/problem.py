@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 
 flagmatic 2
@@ -1803,15 +1804,14 @@ class Problem(SageObject):
 				sys.stdout.write(" %s : graph %d (%s) " % (fbounds[gi], gi, self._graphs[gi]))
 				sys.stdout.write("\n")
 
-		else:
-	
+		if self.state("set_construction") != "yes":
+			return
+
+		if not (show_sorted or show_all):
 			sys.stdout.write("The following %d graphs appear to be sharp:\n" % len(apparently_sharp_graphs))
 			for gi in apparently_sharp_graphs:
 				sys.stdout.write("%.12f : graph %d (%s)\n" % (fbounds[gi], gi, self._graphs[gi]))
-		
-		if self.state("set_construction") != "yes":
-			return
-			
+					
 		extra_sharp_graphs = [gi for gi in apparently_sharp_graphs if not gi in self._sharp_graphs]
 		missing_sharp_graphs = [gi for gi in self._sharp_graphs if not gi in apparently_sharp_graphs]
 			
@@ -1944,6 +1944,12 @@ class Problem(SageObject):
 	def make_exact(self, denominator=1024, cholesky=None, protect=None, meet_target_bound=True, show_changes=False,
 		use_densities=True, transform=True, use_blocks=True, check_exact_bound=True, diagonalize=True):
 	
+		if self.state("set_construction") != "yes":
+			transform = False
+			meet_target_bound = False
+			cholesky = "all"
+			sys.stdout.write("No construction set, so there is no target bound.\n")
+		
 		if transform and not self.state("transform_problem") == "yes" and self.state("transform_solution") != "yes":
 			self.change_solution_bases(use_blocks=use_blocks)
 	
@@ -2208,11 +2214,12 @@ class Problem(SageObject):
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
 
-		negative_densities = [j for j in range(num_densities) if self._exact_density_coeffs[j] < 0]
-		if len(negative_densities) > 0:
-			sys.stdout.write("Warning! Densities %s have negative coefficients, so the bound is not valid.\n" % negative_densities)
-			return
-		sys.stdout.write("All density coefficients are non-negative.\n")
+		if num_densities > 1:
+			negative_densities = [j for j in range(num_densities) if self._exact_density_coeffs[j] < 0]
+			if len(negative_densities) > 0:
+				sys.stdout.write("Warning! Densities %s have negative coefficients, so the bound is not valid.\n" % negative_densities)
+				return
+			sys.stdout.write("All density coefficients are non-negative.\n")
 		
 		negative_types = []
 		very_small_types = []
@@ -2274,6 +2281,8 @@ class Problem(SageObject):
 		self._bound = bound
 
 		if self.state("set_construction") != "yes":
+			
+			sys.stdout.write("Bound is %s (%s).\n" % (bound, bound.n(digits=10)))
 		
 			if diagonalize:
 				self.diagonalize()

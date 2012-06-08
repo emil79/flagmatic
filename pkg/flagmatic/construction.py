@@ -82,10 +82,14 @@ class Construction(SageObject):
 	
 
 	def subgraphs(self, n):
+		if n < 0:
+			raise ValueError
 		return [p[0] for p in self.subgraph_densities(n)]
 
 
 	def subgraph_densities(self, n):
+		if n < 0:
+			raise ValueError
 		return None
 
 
