@@ -123,6 +123,8 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
+			self._require_mutable()
+
 			if not (value == 2 or value == 3):
 				raise NotImplementedError("only 2-graphs and 3-graphs are supported.")
 				
@@ -142,6 +144,8 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
+			self._require_mutable()
+
 			if not isinstance(value, bool):
 				raise ValueError
 			
@@ -160,6 +164,8 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
+			self._require_mutable()
+
 			if value < 1:
 				raise ValueError
 			
@@ -177,6 +183,8 @@ cdef class HypergraphFlag (Flag):
 		def __set__(self, value):
 
 			cdef int i
+
+			self._require_mutable()
 
 			if value < self._t:
 				raise ValueError("n cannot be less than t.")
@@ -202,6 +210,8 @@ cdef class HypergraphFlag (Flag):
 	
 		def __set__(self, value):
 
+			self._require_mutable()
+
 			if value < 0 or value > self._n:
 				raise ValueError
 
@@ -211,6 +221,8 @@ cdef class HypergraphFlag (Flag):
 	def add_edge(self, edge):
 	
 		cdef int x, y, z
+		
+		self._require_mutable()
 		
 		if self._r == 3:
 
@@ -258,6 +270,8 @@ cdef class HypergraphFlag (Flag):
 	def delete_edge(self, edge):
 
 		cdef int k
+
+		self._require_mutable()
 	
 		if not len(edge) == self._r:
 			raise ValueError("bad edge size.")
@@ -362,7 +376,9 @@ cdef class HypergraphFlag (Flag):
 	# TODO: maintain vigilance that we have everything...
 
 	def __copy__(self):
-
+		r"""
+		Make a (mutable) copy.
+		"""
 		cdef int i
 		cdef HypergraphFlag ng
 		
@@ -810,6 +826,8 @@ cdef class HypergraphFlag (Flag):
 	def relabel(self, verts):
 
 		cdef int i
+
+		self._require_mutable()
 	
 		if len(verts) != self._n:
 			raise ValueError
@@ -827,6 +845,8 @@ cdef class HypergraphFlag (Flag):
 	# TODO: handle multigraphs somehow
 
 	def identify_vertices(self, v1, v2, remove_duplicate_edges=True):
+
+		self._require_mutable()
 
 		if self.multiplicity != 1:
 			raise NotImplementedError("Cannot identify vertices of multigraphs.")
@@ -884,6 +904,8 @@ cdef class HypergraphFlag (Flag):
 	
 	def minimize_edges(self):
 	
+		self._require_mutable()
+	
 		raw_minimize_edges(self._edges, self.ne, self._r, self._oriented)
 
 
@@ -891,6 +913,8 @@ cdef class HypergraphFlag (Flag):
 
 		cdef int i, *new_edges, *winning_edges, *e
 		cdef int *p, np, is_lower
+		
+		self._require_mutable()
 		
 		new_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
 		winning_edges = <int *> malloc (sizeof(int) * self._r * self.ne)

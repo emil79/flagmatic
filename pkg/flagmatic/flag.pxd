@@ -1,4 +1,5 @@
 from sage.structure.sage_object cimport SageObject
 
 cdef class Flag (SageObject):
-	pass
+
+	cdef public bint _is_immutable
