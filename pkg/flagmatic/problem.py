@@ -33,7 +33,7 @@ import numpy
 import pexpect
 
 from sage.structure.sage_object import SageObject
-from sage.rings.all import Integer, QQ, RDF
+from sage.rings.all import Integer, QQ, ZZ, RDF
 from sage.functions.other import floor
 from sage.matrix.all import matrix, identity_matrix, block_matrix, block_diagonal_matrix
 from sage.modules.misc import gram_schmidt
@@ -141,7 +141,7 @@ class Problem(SageObject):
 		else:
 			raise ValueError
 		
-		self._density_graphs = [flag_cls.default_density_graph()]
+		self._density_graphs = [[(Integer(1), flag_cls.default_density_graph())]]
 		self._n = 0
 
 		self._field = QQ
@@ -387,6 +387,9 @@ class Problem(SageObject):
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
+		for g in self._graphs:   # Make all the graphs immutable
+			g.set_immutable()
+	
 		self._compute_densities()
 	
 		sys.stdout.write("Generating types and flags...\n")
@@ -426,6 +429,11 @@ class Problem(SageObject):
 		num_types = len(self._types) # may have changed!
 		
 		self._active_types = range(num_types)
+		
+		for ti in range(num_types):           # Make everything immutable!
+			self._types[ti].set_immutable()
+			for g in self._flags[ti]:
+				g.set_immutable()
 		
 		if compute_products:
 			self.compute_products()
@@ -492,46 +500,62 @@ class Problem(SageObject):
 
 	def _compute_densities(self):
 	
-		self._densities = [[sum(g.subgraph_density(dg) for dg in self._density_graphs)
-			for g in self._graphs]]
+		self._densities = []
+		
+		for dg in self._density_graphs:
+		
+			density_values = []
+			for g in self._graphs:
+				density_values.append(sum(coeff * g.subgraph_density(h) for coeff, h in dg))
+			self._densities.append(density_values)
 
 
 	def set_density(self, *args):
 
 		self.state("set_objective", "yes")
 
-		density_graphs = []
-		orders = []
-
 		flattened_args = []
-		for h in args:
-			if isinstance(h, list):
-				flattened_args.extend(h)
+		for arg in args:
+			if isinstance(arg, list):
+				flattened_args.extend(arg)
 			else:
-				flattened_args.append(h)
+				flattened_args.append(arg)
+	
+		density_graphs = []
 		
-		for h in flattened_args:
+		for arg in flattened_args:
 		
-			if isinstance(h, basestring) and "." in h:
-				h = tuple(map(int, h.split(".")))
+			if isinstance(arg, basestring) and "." in arg:
+				arg = tuple(map(int, arg.split(".")))
 		
-			if isinstance(h, tuple):
-				k, ne = h
-				if k < self._flag_cls().r:
+			if isinstance(arg, tuple):
+			
+				if len(arg) != 2:
 					raise ValueError
-				max_e = self._flag_cls.max_number_edges(k)
-				if not ne in range(max_e + 1):
-					raise ValueError
-		
-				# Don't forbid anything - if we do, we'll have to keep list
-				# updated whenever forbidden things change. Also it seems the most
-				# appropriate thing to do.
-				graphs = self._flag_cls.generate_graphs(k)
-				for g in graphs:
-					if g.ne == ne:
-						density_graphs.append(g)
-				orders.append(k)
-				continue
+					
+				if arg[1] in ZZ:
+				
+					k, ne = arg
+					if k < self._flag_cls().r:
+						raise ValueError
+					max_e = self._flag_cls.max_number_edges(k)
+					if not ne in range(max_e + 1):
+						raise ValueError
+			
+					# Don't forbid anything - if we do, we'll have to keep list
+					# updated whenever forbidden things change. Also it seems the most
+					# appropriate thing to do.
+					graphs = self._flag_cls.generate_graphs(k)
+					for g in graphs:
+						if g.ne == ne:
+							density_graphs.append((Integer(1), g))
+					orders.append(k)
+					continue
+				
+				coeff, h = arg
+			
+			else:
+				coeff, h = Integer(1), arg
 			
 			if isinstance(h, basestring):
 				h = self._flag_cls(h)
@@ -539,16 +563,13 @@ class Problem(SageObject):
 			if not isinstance(h, self._flag_cls):
 				raise ValueError
 
-			density_graphs.append(copy(h))
-			orders.append(h.n)
-		
+			density_graphs.append((coeff, copy(h)))
+
 		if len(density_graphs) == 0:
 			raise ValueError
 		
-		if len(set(orders)) > 1:
-			raise ValueError("Density graphs must all contain the same number of vertices.")
-		
-		self._density_graphs = density_graphs
+		# Note that this function only sets one of the densities.
+		self._density_graphs = [density_graphs]
 		
 		if self.state("compute_flags") == "yes":
 			self._compute_densities()
