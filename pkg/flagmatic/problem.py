@@ -496,17 +496,22 @@ class Problem(SageObject):
 		self.state("set_objective", "yes")
 		
 		self._minimize = minimize
-		
+
 
 	def _compute_densities(self):
 	
 		self._densities = []
-		
 		for dg in self._density_graphs:
-		
 			density_values = []
 			for g in self._graphs:
-				density_values.append(sum(coeff * g.subgraph_density(h) for coeff, h in dg))
+				dv = 0
+				for coeff, h in dg:
+					if h.n == g.n:
+						if g.is_labelled_isomorphic(h): # density_graphs and graphs are always minimal
+							dv += coeff
+					else:
+						dv += coeff * g.subgraph_density(h)
+				density_values.append(dv)
 			self._densities.append(density_values)
 
 
@@ -563,7 +568,9 @@ class Problem(SageObject):
 			if not isinstance(h, self._flag_cls):
 				raise ValueError
 
-			density_graphs.append((coeff, copy(h)))
+			h = copy(h)
+			h.make_minimal_isomorph()
+			density_graphs.append((coeff, h))
 
 		if len(density_graphs) == 0:
 			raise ValueError

@@ -48,15 +48,17 @@ class AxiomsProblem(Problem):
 		
 
 	def clear_densities(self):
-		self._densities = []
+		self._density_graphs = []
+		self._compute_densities()
 
 
 	# TODO: handle multiple axioms. Would be better to have set_inactive_densities
 	def remove_densities(self, *args):
 	
-		num_densities = len(self._densities)
+		num_densities = len(self._density_graphs)
 	
 		self._densities = [self._densities[j] for j in range(num_densities) if not j in args]
+		self._density_graphs = [self._density_graphs[j] for j in range(num_densities) if not j in args]
 		self._axiom_flags =  [self._axiom_flags[0][j] for j in range(num_densities) if not j in args]
 
 
@@ -94,12 +96,21 @@ class AxiomsProblem(Problem):
 		self._axioms.append((tg, terms))
 		self._axiom_flags.append(axiom_flags)
 		
-		num_densities = len(self._densities)
-		self._densities.extend(quantum_graphs)
+		num_previous_densities = len(self._density_graphs)
+		
+		for qg in quantum_graphs:
+			dg = []
+			for gi in range(num_graphs):
+				if qg[gi] != 0:
+					dg.append((qg[gi], self._graphs[gi]))
+			self._density_graphs.append(dg)
+
+		self._compute_densities()
+		
 		if make_free:
 			if not hasattr(self, "_free_densities"):
 				self._free_densities = []
-			self._free_densities.extend(range(num_densities, len(self._densities)))
+			self._free_densities.extend(range(num_previous_densities, len(self._density_graphs)))
 	
 	
 	def add_codegree_axiom(self, value, make_free=True):
