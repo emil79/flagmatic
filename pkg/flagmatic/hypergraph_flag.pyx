@@ -1301,6 +1301,14 @@ cdef class HypergraphFlag (Flag):
 			raise NotImplementedError("Multigraphs not supported.")
 		
 		cg = self.__copy__()
+
+		# Remove all edges incident with vertices that are not used.
+		for v in range(1, cg.n + 1):
+			if not v in verts:
+				for e in cg.edges:
+					if v in e:
+						cg.delete_edge(e)
+		
 		vertices = []
 		for x in verts:
 			if not x in vertices:
