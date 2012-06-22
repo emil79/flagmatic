@@ -1,0 +1,5 @@
+problem = ThreeGraphProblem(6, density=(5,9))
+construction = ThreeGraphBlowupConstruction("2:112122")
+problem.set_extremal_construction(construction)
+problem.solve_sdp()
+problem.make_exact()
