@@ -554,7 +554,6 @@ class Problem(SageObject):
 					for g in graphs:
 						if g.ne == ne:
 							density_graphs.append((Integer(1), g))
-					orders.append(k)
 					continue
 				
 				coeff, h = arg
