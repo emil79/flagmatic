@@ -135,13 +135,11 @@ class Problem(SageObject):
 	
 		self._flagmatic_version = "2.0"
 	
-		#if flag_cls in [ThreeGraphFlag, GraphFlag, OrientedGraphFlag, TwoMultigraphFlag, ThreeMultigraphFlag]:
 		if issubclass(flag_cls, Flag):
 			self._flag_cls = flag_cls
 		else:
 			raise ValueError
 		
-		self._density_graphs = [[(Integer(1), flag_cls.default_density_graph())]]
 		self._n = 0
 
 		self._field = QQ
@@ -154,7 +152,9 @@ class Problem(SageObject):
 		self.state("specify", "yes")
 		self.set_objective(minimize=minimize)
 
-		if not density is None:
+		if density is None:
+			self.set_density(flag_cls.default_density_graph())
+		else:
 			self.set_density(density)
 
 		if not forbid_induced is None:
@@ -387,7 +387,7 @@ class Problem(SageObject):
 			forbidden_induced_graphs=self._forbidden_induced_graphs)
 		sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
 	
-		for g in self._graphs:   # Make all the graphs immutable
+		for g in self._graphs:    # Make all the graphs immutable
 			g.set_immutable()
 	
 		self._compute_densities()
@@ -430,7 +430,7 @@ class Problem(SageObject):
 		
 		self._active_types = range(num_types)
 		
-		for ti in range(num_types):           # Make everything immutable!
+		for ti in range(num_types):			  # Make everything immutable!
 			self._types[ti].set_immutable()
 			for g in self._flags[ti]:
 				g.set_immutable()
@@ -484,7 +484,7 @@ class Problem(SageObject):
 		INPUT:
 		
 		 - ``minimize`` - boolean (default: False) sets whether the problem is a
-		    minimization problem (or a maximization problem).
+		   minimization problem (or a maximization problem).
 		
 		In a maximization problem, the objective is to find a good (i.e. low) upper bound
 		on a density. In a minimization problem the objective is to find a good (i.e.
@@ -576,6 +576,8 @@ class Problem(SageObject):
 		
 		# Note that this function only sets one of the densities.
 		self._density_graphs = [density_graphs]
+		self._active_densities = [0]
+		self._density_coeff_conditions = [((0,), Integer(1))]
 		
 		if self.state("compute_flags") == "yes":
 			self._compute_densities()
@@ -975,7 +977,7 @@ class Problem(SageObject):
 		construction should have been set previously, and this will be used to determine forced
 		zero eigenvectors. 
 		
-		This method is called from  ``make_exact`` by default, and so is not normally explicitly
+		This method is called from ``make_exact`` by default, and so is not normally explicitly
 		invoked.
 		
 		INPUT:
@@ -1135,16 +1137,16 @@ class Problem(SageObject):
 		Computes the products of the flags. This method is by default called from
 		``generate_flags``, and so would normally not need to be invoked directly.
 		"""
-	 	self.state("compute_products", "yes")
- 	
-	 	num_types = len(self._types)
- 		graph_block = make_graph_block(self._graphs, self._n)
+		self.state("compute_products", "yes")
+		
+		num_types = len(self._types)
+		graph_block = make_graph_block(self._graphs, self._n)
 		self._product_densities_arrays = []
- 		
+		
 		sys.stdout.write("Computing products")
-
+		
 		for ti in range(num_types):
-
+		
 			tg = self._types[ti]
 			s = tg.n
 			m = (self._n + s) / 2
@@ -1598,7 +1600,7 @@ class Problem(SageObject):
 			cmd = "%s -ds %s -o sdpa.out" % (sdpa_qd_cmd, self._sdp_input_filename)
 	
 		else:
-			raise ValueError("unknown solver.")	
+			raise ValueError("unknown solver.")
 		
 		sys.stdout.write("Running SDP solver...\n")
 
@@ -1664,7 +1666,7 @@ class Problem(SageObject):
 						elif line[:2] == "{+" or line[:2] == "{-":
 							t += 1
 							row = 1
-							diagonal = True	
+							diagonal = True
 						
 						line = line.replace("{", "")
 						line = line.replace("}", "")
@@ -2395,6 +2397,67 @@ class Problem(SageObject):
 			sys.stdout.write(".")
 			sys.stdout.flush()
 		sys.stdout.write("\n")
+
+
+	def write_certificate(self, filename):
+	
+		self.state("check_exact", "ensure_yes")
+
+		description = self._flag_cls.description() + "; "
+		description += "minimize " if self._minimize else "maximize "
+		description += ", ".join(str(g) for g in self._density_graphs) + " density"
+		forbidden = []
+		for g in self._forbidden_graphs:
+			forbidden.append(str(g))
+		for g in self._forbidden_induced_graphs:
+			forbidden.append("induced %s" % g)
+		for pair in self._forbidden_edge_numbers:
+			forbidden.append("induced %d.%d" % pair)
+		if len(forbidden) > 0:
+			description += "; forbid " + ", ".join(forbidden)
+	
+		def upper_triangular_matrix_to_list (M):
+			return [list(M.row(i))[i:] for i in range(M.nrows())]
+	
+		def matrix_to_list (M):
+			return [list(M.row(i)) for i in range(M.nrows())]
+	
+		if self.state("diagonalize") == "yes":
+			qdash_matrices = self._exact_diagonal_matrices
+			r_matrices = self._exact_r_matrices
+		else:
+			qdash_matrices = self._exact_Qdash_matrices
+			r_matrices = self._inverse_flag_bases
+	
+		data = {
+			"description" : description,
+			"bound" : self._bound,
+			"order_of_admissible_graphs" : self._n,
+			"number_of_admissible_graphs" : len(self._graphs),
+			"admissible_graphs" : self._graphs,
+			"admissible_graph_densities" : self._densities[0], # TODO: multiple densities
+			"number_of_types" : len(self._types),
+			"types" : self._types,
+			"numbers_of_flags" : [len(L) for L in self._flags],
+			"flags" : self._flags,
+			"qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in qdash_matrices],
+			"r_matrices" : [matrix_to_list(M) for M in r_matrices]
+		}
+	
+		def default_handler (O):
+			# Only output an int if it is less than 2^53.
+			if O in ZZ and O < 9007199254740992:
+				return int(Integer(O))
+			return repr(O)
+	
+		try:
+			with open(filename, "w") as f:
+				json.dump(data, f, indent=4, default=default_handler)
+			sys.stdout.write("Written certificate.\n")
+		
+		except IOError:
+			sys.stdout.write("Cannot open file for writing.\n")
+
 
 
 def ThreeGraphProblem(order=None, **kwargs):
