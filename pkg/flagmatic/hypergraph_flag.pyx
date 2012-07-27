@@ -74,6 +74,7 @@ cdef class HypergraphFlag (Flag):
 		self._r = r
 		self._oriented = oriented
 		self._multiplicity = multiplicity
+		self._certified_minimal_isomorph = False
 
 		if representation is None:
 			self._n = 0
@@ -90,7 +91,7 @@ cdef class HypergraphFlag (Flag):
 			self.ne = 0
 			self._t = 0
 
-		else:		
+		else:
 			raise ValueError
 
 
@@ -223,6 +224,7 @@ cdef class HypergraphFlag (Flag):
 		cdef int x, y, z
 		
 		self._require_mutable()
+		self._certified_minimal_isomorph = False
 		
 		if self._r == 3:
 
@@ -272,6 +274,7 @@ cdef class HypergraphFlag (Flag):
 		cdef int k
 
 		self._require_mutable()
+		self._certified_minimal_isomorph = False
 	
 		if not len(edge) == self._r:
 			raise ValueError("bad edge size.")
@@ -390,19 +393,20 @@ cdef class HypergraphFlag (Flag):
 		ng._t = self._t
 		ng.ne = self.ne
 		ng.is_degenerate = self.is_degenerate
+		ng._certified_minimal_isomorph = self._certified_minimal_isomorph
 
 		for i in range(self._r * self.ne):
 			ng._edges[i] = self._edges[i]
 		
 		return ng
 
- 	
+	
 	def _latex_(self):
 		return "\\verb|" + self._repr_() + "|"
- 	 	
- 	
- 	# TODO: check that this is best way to do this.
- 	
+		
+	
+	# TODO: check that this is best way to do this. What about is_degenerate, _certified_minimal_isomorph?
+	
 	def __reduce__(self):
 		return (type(self), (self._repr_(), self._r, self._oriented, self._multiplicity))
 
@@ -411,7 +415,7 @@ cdef class HypergraphFlag (Flag):
 	
 	def __hash__(self):
 		return hash(self._repr_() + str(self._r) + str(self._oriented) + str(self._multiplicity))
- 	
+	
 
 	# TODO: Handle < > (subgraph)
 	# Not sure what happens at the moment with < and >.
@@ -444,7 +448,7 @@ cdef class HypergraphFlag (Flag):
 
 		#  Should this be checked? 
 		# if self._multiplicity != other._multiplicity:
-		# 	return False
+		#	return False
 
 		if self._n != other._n:
 			return False
@@ -828,7 +832,8 @@ cdef class HypergraphFlag (Flag):
 		cdef int i
 
 		self._require_mutable()
-	
+		self._certified_minimal_isomorph = False
+		
 		if len(verts) != self._n:
 			raise ValueError
 	
@@ -847,6 +852,7 @@ cdef class HypergraphFlag (Flag):
 	def identify_vertices(self, v1, v2, remove_duplicate_edges=True):
 
 		self._require_mutable()
+		self._certified_minimal_isomorph = False
 
 		if self.multiplicity != 1:
 			raise NotImplementedError("Cannot identify vertices of multigraphs.")
@@ -913,8 +919,11 @@ cdef class HypergraphFlag (Flag):
 
 		cdef int i, *new_edges, *winning_edges, *e
 		cdef int *p, np, is_lower
-		
+				
 		self._require_mutable()
+		
+		if self._certified_minimal_isomorph:
+			return
 		
 		new_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
 		winning_edges = <int *> malloc (sizeof(int) * self._r * self.ne)
@@ -948,6 +957,8 @@ cdef class HypergraphFlag (Flag):
 		
 		for i in range(self._r * self.ne):
 			self._edges[i] = winning_edges[i]
+		
+		self._certified_minimal_isomorph = True
 		
 		free(new_edges)
 		free(winning_edges)
@@ -1393,7 +1404,7 @@ cdef class HypergraphFlag (Flag):
 			raise NotImplementedError("type should not contain labelled vertices.")
 		
 		s = tg.n
-		m = flags[0].n   # TODO: Check all flags are the same size, and are minimal isomorphs
+		m = flags[0].n	 # TODO: Check all flags are the same size, and are minimal isomorphs
 
 		count = [0 for i in range(len(flags))]
 		total = 0
@@ -1404,11 +1415,11 @@ cdef class HypergraphFlag (Flag):
 	
 		# TODO: Work out why UnorderedTuple is slower!
 		
-# 		for pf in UnorderedTuples(range(1, self._n + 1), m - s):
- 			
-# 			factor = factorial(m - s)
-# 			for i in range(1, self._n + 1):
-# 				factor /= factorial(pf.count(i))
+#		for pf in UnorderedTuples(range(1, self._n + 1), m - s):
+			
+#			factor = factorial(m - s)
+#			for i in range(1, self._n + 1):
+#				factor /= factorial(pf.count(i))
 	
 		for pf in Tuples(range(1, self.n + 1), m - s):
 			factor = 1

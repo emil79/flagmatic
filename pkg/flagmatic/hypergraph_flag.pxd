@@ -41,6 +41,7 @@ cdef class HypergraphFlag (Flag):
 	cdef int _multiplicity
 	cdef int _t
 	cdef readonly bint is_degenerate
+	cdef readonly bint _certified_minimal_isomorph
 	cdef readonly int ne
 	cdef int _edges[MAX_NUMBER_OF_EDGE_INTS]
 	cpdef is_labelled_isomorphic(self, HypergraphFlag other)
