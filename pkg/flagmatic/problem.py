@@ -107,6 +107,24 @@ def safe_gram_schmidt(M):
 	return M
 
 
+def LDLdecomposition(M):	# TODO: does this handle matrices with zero eigenvalues?
+	
+	MS = M.parent()
+	D = MS.matrix()
+	if M.is_zero():
+		D.set_immutable()
+		return D, D
+	L = copy(MS.identity_matrix())
+	for i in xrange(M.nrows()):
+		for j in xrange(i):
+			L[i, j] = (Integer(1) / D[j, j]) * (M[i, j] - sum(L[i, k] * L[j, k] * D[k, k] for k in xrange(j)))
+		D[i, i] = M[i, i] - sum(L[i, k]**2 * D[k, k]
+			for k in xrange(i))
+	L.set_immutable()
+	D.set_immutable()
+	return L, D
+
+
 class Problem(SageObject):
 	r"""
 	This is the principal class of flagmatic. Objects of this class represent Turán-type
@@ -577,7 +595,7 @@ class Problem(SageObject):
 		# Note that this function only sets one of the densities.
 		self._density_graphs = [density_graphs]
 		self._active_densities = [0]
-		self._density_coeff_conditions = [((0,), Integer(1))]
+		self._density_coeff_blocks = [[0]]
 		
 		if self.state("compute_flags") == "yes":
 			self._compute_densities()
@@ -1301,10 +1319,14 @@ class Problem(SageObject):
 		"""
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
-		num_densities = len(self._densities)
-				
-		if num_densities < 1:
-			raise NotImplementedError("there must be at least one density.")
+		num_active_densities = len(self._active_densities)
+		num_density_coeff_blocks = len(self._density_coeff_blocks)
+
+		if num_active_densities < 1:
+			raise NotImplementedError("there must be at least one active density.")
+
+		if num_density_coeff_blocks < 1:
+			raise NotImplementedError("there must be at least one density coefficient block.")
 
 		if self.state("set_block_matrix_structure") != "yes":
 			self._set_block_matrix_structure()
@@ -1323,19 +1345,20 @@ class Problem(SageObject):
 		
 		with open(self._sdp_input_filename, "w") as f:
 	
-			f.write("%d\n" % (num_graphs + 1 + num_extra_matrices,))
+			f.write("%d\n" % (num_graphs + num_density_coeff_blocks + num_extra_matrices,))
 			f.write("%d\n" % (total_num_blocks + 3 + (1 if force_zero_eigenvectors else 0),))
 			
 			f.write("1 ")
 			for b in self._block_matrix_structure:
 				f.write("%d " % b[1])
 			
-			f.write("-%d -%d" % (num_graphs, num_densities))
+			f.write("-%d -%d" % (num_graphs, num_active_densities))
 			if force_zero_eigenvectors:
 				f.write(" -%d" % num_extra_matrices)
 			f.write("\n")
+			
 			f.write("0.0 " * num_graphs)
-			f.write("1.0 ")
+			f.write("1.0 " * num_density_coeff_blocks)
 			f.write("0.0 " * num_extra_matrices)
 			f.write("\n")
 			
@@ -1347,7 +1370,7 @@ class Problem(SageObject):
 			if force_zero_eigenvectors:
 				for mi in range(num_extra_matrices):
 					f.write("0 %d %d %d %s\n" % (total_num_blocks + 4, mi + 1, mi + 1, "1.0" if self._minimize else "-1.0"))
-		
+			
 			for i in range(num_graphs):
 				if not self._minimize:
 					f.write("%d 1 1 1 -1.0\n" % (i + 1,))
@@ -1355,22 +1378,20 @@ class Problem(SageObject):
 					f.write("%d 1 1 1 1.0\n" % (i + 1,))
 				if not (force_sharp_graphs and i in self._sharp_graphs):
 					f.write("%d %d %d %d 1.0\n" % (i + 1, total_num_blocks + 2, i + 1, i + 1))
-	
+			
 			for i in range(num_graphs):
-				for j in range(num_densities):
-					d = self._densities[j][i]
+				for j in range(num_active_densities):
+					d = self._densities[self._active_densities[j]][i]
 					if d != 0:
 						if self._minimize:
 							d *= -1
 						f.write("%d %d %d %d %s\n" % (i + 1, total_num_blocks + 3, j + 1, j + 1, d.n(digits=64)))
-
-			non_free_densities = range(num_densities)
-			if hasattr(self, "_free_densities"):
-				for j in self._free_densities:
-					non_free_densities.remove(j)
-			
-			for j in non_free_densities:
-				f.write("%d %d %d %d 1.0\n" % (num_graphs + 1, total_num_blocks + 3, j + 1, j + 1))
+		
+			for i in range(num_density_coeff_blocks):
+				for di in self._density_coeff_blocks[i]:
+					if di in self._active_densities:
+						j = self._active_densities.index(di)
+						f.write("%d %d %d %d 1.0\n" % (num_graphs + i + 1, total_num_blocks + 3, j + 1, j + 1))
 		
 			for ti in self._active_types:
 
@@ -1401,8 +1422,8 @@ class Problem(SageObject):
 								value = self._zero_eigenvectors[ti][zi, j] * self._zero_eigenvectors[ti][zi, k]
 								if value != 0:
 									f.write("%d %d %d %d %s\n" %
-										(num_graphs + 2 + mi, ti + 2, j + 1, k + 1, value.n(digits=64)))
-						f.write("%d %d %d %d -1.0\n" % (num_graphs + 2 + mi, total_num_blocks + 4, mi + 1, mi + 1))
+										(num_graphs + num_density_coeff_blocks + mi + 1, ti + 2, j + 1, k + 1, value.n(digits=64)))
+						f.write("%d %d %d %d -1.0\n" % (num_graphs + num_density_coeff_blocks + mi + 1, total_num_blocks + 4, mi + 1, mi + 1))
 						mi += 1
 
 	# TODO: handle no sharp graphs
@@ -1425,7 +1446,7 @@ class Problem(SageObject):
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
-		num_densities = len(self._densities)
+		num_active_densities = len(self._active_densities)
 				
 		self._sdp_initial_point_filename = os.path.join(SAGE_TMP, "sdp.ini-s")
 	
@@ -1438,7 +1459,7 @@ class Problem(SageObject):
 		with open(self._sdp_initial_point_filename, "w") as f:
 	
 			if self.state("set_construction") == "yes":
-	
+			
 				for gi in range(num_graphs):
 					if gi in self._sharp_graphs:
 						si = self._sharp_graphs.index(gi)
@@ -1490,7 +1511,7 @@ class Problem(SageObject):
 						value = small_change
 					f.write("1 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
 	
-				for j in range(num_densities):
+				for j in range(num_active_densities):
 					f.write("1 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, small_change.n(digits=64)))
 
 			else:
@@ -1506,7 +1527,7 @@ class Problem(SageObject):
 							f.write("1 %d %d %d %s\n" % (block_indices[bi] + 2, j + 1, j + 1, small_change.n(digits=64)))
 				for gi in range(num_graphs):
 					f.write("1 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, small_change.n(digits=64)))
-				for j in range(num_densities):
+				for j in range(num_active_densities):
 					f.write("1 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, small_change.n(digits=64)))	
 
 			# TODO: make this an exact Q check.
@@ -1533,16 +1554,16 @@ class Problem(SageObject):
 						value = small_change
 					f.write("2 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
 
-				for j in range(num_densities):
-					value = self._exact_density_coeffs[j]
+				for j in range(num_active_densities):
+					value = self._exact_density_coeffs[self._active_densities[j]]
 					if value <= 0:
 						value = small_change
 					f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
 
 			else:
 
-				densities = [sum([self._densities[j][gi] for j in range(num_densities)])
-						/ num_densities for gi in range(num_graphs)]
+				densities = [sum([self._densities[j][gi] for j in self._active_densities])
+						/ num_active_densities for gi in range(num_graphs)]
 				
 				bound = min(densities) if self._minimize else max(densities)
 				
@@ -1567,8 +1588,8 @@ class Problem(SageObject):
 						value = small_change
 					f.write("2 %d %d %d %s\n" % (total_num_blocks + 2, gi + 1, gi + 1, value.n(digits=64)))
 				
-				value = Integer(1) / num_densities
-				for j in range(num_densities):
+				value = Integer(1) / num_active_densities
+				for j in range(num_active_densities):
 					f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
 
 
@@ -1732,7 +1753,8 @@ class Problem(SageObject):
 				bi = int(numbers[1]) - 2
 				if bi == num_blocks + 1:
 					j = int(numbers[2]) - 1
-					self._sdp_density_coeffs[j] = self._approximate_field(numbers[4])
+					di = self._active_densities[j]
+					self._sdp_density_coeffs[di] = self._approximate_field(numbers[4])
 					continue
 				if bi < 0 or bi >= num_blocks:
 					continue
@@ -2019,8 +2041,8 @@ class Problem(SageObject):
 			
 			if ti in cholesky:
 				try:
-					LF = numpy.linalg.cholesky(self._sdp_Qdash_matrices[ti])
-				except numpy.linalg.linalg.LinAlgError:
+					LF = self._sdp_Qdash_matrices[ti].cholesky_decomposition()
+				except ValueError:
 					sys.stdout.write("Could not compute Cholesky decomposition for type %d.\n" % ti)
 					return
 				L = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
@@ -2046,11 +2068,18 @@ class Problem(SageObject):
 
 		sys.stdout.write("\n")
 
-		if num_densities == 1:
-			self._exact_density_coeffs = [Integer(1)]
-		else:
-			self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
-	
+		self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
+
+		# TODO: Make density coeffs in each block sum to 1.
+		for db in self._density_coeff_blocks:
+			if len(db) == 1:
+				self._exact_density_coeffs[db[0]] = Integer(1)
+		
+		# Force all inactive densities to be 0 (they should be anyway).
+		for j in range(num_densities):
+			if not j in self._active_densities:
+				self._exact_density_coeffs[j] = Integer(0)
+		
 		# If we are not required to meet the bound, then we can finish early.
 		if not meet_target_bound:
 			
@@ -2120,7 +2149,7 @@ class Problem(SageObject):
 		# Only if there is more than one density
 		if num_densities > 1 and use_densities:
 			
-			for j in range(num_densities):
+			for j in self._active_densities:
 				new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
 				if new_col.is_zero():
 					continue
@@ -2139,7 +2168,7 @@ class Problem(SageObject):
 			
 			sys.stdout.write("\n")
 			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.ncols())
-				
+		
 		col_norms = {}
 		for i in range(num_triples):
 			n = sum(x**2 for x in R.column(i))
@@ -2346,23 +2375,6 @@ class Problem(SageObject):
 	# TODO: use self.state
 
 	def diagonalize(self):
-		
-		def LDLdecomposition(M):	# TODO: does this handle matrices with zero eigenvalues?
-	
-			MS = M.parent()
-			D = MS.matrix()
-			if M.is_zero():
-				D.set_immutable()
-				return D, D
-			L = copy(MS.identity_matrix())
-			for i in xrange(M.nrows()):
-				for j in xrange(i):
-					L[i, j] = (Integer(1) / D[j, j]) * (M[i, j] - sum(L[i, k] * L[j, k] * D[k, k] for k in xrange(j)))
-				D[i, i] = M[i, i] - sum(L[i, k]**2 * D[k, k]
-					for k in xrange(i))
-			L.set_immutable()
-			D.set_immutable()
-			return L, D
 
 		self.state("diagonalize", "yes")
 
@@ -2381,7 +2393,7 @@ class Problem(SageObject):
 			sys.stdout.flush()
 		sys.stdout.write("\n")
 		
-		# Q can now be computed as Q = R * D * R.T
+		# Q can now be computed as Q = R * M * R.T
 
 		# TODO: what to do if problem has been transformed?
 

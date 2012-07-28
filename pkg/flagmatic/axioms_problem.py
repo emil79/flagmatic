@@ -48,18 +48,31 @@ class AxiomsProblem(Problem):
 		
 
 	def clear_densities(self):
+		
 		self._density_graphs = []
+		self._active_densities = []
+		self._density_coeff_blocks = []
+		
 		self._compute_densities()
 
 
-	# TODO: handle multiple axioms. Would be better to have set_inactive_densities
-	def remove_densities(self, *args):
-	
-		num_densities = len(self._density_graphs)
-	
-		self._densities = [self._densities[j] for j in range(num_densities) if not j in args]
-		self._density_graphs = [self._density_graphs[j] for j in range(num_densities) if not j in args]
-		self._axiom_flags =  [self._axiom_flags[0][j] for j in range(num_densities) if not j in args]
+	def set_inactive_densities(self, *args):
+		r"""
+		Specifies that the coefficients of certain densities should be zero.
+		
+		INPUT:
+		
+		- arguments should be integers, specifying the indices of densities that should be
+		marked as being "inactive".
+		"""
+		for arg in args:
+			di = int(arg)
+			if not di in range(len(self._density_graphs)):
+				raise ValueError
+			if di in self._active_densities:
+				self._active_densities.remove(di)
+			else:
+				sys.stdout.write("Warning: density %d is already inactive.\n" % di)
 
 
 	def add_axiom(self, tg, terms, make_free=True):
@@ -105,12 +118,13 @@ class AxiomsProblem(Problem):
 					dg.append((qg[gi], self._graphs[gi]))
 			self._density_graphs.append(dg)
 
-		self._compute_densities()
+		new_density_indices = range(num_previous_densities, num_previous_densities + len(quantum_graphs))
+		self._active_densities.extend(new_density_indices)
 		
-		if make_free:
-			if not hasattr(self, "_free_densities"):
-				self._free_densities = []
-			self._free_densities.extend(range(num_previous_densities, len(self._density_graphs)))
+		if not make_free:
+			self._density_coeff_blocks.append(new_density_indices)
+
+		self._compute_densities()
 	
 	
 	def add_codegree_axiom(self, value, make_free=True):
