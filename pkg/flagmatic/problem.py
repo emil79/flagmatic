@@ -108,7 +108,6 @@ def safe_gram_schmidt(M):
 
 
 def LDLdecomposition(M):	# TODO: does this handle matrices with zero eigenvalues?
-	
 	MS = M.parent()
 	D = MS.matrix()
 	if M.is_zero():
@@ -222,7 +221,7 @@ class Problem(SageObject):
 			}),
 			("set_construction", {
 				"requires" : ["compute_flags"],
-				"depends" : []
+				"depends" : ["set_objective"]
 			}),
 			("add_zero_eigenvectors", {
 				"requires" : ["set_construction"],
@@ -233,12 +232,8 @@ class Problem(SageObject):
 				"depends" : []
 			}),
 			("compute_flag_bases", {
-				"requires" : ["set_construction"],
+				"requires" : ["set_construction"], # makes block bases if required
 				"depends" : ["add_zero_eigenvectors"]
-			}),
-			("transform_problem", {
-				"requires" : ["compute_flag_bases"],
-				"depends" : []
 			}),
 			("compute_products", {
 				"requires" : ["compute_flags"],
@@ -250,18 +245,18 @@ class Problem(SageObject):
 			}),
 			("set_block_matrix_structure", {
 				"requires" : ["compute_flags"],
-				"depends" : ["set_active_types", "transform_problem"]
+				"depends" : ["set_active_types"]
 			}),
 			("write_sdp_input_file", {
-				"requires" : ["compute_flags"],
-				"depends" : ["set_objective", "transform_problem", "set_active_types"]
+				"requires" : ["set_block_matrix_structure"],
+				"depends" : ["set_objective", "set_active_types"]
 			}),
 			("write_sdp_initial_point_file", {
-				"requires" : ["compute_flags"],
-				"depends" : ["set_objective", "transform_problem", "set_active_types"]
+				"requires" : ["set_block_matrix_structure"],
+				"depends" : ["set_objective", "set_active_types"]
 			}),
 			("run_sdp_solver", {
-				"requires" : ["compute_products"],
+				"requires" : ["write_sdp_input_file"],
 				"depends" : ["write_sdp_input_file", "write_sdp_initial_point_file"]
 			}),
 			("read_solution", {
@@ -276,6 +271,10 @@ class Problem(SageObject):
 				"requires" : ["compute_flag_bases", "check_solution"],
 				"depends" : []
 			}),
+			("transform_problem", {
+				"requires" : [],
+				"depends" : []
+			}),
 			("add_sharp_graphs", {
 				"requires" : ["set_construction"],
 				"depends" : []
@@ -284,12 +283,16 @@ class Problem(SageObject):
 				"requires" : ["check_solution"],
 				"depends" : ["transform_solution", "add_sharp_graphs"]
 			}),
-			("check_exact", {
-				"requires" : ["make_exact"],
+			("meet_target_bound", {
+				"requires" : ["transform_solution", "make_exact"],
 				"depends" : []
 			}),
+			("check_exact", {
+				"requires" : ["make_exact"],
+				"depends" : ["meet_target_bound"]
+			}),
 			("diagonalize", {
-				"requires" : ["check_exact"],
+				"requires" : ["meet_target_bound", "check_exact"],
 				"depends" : []
 			}),
 			("write_certificate", {
@@ -1442,7 +1445,6 @@ class Problem(SageObject):
 		   matrices have no zero eigenvalues. Smaller values are not necessarily better here. The
 		   optimal value seems to depend on the problem and solver used. 
 		"""
-		self.state("write_sdp_initial_point_file", "yes")
 	
 		num_graphs = len(self._graphs)
 		num_types = len(self._types)
@@ -1453,6 +1455,8 @@ class Problem(SageObject):
 		if self.state("set_block_matrix_structure") != "yes":
 			self._set_block_matrix_structure()
 		total_num_blocks = len(self._block_matrix_structure)
+
+		self.state("write_sdp_initial_point_file", "yes")
 				
 		sys.stdout.write("Writing SDP initial point file...\n")
 				
@@ -1992,43 +1996,71 @@ class Problem(SageObject):
 		sys.dont_write_bytecode = dont_write_bytecode
 
 
-	def make_exact(self, denominator=1024, cholesky=None, protect=None, meet_target_bound=True, show_changes=False,
-		use_densities=True, transform=True, use_blocks=True, check_exact_bound=True, diagonalize=True):
-	
-		if self.state("set_construction") != "yes":
-			transform = False
-			meet_target_bound = False
-			cholesky = "all"
-			sys.stdout.write("No construction set, so there is no target bound.\n")
+	def make_exact(self, meet_target_bound=True, denominator=1024,
+		protect=None, use_densities=True, use_blocks=True, show_changes=False,
+		check_exact_bound=True, diagonalize=True):
+		r"""
+		Makes an exact bound for the problem using the approximate floating point bound
+		found by the SDP solver.
+				
+		INPUT:
 		
-		if transform and not self.state("transform_problem") == "yes" and self.state("transform_solution") != "yes":
+		 - ``meet_target_bound`` - Boolean (default: True). Determines whether the
+		   solution should be coerced to meet the target bound. If this is False, then a
+		   simpler method of rounding will be used. If there is no target bound, then this
+		   option will be disregarded, and the simpler method of rounding will be used.
+		 
+		 - ``denominator`` - Integer (default: 1024). The denominator to use when
+		    rounding. Higher numbers will cause the solution to be perturbed less, but can
+		    cause the resulting certificates to be larger.
+
+		 - ``protect`` - Array of integers or None (default: None). If an array of
+		    integers is given, then the entries of the matrices for the types with these
+		    indices will not be adjusted. (Using this option is not recommended.)
+		  
+		  - ``use_densities`` - Boolean (default: True). Whether to adjust the density
+		    coefficients to meet the target bound. This option will be disregarded if
+		    there is only one density.
+		  
+		  - ``use_blocks`` - Boolean (default: True). When computing the new basis for
+		     the solution's Q matrices, determines whether to give them a block structure
+		     with two blocks, using the invariant anti-invariant idea of Razborov.
+
+		  - ``show_changes`` - Boolean (default: False). When meeting the target bound,
+		     display the changes being made to the matrix entries and the density
+		     coefficients.
+
+		  - ``check_exact_bound`` - Boolean (default: True). Whether to check the bound
+		     afterwards.
+		     
+		  - ``diagonalize`` - Boolean (default: True). Whether to diagonalize the Q
+		     matrices afterwards. If ``meet_target_bound`` is False, the Q matrices are
+		     always diagonalized.
+		"""
+	
+		if meet_target_bound and self.state("set_construction") != "yes":
+			meet_target_bound = False
+			sys.stdout.write("No target bound to meet.\n")
+		
+		if meet_target_bound:
 			self.change_solution_bases(use_blocks=use_blocks)
-	
+			num_sharps = len(self._sharp_graphs)
+		else:
+			self._sdp_Qdash_matrices = self._sdp_Q_matrices
+			# if non-tight, we don't have a separate diagonalization step
+			self._exact_diagonal_matrices = []
+			self._exact_r_matrices = []
+			num_sharps = 0
+		
 		self.state("make_exact", "yes")
-	
+		
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
-
-		if cholesky == "all":
-			cholesky = self._active_types
-		elif cholesky is None:
-			cholesky = []
 	
 		if protect is None:
 			protect = []
-
-		if meet_target_bound:
-			self.state("set_construction", "ensure_yes")
-			num_sharps = len(self._sharp_graphs)
-		else:
-			if not all(ti in cholesky for ti in self._active_types):
-				raise NotImplementedError("If construction is not set, then cholesky must be used.")
-			num_sharps = 0
-			
-		if self.state("transform_solution") != "yes":
-			self._sdp_Qdash_matrices = self._sdp_Q_matrices
-
+		
 		q_sizes = [self._sdp_Qdash_matrices[ti].nrows() for ti in range(num_types)]
 
 		def rationalize (f):
@@ -2037,21 +2069,11 @@ class Problem(SageObject):
 		sys.stdout.write("Rounding matrices")
 
 		self._exact_Qdash_matrices = []
+		
 		for ti in range(num_types):
-			
-			if ti in cholesky:
-				try:
-					LF = self._sdp_Qdash_matrices[ti].cholesky_decomposition()
-				except ValueError:
-					sys.stdout.write("Could not compute Cholesky decomposition for type %d.\n" % ti)
-					return
-				L = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
-				for j in range(q_sizes[ti]):
-					for k in range(j + 1): # only lower triangle
-						L[j, k] = rationalize(LF[j, k])
-				M = L * L.T
-			
-			else:
+
+			if meet_target_bound:
+
 				M = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
 				for j in range(q_sizes[ti]):
 					for k in range(j, q_sizes[ti]):
@@ -2059,6 +2081,28 @@ class Problem(SageObject):
 						if value != 0:
 							M[j, k] = value
 							M[k, j] = value
+
+			else:
+
+				try:
+					LF = numpy.linalg.cholesky(self._sdp_Qdash_matrices[ti])
+					# TODO: Consider using this:
+					# LF = self._sdp_Qdash_matrices[ti].cholesky_decomposition()
+				except numpy.linalg.linalg.LinAlgError:
+				# except ValueError:
+					sys.stdout.write("Could not compute Cholesky decomposition for type %d.\n" % ti)
+					return
+				L = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
+				for j in range(q_sizes[ti]):
+					for k in range(j + 1): # only lower triangle
+						L[j, k] = rationalize(LF[j, k])
+				L.set_immutable()
+				M = L * L.T
+				if not meet_target_bound:
+					D = identity_matrix(QQ, q_sizes[ti], sparse=True)
+					D.set_immutable()
+					self._exact_diagonal_matrices.append(D)
+					self._exact_r_matrices.append(L)
 			
 			row_div = self._sdp_Qdash_matrices[ti].subdivisions()[0]
 			M.subdivide(row_div, row_div)
@@ -2080,77 +2124,105 @@ class Problem(SageObject):
 			if not j in self._active_densities:
 				self._exact_density_coeffs[j] = Integer(0)
 		
-		# If we are not required to meet the bound, then we can finish early.
-		if not meet_target_bound:
-			
-			for ti in range(num_types):
-				self._exact_Qdash_matrices[ti].set_immutable()
-
-			if check_exact_bound:
-				self.check_exact_bound(diagonalize=diagonalize)
-			
-			return
+		if meet_target_bound:
 		
-		triples = [(ti, j, k) for ti in self._active_types for j in range(q_sizes[ti])
-			for k in range(j, q_sizes[ti])]
+			self.state("meet_target_bound", "yes")
+				
+			triples = [(ti, j, k) for ti in self._active_types for j in range(q_sizes[ti])
+				for k in range(j, q_sizes[ti])]
+		
+			num_triples = len(triples)
+			triples.sort()
+			triple_to_index = dict((triples[i], i) for i in range(num_triples))
 	
-		num_triples = len(triples)
-		triples.sort()
-		triple_to_index = dict((triples[i], i) for i in range(num_triples))
-
-		R = matrix(self._field, num_sharps, num_triples, sparse=True)
-
-		sys.stdout.write("Constructing R matrix")
-
-		# TODO: only use triples that correspond to middle blocks.
-
-		for ti in self._active_types:
-
-			Ds = [matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
-				for si in range(num_sharps)]
-
-			for row in self._product_densities_arrays[ti]:
-				gi = row[0]
-				if not gi in self._sharp_graphs:
-					continue
-				si = self._sharp_graphs.index(gi)
-				j = row[1]
-				k = row[2]
-				value = Integer(row[3]) / Integer(row[4])
-				Ds[si][j, k] = value
-				Ds[si][k, j] = value
-
-			if self.state("transform_solution") == "yes":
-				B = self._inverse_flag_bases[ti]
+			R = matrix(self._field, num_sharps, num_triples, sparse=True)
+	
+			sys.stdout.write("Constructing R matrix")
+	
+			# TODO: only use triples that correspond to middle blocks.
+	
+			for ti in self._active_types:
+	
+				Ds = [matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
+					for si in range(num_sharps)]
+	
+				for row in self._product_densities_arrays[ti]:
+					gi = row[0]
+					if not gi in self._sharp_graphs:
+						continue
+					si = self._sharp_graphs.index(gi)
+					j = row[1]
+					k = row[2]
+					value = Integer(row[3]) / Integer(row[4])
+					Ds[si][j, k] = value
+					Ds[si][k, j] = value
+	
+				if self.state("transform_solution") == "yes":
+					B = self._inverse_flag_bases[ti]
+					for si in range(num_sharps):
+						Ds[si] = B.T * Ds[si] * B
+	
 				for si in range(num_sharps):
-					Ds[si] = B.T * Ds[si] * B
-
-			for si in range(num_sharps):
-				for j in range(q_sizes[ti]):
-					for k in range(j, q_sizes[ti]):
-						trip = (ti, j, k)
-						value = Ds[si][j, k]
-						if j != k:
-							value *= 2
-						if self._minimize:
-							value *= -1
-						R[si, triple_to_index[trip]] = value
-
-			sys.stdout.write(".")
-			sys.stdout.flush()
-		sys.stdout.write("\n")
-		
-		density_cols_to_use = []
-		DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
-		EDR = DR.T
-		
-		sys.stdout.write("Constructing DR matrix")
-		
-		# Only if there is more than one density
-		if num_densities > 1 and use_densities:
+					for j in range(q_sizes[ti]):
+						for k in range(j, q_sizes[ti]):
+							trip = (ti, j, k)
+							value = Ds[si][j, k]
+							if j != k:
+								value *= 2
+							if self._minimize:
+								value *= -1
+							R[si, triple_to_index[trip]] = value
+	
+				sys.stdout.write(".")
+				sys.stdout.flush()
+			sys.stdout.write("\n")
 			
-			for j in self._active_densities:
-				new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
+			density_cols_to_use = []
+			DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
+			EDR = DR.T
+			
+			sys.stdout.write("Constructing DR matrix")
+			
+			# Only if there is more than one density
+			if num_densities > 1 and use_densities:
+				
+				for j in self._active_densities:
+					new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
+					if new_col.is_zero():
+						continue
+					EDR = EDR.stack(new_col.T)
+					EDR.echelonize()
+					if EDR[-1, :].is_zero():
+						EDR = EDR[:-1, :]
+						sys.stdout.write("~")
+						sys.stdout.flush()
+						continue		
+					
+					DR = DR.augment(new_col)
+					density_cols_to_use.append(j)
+					sys.stdout.write(".")
+					sys.stdout.flush()
+				
+				sys.stdout.write("\n")
+				sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.ncols())
+			
+			col_norms = {}
+			for i in range(num_triples):
+				n = sum(x**2 for x in R.column(i))
+				if n != 0:
+					col_norms[i] = n
+	
+			# Use columns with greatest non-zero norm - change minus to plus to
+			# use smallest columns (not sure which is best, or maybe middle?)
+			
+			cols_in_order = sorted(col_norms.keys(), key = lambda i : -col_norms[i])
+			cols_to_use = []
+		
+			for i in cols_in_order:
+				ti, j, k = triples[i]
+				if ti in protect: # don't use protected types
+					continue
+				new_col = R[:, i : i + 1]
 				if new_col.is_zero():
 					continue
 				EDR = EDR.stack(new_col.T)
@@ -2162,98 +2234,64 @@ class Problem(SageObject):
 					continue		
 				
 				DR = DR.augment(new_col)
-				density_cols_to_use.append(j)
+				cols_to_use.append(i)
 				sys.stdout.write(".")
 				sys.stdout.flush()
 			
 			sys.stdout.write("\n")
-			sys.stdout.write("DR matrix (density part) has rank %d.\n" % DR.ncols())
-		
-		col_norms = {}
-		for i in range(num_triples):
-			n = sum(x**2 for x in R.column(i))
-			if n != 0:
-				col_norms[i] = n
-
-		# Use columns with greatest non-zero norm - change minus to plus to
-		# use smallest columns (not sure which is best, or maybe middle?)
-		
-		cols_in_order = sorted(col_norms.keys(), key = lambda i : -col_norms[i])
-		cols_to_use = []
-	
-		for i in cols_in_order:
-			ti, j, k = triples[i]
-			if ti in protect: # don't use protected types
-				continue
-			new_col = R[:, i : i + 1]
-			if new_col.is_zero():
-				continue
-			EDR = EDR.stack(new_col.T)
-			EDR.echelonize()
-			if EDR[-1, :].is_zero():
-				EDR = EDR[:-1, :]
-				sys.stdout.write("~")
-				sys.stdout.flush()
-				continue		
+			sys.stdout.write("DR matrix has rank %d.\n" % DR.ncols())
 			
-			DR = DR.augment(new_col)
-			cols_to_use.append(i)
-			sys.stdout.write(".")
-			sys.stdout.flush()
-		
-		sys.stdout.write("\n")
-		sys.stdout.write("DR matrix has rank %d.\n" % DR.ncols())
-		
-		T = matrix(self._field, num_sharps, 1)
+			T = matrix(self._field, num_sharps, 1)
+					
+			for si in range(num_sharps):
+			
+				gi = self._sharp_graphs[si]
+				T[si, 0] = self._target_bound
 				
-		for si in range(num_sharps):
-		
-			gi = self._sharp_graphs[si]
-			T[si, 0] = self._target_bound
+				for j in range(num_densities):
+					if not j in density_cols_to_use:
+						T[si, 0] -= self._exact_density_coeffs[j] * self._densities[j][gi]
 			
-			for j in range(num_densities):
-				if not j in density_cols_to_use:
-					T[si, 0] -= self._exact_density_coeffs[j] * self._densities[j][gi]
-		
-			for i in range(num_triples):
-				if not i in cols_to_use:
-					ti, j, k = triples[i]
-					T[si, 0] -= self._exact_Qdash_matrices[ti][j, k] * R[si, i]
-
-		FDR = matrix(self._field, DR)
-		X = FDR.solve_right(T)
-		RX = matrix(self._approximate_field, X.nrows(), 1)
+				for i in range(num_triples):
+					if not i in cols_to_use:
+						ti, j, k = triples[i]
+						T[si, 0] -= self._exact_Qdash_matrices[ti][j, k] * R[si, i]
 	
-		for i in range(len(density_cols_to_use)):
-			di = density_cols_to_use[i]
-			RX[i, 0] = self._exact_density_coeffs[di]
-			self._exact_density_coeffs[di] = X[i, 0]
-
-		for i in range(len(density_cols_to_use), X.nrows()):
-			ti, j, k = triples[cols_to_use[i - len(density_cols_to_use)]]
-			RX[i, 0] = self._sdp_Qdash_matrices[ti][j, k]
-			self._exact_Qdash_matrices[ti][j, k] = X[i, 0]
-			self._exact_Qdash_matrices[ti][k, j] = X[i, 0]
+			FDR = matrix(self._field, DR)
+			X = FDR.solve_right(T)
+			RX = matrix(self._approximate_field, X.nrows(), 1)
 		
-		if show_changes:
-			for i in range(X.nrows()):
-				sys.stdout.write("%.11s -> %.11s " % (RX[i,0], RDF(X[i,0])))
-				if i < len(density_cols_to_use):
-					sys.stdout.write("(density %d)\n" % i)
-				else:
-					sys.stdout.write("(matrix %d, entry [%d, %d])\n" % triples[cols_to_use[i - len(density_cols_to_use)]])
-
+			for i in range(len(density_cols_to_use)):
+				di = density_cols_to_use[i]
+				RX[i, 0] = self._exact_density_coeffs[di]
+				self._exact_density_coeffs[di] = X[i, 0]
+	
+			for i in range(len(density_cols_to_use), X.nrows()):
+				ti, j, k = triples[cols_to_use[i - len(density_cols_to_use)]]
+				RX[i, 0] = self._sdp_Qdash_matrices[ti][j, k]
+				self._exact_Qdash_matrices[ti][j, k] = X[i, 0]
+				self._exact_Qdash_matrices[ti][k, j] = X[i, 0]
+			
+			if show_changes:
+				for i in range(X.nrows()):
+					sys.stdout.write("%.11s -> %.11s " % (RX[i,0], RDF(X[i,0])))
+					if i < len(density_cols_to_use):
+						sys.stdout.write("(density %d)\n" % i)
+					else:
+						sys.stdout.write("(matrix %d, entry [%d, %d])\n" % triples[cols_to_use[i - len(density_cols_to_use)]])
+		
 		for ti in range(num_types):
 			self._exact_Qdash_matrices[ti].set_immutable()
-	
+		
 		if check_exact_bound:
 			self.check_exact_bound()
 
 
+	# TODO: move to exploratory.sage
 	def compare_eigenvalues(self, only_smallest=True):
 	
 		self.state("make_exact", "ensure_yes")
-	
+		
 		for ti in self._active_types:
 			sys.stdout.write("Type %d:\n" % ti)
 			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Qdash_matrices[ti]))
@@ -2278,22 +2316,25 @@ class Problem(SageObject):
 				sys.stdout.write("Warning! Densities %s have negative coefficients, so the bound is not valid.\n" % negative_densities)
 				return
 			sys.stdout.write("All density coefficients are non-negative.\n")
-		
-		negative_types = []
-		very_small_types = []
-		for ti in self._active_types:
-			eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
-			if eigvals[0] < 0.0:
-				negative_types.append(ti)
-			elif eigvals[0] < 1e-6:
-				very_small_types.append(ti)
-		
-		if len(negative_types) > 0:
-			sys.stdout.write("Warning! Types %s have negative eigenvalues, so the bound is not valid.\n" % negative_types)
-			return
-		sys.stdout.write("All eigenvalues appear to be positive.\n")
-		if len(very_small_types) > 0:
-			sys.stdout.write("Types %s have very small eigenvalues (but this is probably OK).\n" % very_small_types)
+
+		# If we didn't try to meet the target bound, then the method of rounding is_exact
+		# guaranteed to produce positive-semidefinite matrices.		
+		if self.state("meet_target_bound") == "yes":
+			negative_types = []
+			very_small_types = []
+			for ti in self._active_types:
+				eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
+				if eigvals[0] < 0.0:
+					negative_types.append(ti)
+				elif eigvals[0] < 1e-6:
+					very_small_types.append(ti)
+			
+			if len(negative_types) > 0:
+				sys.stdout.write("Warning! Types %s have negative eigenvalues, so the bound is not valid.\n" % negative_types)
+				return
+			sys.stdout.write("All eigenvalues appear to be positive.\n")
+			if len(very_small_types) > 0:
+				sys.stdout.write("Types %s have very small eigenvalues (but this is probably OK).\n" % very_small_types)
 
 		self.state("check_exact", "yes")
 		
@@ -2338,13 +2379,8 @@ class Problem(SageObject):
 		self._bounds = bounds
 		self._bound = bound
 
-		if self.state("set_construction") != "yes":
-			
+		if self.state("meet_target_bound") != "yes":
 			sys.stdout.write("Bound is %s (%s).\n" % (bound, bound.n(digits=10)))
-		
-			if diagonalize:
-				self.diagonalize()
-		
 			return
 
 		if self._field == QQ:
@@ -2359,9 +2395,16 @@ class Problem(SageObject):
 				violators = [gi for gi in range(num_graphs) if float(bounds[gi]) < float(self._target_bound)]
 
 		sys.stdout.write("Bound of %s attained by:\n" % self._target_bound)
+		unexpectedly_sharp = []
 		for gi in range(num_graphs):
 			if bounds[gi] == self._target_bound:
 				sys.stdout.write("%s : graph %d (%s)\n" % (bounds[gi], gi, self._graphs[gi]))
+				if not gi in self._sharp_graphs:
+					unexpectedly_sharp.append(gi)
+		
+		if len(unexpectedly_sharp) > 0:
+			sys.stdout.write("Warning: the following graphs unexpectedly attain the bound: %s\n"
+				% ", ".join([str(gi) for gi in unexpectedly_sharp]))
 
 		if len(violators) > 0:
 			sys.stdout.write("Bound violated by:")
@@ -2413,7 +2456,7 @@ class Problem(SageObject):
 
 	def write_certificate(self, filename):
 	
-		self.state("check_exact", "ensure_yes")
+		self.state("write_certificate", "yes")
 
 		description = self._flag_cls.description() + "; "
 		description += "minimize " if self._minimize else "maximize "
@@ -2434,7 +2477,7 @@ class Problem(SageObject):
 		def matrix_to_list (M):
 			return [list(M.row(i)) for i in range(M.nrows())]
 	
-		if self.state("diagonalize") == "yes":
+		if self.state("meet_target_bound") != "yes" or self.state("diagonalize") == "yes":
 			qdash_matrices = self._exact_diagonal_matrices
 			r_matrices = self._exact_r_matrices
 		else:
@@ -2457,7 +2500,7 @@ class Problem(SageObject):
 		}
 	
 		def default_handler (O):
-			# Only output an int if it is less than 2^53.
+			# Only output an int if it is less than 2^53 (to be valid JSON).
 			if O in ZZ and O < 9007199254740992:
 				return int(Integer(O))
 			return repr(O)
