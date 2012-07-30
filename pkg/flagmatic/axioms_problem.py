@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 
 flagmatic 2
@@ -63,7 +64,7 @@ class AxiomsProblem(Problem):
 		INPUT:
 		
 		- arguments should be integers, specifying the indices of densities that should be
-		marked as being "inactive".
+		  marked as being "inactive".
 		"""
 		for arg in args:
 			di = int(arg)
@@ -125,6 +126,31 @@ class AxiomsProblem(Problem):
 			self._density_coeff_blocks.append(new_density_indices)
 
 		self._compute_densities()
+
+
+	def _augment_certificate(self, data):
+		
+		if len(self._axioms) == 0:
+			return
+		
+		axiom_strings = []
+		for axiom in self._axioms:
+			axs = []
+			for g, coeff in axiom[1]:
+				if coeff == 1:
+					axs.append(str(g))
+				else:
+					cs = str(coeff)
+					if " " in cs:
+						cs = "(%s)" % cs
+					axs.append("%s*%s" % (cs, g))
+			axiom_strings.append("[%s] %s >= 0" % (axiom[0], " + ".join(axs)))
+		
+		data["axioms"] = axiom_strings
+		data["axiom_flags"] = self._axiom_flags
+		
+		data["admissible_graph_densities"] = self._densities
+		data["density_coefficients"] = self._exact_density_coeffs
 	
 	
 	def add_codegree_axiom(self, value, make_free=True):

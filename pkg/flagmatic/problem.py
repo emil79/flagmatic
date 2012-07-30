@@ -2351,18 +2351,16 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 
 
-	def write_certificate(self, filename):
+	def describe(self):
 		r"""
-		Writes a certificate in a (hopefully) clear format, in JSON, to the file specified
-		by ``filename``. For more information about the contents of the certificates, see
-		the User's Guide.
+		Returns a human-readable description of the problem. This is used by
+		``make_certificate``.
 		"""
-	
-		self.state("write_certificate", "yes")
 
 		description = self._flag_cls.description() + "; "
 		description += "minimize " if self._minimize else "maximize "
-		description += ", ".join(str(g) for g in self._density_graphs) + " density"
+		description += self._describe_density()
+		
 		forbidden = []
 		for g in self._forbidden_graphs:
 			forbidden.append(str(g))
@@ -2372,6 +2370,47 @@ class Problem(SageObject):
 			forbidden.append("induced %d.%d" % pair)
 		if len(forbidden) > 0:
 			description += "; forbid " + ", ".join(forbidden)
+			
+		return description
+
+
+	def _describe_density(self):
+	
+		if len(self._density_graphs) == 0:
+			return ""
+		elif len(self._density_coeff_blocks) == 1 and len(self._density_coeff_blocks[0]) == 1:
+			density = self._density_graphs[0]
+			if len(density) == 1 and density[0][0] == 1:
+				return "%s density" % density[0][1]
+			else:
+				dg = []
+				for coeff, g in density:
+					if coeff == 1:
+						dg.append(str(g))
+					else:
+						cs = str(coeff)
+						if " " in cs:
+							cs = "(%s)" % cs				
+						dg.append("%s*%s" % (cs, g))
+				return "density expression " + " + ".join(dg)
+		else:
+			return "combination of quantum graphs"
+		
+		#return ", ".join(str(g) for g in self._density_graphs) + " density"
+
+
+	def _augment_certificate(self, data):
+		pass
+
+
+	def write_certificate(self, filename):
+		r"""
+		Writes a certificate in a (hopefully) clear format, in JSON, to the file specified
+		by ``filename``. For more information about the contents of the certificates, see
+		the User's Guide.
+		"""
+	
+		self.state("write_certificate", "yes")
 	
 		def upper_triangular_matrix_to_list (M):
 			return [list(M.row(i))[i:] for i in range(M.nrows())]
@@ -2387,12 +2426,11 @@ class Problem(SageObject):
 			r_matrices = self._inverse_flag_bases
 	
 		data = {
-			"description" : description,
+			"description" : self.describe(),
 			"bound" : self._bound,
 			"order_of_admissible_graphs" : self._n,
 			"number_of_admissible_graphs" : len(self._graphs),
 			"admissible_graphs" : self._graphs,
-			"admissible_graph_densities" : self._densities[0], # TODO: multiple densities
 			"number_of_types" : len(self._types),
 			"types" : self._types,
 			"numbers_of_flags" : [len(L) for L in self._flags],
@@ -2400,7 +2438,13 @@ class Problem(SageObject):
 			"qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in qdash_matrices],
 			"r_matrices" : [matrix_to_list(M) for M in r_matrices]
 		}
-	
+		
+		if len(self._density_graphs) == 1:
+			data["admissible_graph_densities"] = self._densities[0]
+		
+		# Allow subclasses to add more things
+		self._augment_certificate(data)
+		
 		def default_handler (O):
 			# Only output an int if it is less than 2^53 (to be valid JSON).
 			if O in ZZ and O < 9007199254740992:
