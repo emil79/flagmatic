@@ -201,7 +201,10 @@ class Problem(SageObject):
 		
 		If an action is supplied, it will change the value of the state state_name. The
 		action must be one of "yes", "no" or "stale". It is not recommended that the
-		value of any states be changed by the user. 
+		value of any states be changed by the user.
+		
+		Setting ``force`` to True allows states to be set irrespective of other
+		states.
 		
 		"""
 
@@ -271,10 +274,6 @@ class Problem(SageObject):
 				"requires" : ["compute_flag_bases", "check_solution"],
 				"depends" : []
 			}),
-			("transform_problem", {
-				"requires" : [],
-				"depends" : []
-			}),
 			("add_sharp_graphs", {
 				"requires" : ["set_construction"],
 				"depends" : []
@@ -316,14 +315,14 @@ class Problem(SageObject):
 		if not state_name in state_names:
 			raise ValueError("unknown state.")
 
-		if action == "yes":
-			if not all(self._states[sn] == "yes" for sn in states[state_name]["requires"]):
+		if action == "yes" or action == "force_yes":
+			if action == "yes" and not all(self._states[sn] == "yes" for sn in states[state_name]["requires"]):
 				raise NotImplementedError("not ready for this yet!")
 			self._states[state_name] = "yes"
 			for sn in states:
 				if state_name in states[sn]["depends"] and self._states[sn] == "yes":
 					self.state(sn, "stale")
-				
+		
 		elif action == "stale":
 			self._states[state_name] = "stale"
 			for sn in states:
@@ -915,82 +914,6 @@ class Problem(SageObject):
 			else:
 				sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
 
-
-	# TODO: handle non-rational flag bases?
-
-	def change_problem_bases(self, use_blocks=True):
-		r"""
-		Transforms the problem, so that the solution's Q matrices will (hopefully) be positive
-		definite. A construction should have been set previously, and this will be used to
-		determine forced zero eigenvectors.
-		
-		This method is an alternative to ``change_solution_bases``. Unlike the latter, it should
-		be run before ``solve_sdp`` rather than afterwards. Note that ``change_solution_bases`` is
-		called by ``make_exact`` by default, and is not normally explicitly invoked.
-		
-		INPUT:
-		
-		 - ``use_blocks`` - Boolean (default: True). Specifies whether to apply an additional
-		   change of basis so that the matrices have a block structure with two blocks. This uses
-		   the invariant anti-invariant idea of Razborov.
-		   
-		NOTES:
-		
-		 - This method can only be used when the field is the rational field.
-		 
-		 - If this method is used, then ``change_solution_bases`` cannot subsequently be used.
-		 
-		 - It is usually better to not use this function, and to use ``change_solution_bases``
-		   after ``solve_sdp``. (By default ``change_solution_bases`` is called from
-		   ``make_exact``.)
-		"""
-		if self._field != QQ:
-			raise NotImplementedError("can only be used when the field is the rational field.")
-
-		if self.state("compute_flag_bases") != "yes":
-			self.compute_flag_bases(use_blocks)
-
-		self.state("transform_problem", "yes")
-
-		num_graphs = len(self._graphs)
-		num_types = len(self._types)
-
-		for ti in range(num_types):
-
-			sys.stdout.write("Transforming type %d products...\n" % ti)
-
-			nf = len(self._flags[ti])
-			B = self._flag_bases[ti]
-
-			rarray = self._product_densities_arrays[ti]
-			new_rarray = numpy.zeros([0, 5], dtype=numpy.int)
-			row_num = 0
-
-			for gi in range(num_graphs):
-			
-				D = matrix(QQ, nf, nf, sparse=True)
-				for row in rarray:
-					if row[0] == gi:
-						j = row[1]
-						k = row[2]
-						value = Integer(row[3]) / Integer(row[4])
-						D[j, k] = value
-						D[k, j] = value
-				ND = B * D * B.T
-				# Only want upper triangle
-				NDD = dict((pair, value) for pair, value in ND.dict().iteritems()
-					if pair[0] <= pair[1])
-				new_rarray.resize([row_num + len(NDD), 5], refcheck=False)
-				for pair, value in NDD.iteritems():
-					new_rarray[row_num, 0] = gi
-					new_rarray[row_num, 1] = pair[0]
-					new_rarray[row_num, 2] = pair[1]
-					new_rarray[row_num, 3] = value.numerator()
-					new_rarray[row_num, 4] = value.denominator()
-					row_num += 1
-			
-			self._product_densities_arrays[ti] = new_rarray
-
 	
 	def change_solution_bases(self, use_blocks=True):
 		r"""
@@ -1007,8 +930,6 @@ class Problem(SageObject):
 		   change of basis so that the matrices have a block structure with two blocks. This uses
 		   the invariant anti-invariant idea of Razborov.
 		"""
-		if self.state("transform_problem") == "yes":
-			raise NotImplementedError("cannot transform solution: problem has already been transformed.")
 		
 		if self.state("compute_flag_bases") != "yes":
 			self.compute_flag_bases(use_blocks)
@@ -1190,10 +1111,7 @@ class Problem(SageObject):
 
 		for ti in self._active_types:
 
-			if self.state("transform_problem") == "yes":
-				num_blocks, block_sizes, block_offsets = block_structure(self._flag_bases[ti])
-			else:
-				num_blocks, block_sizes, block_offsets = 1, [len(self._flags[ti])], [0]
+			num_blocks, block_sizes, block_offsets = 1, [len(self._flags[ti])], [0]
 			
 			# Remove zero-sized blocks
 			bi = 0
@@ -1298,7 +1216,8 @@ class Problem(SageObject):
 		else:
 		
 			self._sdp_output_filename = import_solution_file
-			self.state("run_sdp_solver", "yes") # pretend we have run the solver!
+			# pretend we have run the solver!
+			self.state("run_sdp_solver", "force_yes")
 
 		self._read_sdp_output_file()
 
@@ -1732,21 +1651,8 @@ class Problem(SageObject):
 
 		with open(self._sdp_output_filename, "r") as f:
 		
-			if self.state("transform_problem") == "yes":
-
-				self._sdp_Q_matrices = [matrix(self._approximate_field,
-					self._flag_bases[ti].nrows(), self._flag_bases[ti].nrows())
-					for ti in range(num_types)]
-				
-				for ti in range(num_types):
-					B = self._flag_bases[ti]
-					row_div = B.subdivisions()[0]
-					self._sdp_Q_matrices[ti].subdivide(row_div, row_div)
-
-			else:
-	
-				self._sdp_Q_matrices = [matrix(self._approximate_field,
-					len(self._flags[ti]), len(self._flags[ti])) for ti in range(num_types)]
+			self._sdp_Q_matrices = [matrix(self._approximate_field,
+				len(self._flags[ti]), len(self._flags[ti])) for ti in range(num_types)]
 			
 			self._sdp_density_coeffs = [self._approximate_field(0) for i in range(num_densities)]
 			
@@ -1996,7 +1902,7 @@ class Problem(SageObject):
 		sys.dont_write_bytecode = dont_write_bytecode
 
 
-	def make_exact(self, meet_target_bound=True, denominator=1024,
+	def make_exact(self, denominator=1024, meet_target_bound=True,
 		protect=None, use_densities=True, use_blocks=True, show_changes=False,
 		check_exact_bound=True, diagonalize=True):
 		r"""
@@ -2004,16 +1910,16 @@ class Problem(SageObject):
 		found by the SDP solver.
 				
 		INPUT:
+
+		 - ``denominator`` - Integer (default: 1024). The denominator to use when
+		    rounding. Higher numbers will cause the solution to be perturbed less, but can
+		    cause the resulting certificates to be larger.
 		
 		 - ``meet_target_bound`` - Boolean (default: True). Determines whether the
 		   solution should be coerced to meet the target bound. If this is False, then a
 		   simpler method of rounding will be used. If there is no target bound, then this
 		   option will be disregarded, and the simpler method of rounding will be used.
 		 
-		 - ``denominator`` - Integer (default: 1024). The denominator to use when
-		    rounding. Higher numbers will cause the solution to be perturbed less, but can
-		    cause the resulting certificates to be larger.
-
 		 - ``protect`` - Array of integers or None (default: None). If an array of
 		    integers is given, then the entries of the matrices for the types with these
 		    indices will not be adjusted. (Using this option is not recommended.)
@@ -2114,7 +2020,7 @@ class Problem(SageObject):
 
 		self._exact_density_coeffs = [rationalize(self._sdp_density_coeffs[di]) for di in range(num_densities)]
 
-		# TODO: Make density coeffs in each block sum to 1.
+		# TODO: Make density coeffs in each block sum to 1. Ever necessary when >1 density?
 		for db in self._density_coeff_blocks:
 			if len(db) == 1:
 				self._exact_density_coeffs[db[0]] = Integer(1)
@@ -2276,7 +2182,7 @@ class Problem(SageObject):
 				for i in range(X.nrows()):
 					sys.stdout.write("%.11s -> %.11s " % (RX[i,0], RDF(X[i,0])))
 					if i < len(density_cols_to_use):
-						sys.stdout.write("(density %d)\n" % i)
+						sys.stdout.write("(density %d)\n" % density_cols_to_use[i])
 					else:
 						sys.stdout.write("(matrix %d, entry [%d, %d])\n" % triples[cols_to_use[i - len(density_cols_to_use)]])
 		
@@ -2287,25 +2193,16 @@ class Problem(SageObject):
 			self.check_exact_bound()
 
 
-	# TODO: move to exploratory.sage
-	def compare_eigenvalues(self, only_smallest=True):
-	
-		self.state("make_exact", "ensure_yes")
-		
-		for ti in self._active_types:
-			sys.stdout.write("Type %d:\n" % ti)
-			original_eigvals = sorted(numpy.linalg.eigvalsh(self._sdp_Qdash_matrices[ti]))
-			new_eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
-			if only_smallest:
-				num = 1
-			else:
-				num = len(original_eigvals)
-			for i in range(num):
-				sys.stdout.write("%.11f : %.11f\n" % (original_eigvals[i], new_eigvals[i]))
-
-
 	def check_exact_bound(self, diagonalize=True):
-	
+		r"""
+		Usually called by ``make_exact``. If the solution was transformed, then computes
+		the Q matrices from the Q' matrices. If the solution was adjusted to meet the
+		target bound, the Q matrices are checked (numerically) for negative eigenvalues.
+		In all cases the bound is checked.
+		
+		If ``diagonalize`` is set to True, then ``diagonalize`` will be called at the
+		end.
+		"""
 		num_types = len(self._types)
 		num_graphs = len(self._graphs)
 		num_densities = len(self._densities)
@@ -2415,9 +2312,14 @@ class Problem(SageObject):
 			self.diagonalize()
 
 
-	# TODO: use self.state
-
 	def diagonalize(self):
+		r"""
+		For each matrix Q, produces a matrix R and a diagonal matrix M such that
+		Q = R * M * R.T, where R.T denotes the transpose of R. Usually called from
+		``make_exact``. Note that if the solution has not been adjusted to meet a target
+		bound, a simpler method of rounding is performed, and diagonalization is done
+		at the same time.
+		"""
 
 		self.state("diagonalize", "yes")
 
@@ -2429,7 +2331,7 @@ class Problem(SageObject):
 		for ti in range(len(self._types)):
 			R, M = LDLdecomposition(self._exact_Qdash_matrices[ti])
 			self._exact_diagonal_matrices.append(M)
-			if self.state("transform_problem") == "yes" or self.state("transform_solution") == "yes":
+			if self.state("transform_solution") == "yes":
 				R = self._inverse_flag_bases[ti] * R
 			self._exact_r_matrices.append(R)
 			sys.stdout.write(".")
@@ -2437,11 +2339,6 @@ class Problem(SageObject):
 		sys.stdout.write("\n")
 		
 		# Q can now be computed as Q = R * M * R.T
-
-		# TODO: what to do if problem has been transformed?
-
-		if self.state("transform_problem") == "yes":
-			return
 
 		sys.stdout.write("Verifying")
 
@@ -2455,6 +2352,11 @@ class Problem(SageObject):
 
 
 	def write_certificate(self, filename):
+		r"""
+		Writes a certificate in a (hopefully) clear format, in JSON, to the file specified
+		by ``filename``. For more information about the contents of the certificates, see
+		the User's Guide.
+		"""
 	
 		self.state("write_certificate", "yes")
 

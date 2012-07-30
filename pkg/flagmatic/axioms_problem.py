@@ -136,7 +136,7 @@ class AxiomsProblem(Problem):
 		f1 = ThreeGraphFlag("3:123(2)")
 		f2 = ThreeGraphFlag("2:(2)")
 		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)
-
+		
 
 	def add_degree_axiom(self, value, make_free=True):
 	
@@ -209,6 +209,18 @@ class AxiomsProblem(Problem):
 		f1 = OrientedGraphFlag("2:21(1)")
 		f2 = OrientedGraphFlag("1:(1)")
 		self.add_axiom(tg, [(f1, Integer(1)), (f2, -value)], make_free=make_free)	
+
+
+	def make_codegree_problem(self, value):
+
+		self.clear_densities()
+		self.add_codegree_axiom(value, False)
+
+
+	def make_degree_problem(self, value):
+
+		self.clear_densities()
+		self.add_degree_axiom(value, False)
 
 
 	def show_large_densities(self, larger_than=1e-4):
