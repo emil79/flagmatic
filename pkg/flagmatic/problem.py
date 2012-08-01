@@ -525,9 +525,11 @@ class Problem(SageObject):
 			density_values = []
 			for g in self._graphs:
 				dv = 0
-				for coeff, h in dg:
+				for h, coeff in dg:
 					if h.n == g.n:
-						if g.is_labelled_isomorphic(h): # density_graphs and graphs are always minimal
+						# comparison will be fast, as both g and h should have
+						# _certified_minimal_isomorph set to True
+						if g == h:
 							dv += coeff
 					else:
 						dv += coeff * g.subgraph_density(h)
@@ -552,13 +554,13 @@ class Problem(SageObject):
 		
 			if isinstance(arg, basestring) and "." in arg:
 				arg = tuple(map(int, arg.split(".")))
-		
+			
 			if isinstance(arg, tuple):
 			
 				if len(arg) != 2:
 					raise ValueError
 					
-				if arg[1] in ZZ:
+				if arg[0] in ZZ:
 				
 					k, ne = arg
 					if k < self._flag_cls().r:
@@ -566,20 +568,21 @@ class Problem(SageObject):
 					max_e = self._flag_cls.max_number_edges(k)
 					if not ne in range(max_e + 1):
 						raise ValueError
-			
+					
 					# Don't forbid anything - if we do, we'll have to keep list
 					# updated whenever forbidden things change. Also it seems the most
 					# appropriate thing to do.
 					graphs = self._flag_cls.generate_graphs(k)
 					for g in graphs:
 						if g.ne == ne:
-							density_graphs.append((Integer(1), g))
+							density_graphs.append((g, Integer(1)))
 					continue
-				
-				coeff, h = arg
+
+				else:				
+					h, coeff = arg
 			
 			else:
-				coeff, h = Integer(1), arg
+				h, coeff = arg, Integer(1)
 			
 			if isinstance(h, basestring):
 				h = self._flag_cls(h)
@@ -589,7 +592,7 @@ class Problem(SageObject):
 
 			h = copy(h)
 			h.make_minimal_isomorph()
-			density_graphs.append((coeff, h))
+			density_graphs.append((h, coeff))
 
 		if len(density_graphs) == 0:
 			raise ValueError
@@ -1903,7 +1906,7 @@ class Problem(SageObject):
 
 
 	def make_exact(self, denominator=1024, meet_target_bound=True,
-		protect=None, use_densities=True, use_blocks=True, show_changes=False,
+		protect=None, use_densities=True, use_blocks=True, rank=None, show_changes=False,
 		check_exact_bound=True, diagonalize=True):
 		r"""
 		Makes an exact bound for the problem using the approximate floating point bound
@@ -1931,6 +1934,11 @@ class Problem(SageObject):
 		  - ``use_blocks`` - Boolean (default: True). When computing the new basis for
 		     the solution's Q matrices, determines whether to give them a block structure
 		     with two blocks, using the invariant anti-invariant idea of Razborov.
+
+		  - ``rank`` - Integer or None (default: None). When computing the DR matrix,
+		     stop after ``rank`` columns have been found. This can save time in the
+		     case that the rank of the DR matrix is known (for example, from a previous
+		     run).
 
 		  - ``show_changes`` - Boolean (default: False). When meeting the target bound,
 		     display the changes being made to the matrix entries and the density
@@ -2091,8 +2099,12 @@ class Problem(SageObject):
 			
 			# Only if there is more than one density
 			if num_densities > 1 and use_densities:
-				
+								
 				for j in self._active_densities:
+				
+					if not rank is None and DR.ncols() == rank:
+						break
+					
 					new_col = matrix(QQ, [[self._densities[j][gi]] for gi in self._sharp_graphs])
 					if new_col.is_zero():
 						continue
@@ -2125,6 +2137,10 @@ class Problem(SageObject):
 			cols_to_use = []
 		
 			for i in cols_in_order:
+
+				if not rank is None and DR.ncols() == rank:
+					break
+
 				ti, j, k = triples[i]
 				if ti in protect: # don't use protected types
 					continue
@@ -2164,7 +2180,14 @@ class Problem(SageObject):
 						T[si, 0] -= self._exact_Qdash_matrices[ti][j, k] * R[si, i]
 	
 			FDR = matrix(self._field, DR)
-			X = FDR.solve_right(T)
+			try:
+				X = FDR.solve_right(T)
+			except ValueError:
+				if rank is None:
+					raise ValueError("could not meet bound.")
+				else:
+					raise ValueError("could not meet bound (try increasing the value of ``rank``).")
+				
 			RX = matrix(self._approximate_field, X.nrows(), 1)
 		
 			for i in range(len(density_cols_to_use)):
@@ -2380,23 +2403,12 @@ class Problem(SageObject):
 			return ""
 		elif len(self._density_coeff_blocks) == 1 and len(self._density_coeff_blocks[0]) == 1:
 			density = self._density_graphs[0]
-			if len(density) == 1 and density[0][0] == 1:
-				return "%s density" % density[0][1]
+			if len(density) == 1 and density[0][1] == 1:
+				return "%s density" % density[0][0]
 			else:
-				dg = []
-				for coeff, g in density:
-					if coeff == 1:
-						dg.append(str(g))
-					else:
-						cs = str(coeff)
-						if " " in cs:
-							cs = "(%s)" % cs				
-						dg.append("%s*%s" % (cs, g))
-				return "density expression " + " + ".join(dg)
+				return "density expression %s" % self._flag_cls.format_combination(density)
 		else:
 			return "combination of quantum graphs"
-		
-		#return ", ".join(str(g) for g in self._density_graphs) + " density"
 
 
 	def _augment_certificate(self, data):

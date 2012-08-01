@@ -1,4 +1,5 @@
 from sage.structure.sage_object cimport SageObject
+from sage.rings.all import ZZ
 
 cdef class Flag (SageObject):
 
@@ -71,3 +72,29 @@ cdef class Flag (SageObject):
 			return not self._is_immutable
 		except AttributeError:
 			return True
+
+
+	@classmethod
+	def format_combination(cls, combination):
+
+		output = ""
+		first = True
+		for flag, coeff in combination:
+			if coeff == 0:
+				continue
+			elif coeff == 1:
+				cs = ""
+			elif coeff in ZZ:
+				cs = "%s*" % abs(coeff)
+			else:
+				cs = "(%s)*" % abs(coeff)
+			if not first:
+				output += " "
+				if coeff > 0:
+					output += "+ "
+			if coeff < 0:
+				output += "- "
+			output += cs + str(flag)
+			first = False
+
+		return output

@@ -116,7 +116,7 @@ class AxiomsProblem(Problem):
 			dg = []
 			for gi in range(num_graphs):
 				if qg[gi] != 0:
-					dg.append((qg[gi], self._graphs[gi]))
+					dg.append((self._graphs[gi], qg[gi]))
 			self._density_graphs.append(dg)
 
 		new_density_indices = range(num_previous_densities, num_previous_densities + len(quantum_graphs))
@@ -133,18 +133,22 @@ class AxiomsProblem(Problem):
 		if len(self._axioms) == 0:
 			return
 		
-		axiom_strings = []
-		for axiom in self._axioms:
-			axs = []
-			for g, coeff in axiom[1]:
-				if coeff == 1:
-					axs.append(str(g))
-				else:
-					cs = str(coeff)
-					if " " in cs:
-						cs = "(%s)" % cs
-					axs.append("%s*%s" % (cs, g))
-			axiom_strings.append("[%s] %s >= 0" % (axiom[0], " + ".join(axs)))
+# 		axiom_strings = []
+# 		for axiom in self._axioms:
+# 			axs = []
+# 			for g, coeff in axiom[1]:
+# 				if coeff == 1:
+# 					axs.append(str(g))
+# 				else:
+# 					cs = str(coeff)
+# 					if " " in cs:
+# 						cs = "(%s)" % cs
+# 					axs.append("%s*%s" % (cs, g))
+# 			axiom_strings.append("[%s] %s >= 0" % (axiom[0], " + ".join(axs)))
+
+		axiom_strings = ["[%s] %s >= 0" %
+			(axiom[0], self._flag_cls.format_combination(axiom[1]))
+			for axiom in self._axioms]
 		
 		data["axioms"] = axiom_strings
 		data["axiom_flags"] = self._axiom_flags
