@@ -64,6 +64,10 @@ class Construction(SageObject):
 		return self._flag_cls
 
 	def density(self, graph=None):
+		r"""
+		If graph is None, returns the edge density of the construction. Otherwise returns
+		the density of ``graph``.
+		"""
 		if self._flag_cls is None:
 			return 0
 
