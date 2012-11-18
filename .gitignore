@@ -1,0 +1,13 @@
+.gitignore
+*.pyc
+build/
+.DS_Store*
+pkg/flagmatic/*.c
+examples/*.sobj
+examples/*.txt
+examples/*.js
+doc/
+!doc/*.tex
+!doc/*.pdf
+*.sobj
+*.out
