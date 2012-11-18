@@ -393,7 +393,7 @@ class Construction44(BlowupConstruction):
 						
 				rows.append(row)
 
-		if False:
+		if True:
 			for tv in Tuples(range(1, cn + 1), s):
 	
 				one_indices = [i for i in range(s) if tv[i] == 1]
