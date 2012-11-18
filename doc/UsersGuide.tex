@@ -1,3 +1,14 @@
+%
+% $ sudo easy_install pygments
+% $ sudo ln -s /usr/local/bin/pygmentize /usr/bin/pygmentize
+%
+% Needs some packages including:
+%     mathdesign, footmisc, minted, ifplatform, lastpage, sectsty,
+%     ly1, charter
+% Need to run pdflatex with -shell-escape option.
+%
+%
+
 \documentclass{article}
 
 \usepackage[utf8]{inputenc}
@@ -83,30 +94,53 @@ Emil R. Vaughan\thanks{School of Electronic Engineering and Computer Science, Qu
 
 \section{Introduction} \label{intro}
 
-\flagmatic\ implements the semi-definite method, part of the flag algebra calculus introduced by Razborov [CITE]. First, let us define the concept of \emph{Tur\'an $H$-density}.
-
-Let $H$ be an $r$-graph on $h$ vertices. Then for a set of $r$-graphs $\mathcal{F}$, the \emph{Tur\'an $H$-density} of $\mathcal{F}$ is defined as
+\flagmatic\ implements the semi-definite method, part of the flag algebra calculus introduced by Razborov~\cite{R07}. Let $H$ be an $r$-graph (or oriented $r$-graph) on $h$ vertices. Then for a set of $r$-graphs $\mathcal{F}$, the \emph{Tur\'an $H$-density} of $\mathcal{F}$ is
 \[\pi_{H}(\mathcal{F})= \lim_{n\rightarrow \infty}\frac{\ex_{H}(n, \mathcal{F})}{\binom{n}{h}}, \]
-where $\ex_{H}(n, \mathcal{F})$ is the maximum number of induced copies of $H$ that an $\mathcal{F}$-free $r$-graph on $n$ vertices can contain.
+where $\ex_{H}(n, \mathcal{F})$ is the maximum number of induced copies of $H$ that an $\mathcal{F}$-free $r$-graph on $n$ vertices can contain. The graphs in $\mathcal{F}$ are called the \emph{forbidden graphs}.
 
-Note that this definition also works for \emph{oriented} $r$-graphs.
+\flagmatic\ can solve a variety of types of problem, but the most common use is finding upper bounds on Tur\'an $H$-densities. \flagmatic\ (currently) supports $2$-graph, $3$-graph and oriented $2$-graph problems.
 
-\flagmatic\ is typically used to give upper bounds on Tur\'an $H$-densities. Sometimes a construction may be known that gives a lower bound equal to the upper bound found by Flagmatic, and in this situation, \flagmatic\ can be used to obtain exact values of $\pi_{H}(\mathcal{F})$. 
+The author hopes that over time support will be added for other kinds of problems. In fact \flagmatic\ 2.0 is a ground-up rewrite of \flagmatic\ 1.0, written with extensibility in mind. \flagmatic\ 2.0 is also the first version of \flagmatic\ that runs entirely within the Sage mathematics system.
 
-\flagmatic\ can also be used to investigate some other types of problems. In fact, some of its features are not currently documented! This is, of course, a temporary situation caused by the developer not having enough time.
-
-\flagmatic\ can (currently) work on $2$-graph, $3$-graph and oriented $2$-graph problems. It is the intention of the developer to, over time, add support for other kinds of problems. In fact \flagmatic\ 2.0 is a ground-up rewrite of \flagmatic\ 1.0, written with extensibility in mind. \flagmatic\ 2.0 is also the first version of \flagmatic\ that runs entirely within the Sage mathematics system.
-
-\flagmatic\ is not hard to use, but it is highly recommended that new users spend some time reading this document and studying the examples provided.
+\flagmatic\ is not hard to use, but it is highly recommended that new users spend some time reading this document and studying the examples provided. Problems can typically be solved with 5 commands. For example (the output is not shown):
 
 \begin{sage}
-sage: problem = ThreeGraphProblem(6, forbid=(4,4), forbid_induced=(4,1))
-sage: construction = ThreeGraphBlowupConstruction("3:112223331123")
-sage: problem.set_extremal_construction(construction)
-sage: problem.solve_sdp()
-sage: problem.make_exact()
+sage: P = ThreeGraphProblem(6, forbid=(4,4), forbid_induced=(4,1))
+sage: C = ThreeGraphBlowupConstruction("3:112223331123")
+sage: P.set_extremal_construction(C)
+sage: P.solve_sdp()
+sage: P.make_exact()
 \end{sage}
 
+
+\section{Support} \label{support}
+
+The author is keen to hear reports of any bugs or installation difficulties. Comments or suggestions for improvement are also very welcome! Please contact the developer by email at \url{e.vaughan@qmul.ac.uk}.
+
+There is a website for \flagmatic:
+
+\url{http://flagmatic.org/}
+
+
+\section{Help and examples}
+
+This User's Guide does not attempt to be exhaustive. For more help, it is possible to use Sage's online help system. For example:
+
+\begin{sage}
+sage: help(Problem)
+sage: help(ThreeGraphFlag.subgraph_density)
+\end{sage}
+
+\flagmatic\ also comes with many example problems. If you start sage from inside the \verb|flagmatic| directory, it is easy to run an example. For example, here we run the ``ff83'' example:
+
+\begin{sage}
+sage: load examples.sage
+sage: E = Example("ff83")
+\end{sage}
+
+One it is run, the \verb|E| object contains the created Problem object as \verb|E.problem|.
+
+Be warned that some of the examples may take a long time to run.
 
 \section{Flags}
 
@@ -164,7 +198,7 @@ sage: G.edges
 (5, 10), (6, 8), (6, 9), (7, 9), (7, 10), (8, 10))
 \end{sage}
 
-GraphFlag objects also provide an iterator, which gives the edges:
+GraphFlag objects also provide an iterator, which yields the edges:
 
 \begin{sage}
 sage: [edge for edge in G]
@@ -194,24 +228,24 @@ sage: H
 
 \section{Constructions}
 
-A construction represents the limit of object of a sequence of extremal constructions $(G_n)_{n \in \mathbb{N}}$ for a problem. There are three kinds of Construction object: BlowupConstruction, RandomGraphConstruction and RandomTournament Construction. The most common Construction objects used as the BlowupConstruction ones.
+A construction represents the limit of object of a sequence of extremal constructions
+\[(G_n)_{n \in \mathbb{N}}\]
+for a problem. \flagmatic\ works with Construction objects, the most common being instances of the BlowupConstruction class. Two other kinds of Construction are available for 3-graph problems: RandomGraphConstruction and RandomTournamentConstruction. It is also not hard to create new subclasses of Construction.
 
-BlowupConstructions can be created using the functions GraphBlowupConstruction, ThreeGraphBlowupConstruction and OrientedGraphBlowupConstruction.
-
-An an example, we can consider a blow-up of a 3-cycle:
+We can create a Construction representing uniform blow-ups of a 3-cycle as follows:
 
 \begin{sage}
 sage: C = GraphBlowupConstruction("3:122331")
 \end{sage}
 
-We can find the edge density:
+We can find the (limiting) edge density:
 
 \begin{sage}
 sage: C.density()
 2/3
 \end{sage}
 
-And the triangle density:
+And the (limiting) triangle density:
 
 \begin{sage}
 sage: C.density("3:122331")
@@ -231,6 +265,143 @@ And the densities of each 4-vertex induced subgraph:
 sage: C.subgraph_densities(4)
 [(4:, 1/27), (4:121314, 8/27), (4:12132434, 2/9), (4:1213142324, 4/9)]
 \end{sage}
+
+\section{Problems}
+
+Problem objects are central to \flagmatic. Instances of Problem represent Turán-type problems. Problem objects are created by calling one of the functions ThreeGraphProblem, GraphProblem or OrientedGraphProblem.
+
+For example we can create a Problem that represents Turán's famous problem of maximizing edge density in 3-graphs that do not contain cliques on 4 vertices as follows:
+
+\begin{sage}
+sage: P = ThreeGraphProblem(6, forbid=(4,4))
+\end{sage}
+
+Here \verb|forbid=(4,4)| specifies that sets of vertices cannot span 4 edges. In general, forbidding the pair \verb|(k,e)| means that $k$-sets cannot span $e$ (or more) edges. 
+
+The \verb|6| refers to the size of the largest flags considered: the so-called ``admissible graphs''. Larger values will make the computation harder, but can give better bounds. In general, for 3-graphs, we can always use \verb|6|, and sometimes we can use \verb|7|.
+
+We can then solve the semi-definite program associated with the program to get a numerical bound:
+
+\begin{sage}
+sage: P.solve_sdp()
+\end{sage}
+
+After a short wait, a bound of 0.5616656 will be reported. This bound is not rigorous, as it uses floating point arithmetic. We can get a rigorous bound by typing
+
+\begin{sage}
+sage: P.make_exact(2^20)
+\end{sage}
+
+The exact bound reported will vary. I get 1852674441215/3298534883328, which is about 0.56166586. The \verb|2^20| specifies that denominators of $2^{20}$ should be used in the rounding process. Smaller values will give slightly worse bounds but will produce smaller certificates.
+
+Another problem is that of forbidding the 5-cycle. We can create the 5-cycle as a GraphFlag object, and forbid that:
+
+\begin{sage}
+sage: C5 = ThreeGraphFlag("5:123234345451512")
+sage: P = ThreeGraphProblem(6, forbid=C5)
+\end{sage}
+
+Or more simply, we can just pass a string:
+
+\begin{sage}
+sage: P = ThreeGraphProblem(6, forbid="5:123234345451512")
+\end{sage}
+
+We can also forbid lists of graphs and \verb|(k,e)| pairs:
+
+\begin{sage}
+sage: P = ThreeGraphProblem(6, forbid=["5:123234345451512", (4,3)])
+\end{sage}
+
+We can also forbid \emph{induced} subgraphs:
+
+\begin{sage}
+sage: P = ThreeGraphProblem(6, forbid=(4,4), forbid_induced=(4,1))
+\end{sage}
+
+By default, the problem is a ``maximization'' problem: i.e{.} \flagmatic\ will find the least upper bound on the edge density possible. In a ``minimization'' problem \flagmatic\ will try to find the greatest lower bound possible. For example the following problem is essentially the same as the previous one:
+
+\begin{sage}
+sage: P = ThreeGraphProblem(6, forbid_induced=[(4,0), (4,3)], minimize=True)
+\end{sage}
+
+By default all problems concern edge density. We can consider other densities as well, for example the recently-solved problem of determining the maximum density of 5-cycles in a triangle free graph:
+
+\begin{sage}
+sage: P = GraphProblem(5, forbid=(3,3), density="5:1223344551")
+\end{sage}
+
+In order to get an exact density result, \flagmatic\ needs to know about the extremal constructions. In the problem above, the extremal construction is a blowup of a 5-cycle, so we can do:
+
+\begin{sage}
+sage: C = GraphBlowupConstruction("5:1223344551")
+sage: P.set_extremal_construction(C)
+\end{sage}
+
+Once this is done, we can use the following two commands to solve the SDP and then make the result exact:
+
+\begin{sage}
+sage: P.solve_sdp()
+sage: P.make_exact()
+\end{sage}
+
+This result differs from the first one we looked at, in that it is tight: the upper and lower density bounds are equal.
+
+
+\section{Appendix: compiling CSDP} \label{csdp}
+
+Compiling \csdp\ is somewhat tricky, as it needs to be linked with the BLAS and LAPACK linear algebra libraries. The developer of \csdp\ provides binaries on his website. However, it is possible to achieve greater performance on Mac OS X by linking with the Accelerate Framework, and on Linux by linking with the Intel Math Kernel Library.
+
+Some instructions are provided below, but if you are having difficulty compiling \csdp, please feel free to contact the author at \url{e.vaughan@qmul.ac.uk}.
+
+\subsection{Mac OS X}
+
+\textit{The \flagmatic\ website contains Mac OS X binaries for csdp as well as three versions of sdpa.}
+
+To build \csdp\ version 6.1.1 on Mac OS X using the Accelerate Framework, download \texttt{Csdp-6.1.1.tgz} and unpack the archive. Change to the \texttt{lib} directory and run \texttt{make}. Then change to the \texttt{solver} directory, and in the \texttt{Makefile} change the line
+
+\begin{verbatim}
+LIBS=-L../lib -lsdp -llapack -lblas -lgfortran -lm
+\end{verbatim}
+
+to
+
+\begin{verbatim}
+LIBS=-L../lib -lsdp -lm -framework Accelerate
+\end{verbatim}
+
+Then run \texttt{make}, and the \csdp\ executable will be created. This can then be moved somewhere where \flagmaticexe\ will find it.
+
+\subsection{Linux}
+
+The author suggests that Linux users link \csdp\ with the Intel Math Kernel Library, which is free for non-commercial use, and can be downloaded from
+
+\url{http://software.intel.com/en-us/articles/non-commercial-software-download/}
+
+To build \csdp\ version 6.1.1 on Linux using the Intel Math Kernel Library, download \texttt{Csdp-6.1.1.tgz} and unpack the archive. Change to the \texttt{lib} directory and run \texttt{make}. Then change to the \texttt{solver} directory, and in the \texttt{Makefile} change the line
+
+\begin{verbatim}
+LIBS=-L../lib -lsdp -llapack -lblas -lgfortran -lm
+\end{verbatim}
+
+to
+
+\begin{verbatim}
+LIBS=-L/opt/intel-mkl-10.3/mkl/lib/ia32 -L../lib -lsdp -lmkl_intel -lmkl_sequential \
+-lmkl_core -lpthread -lm
+\end{verbatim}
+
+where \texttt{/opt/intel-mkl-10.3/} should be replaced with the directory into which you installed the Intel Math Kernel Library. (You may also need to replace \texttt{ia32} with something else if you are using 64-bit Linux.) Then run \texttt{make}, and the \csdp\ executable will be created. This can then be moved somewhere where \flagmatic\  will find it.
+
+You will need to set the \texttt{LD\_LIBRARY\_PATH} environment variable before \csdp\ can run. From the Bash shell you can type
+
+\begin{verbatim}
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/intel-mkl-10.3/mkl/lib/ia32
+\end{verbatim}
+
+Again, change \texttt{/opt/intel-mkl-10.3/} to wherever you installed the Intel Math Kernel Library. It is recommended that you put this command in your \texttt{.bashrc} file.
+
+
 
 
 \section{Redistribution of flagmatic} \label{license}
