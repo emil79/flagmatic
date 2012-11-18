@@ -1,4 +1,4 @@
-problem = ThreeGraphAxiomsProblem(6, forbid=[(4, 3), "6:612623634645651"])
+problem = ThreeGraphAxiomsProblem(7, forbid=(4, 3))
 problem.clear_densities()
 tg = ThreeGraphFlag("2:")
 ff = ThreeGraphFlag.generate_flags(5, tg, forbidden_edge_numbers=[(4,3), (4,4)])
@@ -8,5 +8,5 @@ axiom = [(g, 3) for g in ff1] + [(g, -1) for g in ff2]
 problem.add_axiom(tg, axiom, False)
 construction = RandomTournamentConstruction()
 problem.set_extremal_construction(construction)
-problem.solve_sdp()
+problem.solve_sdp(True, use_initial_point=True, force_sharp_graphs=True)
 #problem.make_exact(2^20)

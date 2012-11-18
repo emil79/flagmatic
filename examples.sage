@@ -67,6 +67,7 @@ class Example:
 		# last line of file might not end in a newline
 		if lines[-1][-1] != "\n":
 			lines[-1] += "\n"
+		lines.append('problem.write_certificate("' + base_filename + '.js")\n')
 		lines.append('problem.save("' + base_filename + '")\n')
 
 		buffer = cStringIO.StringIO()

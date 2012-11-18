@@ -1,6 +1,5 @@
 problem = ThreeGraphAxiomsProblem(6, forbid=[(4, 3), "6:612623634645651"])
-problem.clear_densities()
-problem.add_codegree_axiom(1/4, False)
+problem.make_codegree_problem(1/4)
 construction = RandomTournamentConstruction()
 problem.set_extremal_construction(construction)
 problem.solve_sdp()

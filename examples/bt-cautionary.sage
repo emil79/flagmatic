@@ -1,6 +1,5 @@
 problem = ThreeGraphAxiomsProblem(6, forbid="6:123124134125135245346356456", forbid_homomorphic_images=True)
-problem.clear_densities()
-problem.add_degree_axiom(5/9, False)
+problem.make_degree_problem(5/9)
 construction = ThreeGraphBlowupConstruction("3:112223331123")
 problem.set_extremal_construction(construction)
 problem.add_zero_eigenvectors(1, vector(QQ,[0,3,0,0,0,0,4,1,1,0,0,0]))
