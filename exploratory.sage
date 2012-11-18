@@ -1,67 +1,25 @@
+def compare_eigenvalues(problem, only_smallest=True):
 
-
-
-def write_certificate(problem, filename):
-
-	problem.state("check_exact", "ensure_yes")
-
-	description = E.problem._flag_cls.description() + "; "
-	description += "minimize " if problem._minimize else "maximize "
-	description += ", ".join(str(g) for g in problem._density_graphs) + " density"
-	forbidden = []
-	for g in problem._forbidden_graphs:
-		forbidden.append(str(g))
-	for g in problem._forbidden_induced_graphs:
-		forbidden.append("induced %s" % g)
-	for pair in problem._forbidden_edge_numbers:
-		forbidden.append("induced %d.%d" % pair)
-	if len(forbidden) > 0:
-		description += "; forbid " + ", ".join(forbidden)
-
-	def upper_triangular_matrix_to_list (M):
-		return [list(M.row(i))[i:] for i in range(M.nrows())]
-
-	def matrix_to_list (M):
-		return [list(M.row(i)) for i in range(M.nrows())]
-
-	if problem.state("diagonalize") == "yes":
-		qdash_matrices = problem._exact_diagonal_matrices
-		r_matrices = problem._exact_r_matrices
-	else:
-		qdash_matrices = problem._exact_Qdash_matrices
-		r_matrices = problem._inverse_flag_bases
-
-	data = {
-		"description" : description,
-		"bound" : problem._bound,
-		"order_of_admissible_graphs" : problem._n,
-		"number_of_admissible_graphs" : len(problem._graphs),
-		"admissible_graphs" : problem._graphs,
-		"admissible_graph_densities" : problem._densities[0], # TODO: multiple densities
-		"number_of_types" : len(problem._types),
-		"types" : problem._types,
-		"numbers_of_flags" : [len(L) for L in problem._flags],
-		"flags" : problem._flags,
-		"qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in qdash_matrices],
-		"r_matrices" : [matrix_to_list(M) for M in r_matrices]
-	}
-
-	def default_handler (O):
-		# Only output an int if it is less than 2^53.
-		if O in ZZ and O < 9007199254740992:
-			return int(Integer(O))
-		return repr(O)
-
-	try:
-		with open(filename, "w") as f:
-			json.dump(data, f, indent=4, default=default_handler)
-		sys.stdout.write("Written certificate.\n")
+	if problem.state("make_exact") != "yes":
+		sys.stdout.write("Run this after make_exact.\n")
+		return
 	
-	except IOError:
-		sys.stdout.write("Cannot open file for writing.\n")
+	for ti in problem._active_types:
+		sys.stdout.write("Type %d:\n" % ti)
+		original_eigvals = sorted(numpy.linalg.eigvalsh(problem._sdp_Qdash_matrices[ti]))
+		new_eigvals = sorted(numpy.linalg.eigvalsh(problem._exact_Qdash_matrices[ti]))
+		if only_smallest:
+			num = 1
+		else:
+			num = len(original_eigvals)
+		for i in range(num):
+			sys.stdout.write("%.11f : %.11f\n" % (original_eigvals[i], new_eigvals[i]))
 
 
 def contributions(problem, threshold=1e-5):
+
+		if problem.state("read_solution") != "yes":
+			sys.stdout.write("Run this after solve_sdp.\n")
 
 		num_graphs = len(problem._graphs)
 		small_types = []
@@ -87,12 +45,18 @@ def contributions(problem, threshold=1e-5):
 
 def show_eigenvalues(problem, ti):
 
+	if problem.state("read_solution") != "yes":
+		sys.stdout.write("Run this after solve_sdp.\n")
+
 	eigvals = sorted(numpy.linalg.eigvalsh(problem._sdp_Q_matrices[ti]))
 	for i in range(len(eigvals)):
 		sys.stdout.write("%d. %g\n" % (i + 1, eigvals[i]))
 
 
 def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
+
+	if problem.state("read_solution") != "yes":
+		sys.stdout.write("Run this after solve_sdp.\n")
 
 	if types is None:
 		types = problem._active_types
@@ -113,6 +77,9 @@ def show_zero_eigenvalues(problem, tolerance=1e-5, types=None):
 # TODO: transform with _flag_bases if present.
 
 def check_construction(problem, C, types=None):
+
+	if problem.state("read_solution") != "yes":
+		sys.stdout.write("Run this after solve_sdp.\n")
 
 	if types is None:
 		types = problem._active_types
@@ -164,15 +131,15 @@ def num_seven_cycles(graph):
 
 # def check_tranform(problem, C, types=None):
 # 
-# 	if types is None:
-# 		types = problem._active_types
-# 	
-# 	for ti in types:
-# 		MZ = C.zero_eigenvectors(problem._types[ti], problem._flags[ti]) 
-# 		if MZ.nrows() == 0:
-# 			M = problem._sdp_Q_matrices[ti]
-# 		else:
-# 			M = B * self._sdp_Q_matrices[ti] * B.T
+#	if types is None:
+#		types = problem._active_types
+#	
+#	for ti in types:
+#		MZ = C.zero_eigenvectors(problem._types[ti], problem._flags[ti]) 
+#		if MZ.nrows() == 0:
+#			M = problem._sdp_Q_matrices[ti]
+#		else:
+#			M = B * self._sdp_Q_matrices[ti] * B.T
 
 
 
