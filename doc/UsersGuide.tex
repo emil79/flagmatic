@@ -122,6 +122,83 @@ There is a website for \flagmatic:
 \url{http://flagmatic.org/}
 
 
+\section{Installation on Mac OS X}
+
+The author has run previous versions of \flagmatic\ on Linux, but has had trouble getting version 2.0 working correctly. Currently, Mac OS X running on recent (Intel) hardware is the recommended setup for running \flagmatic.
+
+Go to \url{http://www.sagemath.org/} and download the file 
+
+\begin{center}
+\verb|sage-5.6-OSX-64bit-10.8-x86_64-Darwin.dmg|
+\end{center}
+
+from one of the download mirrors. At the time of writing, Sage 5.6 is the latest version of Sage, and is the version the author is using. \flagmatic\ will most probably work on later versions of Sage as well, and may also work on earlier versions of Sage.
+
+Open the file you have downloaded, which is a disk image. Mac OS X will verify the image and then mount it. It will then appear as a new drive in Finder, in the same way that a USB drive appears when it is inserted.
+
+Next, open the Terminal app, and enter the following command to copy Sage to your home directory:
+
+\begin{verbatim}
+    $ cp -a /Volumes/sage-5.6-OSX-64bit-10.8-x86_64-Darwin/sage ~
+\end{verbatim}
+
+Then enter the following command to set up a symbolic link to allow you to launch Sage easily. This command will prompt you for your password.
+
+\begin{verbatim}
+    $ sudo ln -s ~/sage/sage /usr/local/bin/
+\end{verbatim}
+
+Once this is done, you will be able to run Sage by entering the \verb|sage| command at the Terminal app's command prompt. If everything has been successful, doing so will result in a message like the following being displayed:
+
+\begin{verbatim}
+$ sage
+----------------------------------------------------------------------
+| Sage Version 5.6, Release Date: 2013-01-21                         |
+| Type "notebook()" for the browser-based notebook interface.        |
+| Type "help()" for help.                                            |
+----------------------------------------------------------------------
+\end{verbatim}
+
+Enter \verb|quit| to leave Sage. 
+
+To install CSDP, you can download the version the author uses from
+
+\url{http://flagmatic.org/static/bin/csdp}
+
+(If you would rather compile it from source, see the Appendix.) The \verb|csdp| file should be moved somewhere where \flagmatic\ can find it. To do this, enter:
+
+\begin{verbatim}
+    $ sudo cp ~/Downloads/csdp /usr/local/bin/
+\end{verbatim}
+
+Then, to test check it is working:
+
+\begin{verbatim}
+    $ csdp
+    CSDP 6.1.1
+ 
+    Usage: 
+
+    csdp <input problem> [<final solution>] [<initial solution>]
+\end{verbatim}
+
+To install Flagmatic, download the zip file. Safari will most likely unzip it automatically; Chrome and Firefox will not. If it is not unzipped, navigate to the Downloads folder in Finder and double-click on the zip file. Then in Terminal type:
+
+\begin{verbatim}
+    $ cd Downloads/flagmatic-2.0b2/pkg
+    $ sage -python setup.py install
+\end{verbatim}
+
+Next, change up a directory, and run Sage:
+
+\begin{verbatim}
+    $ cd ..
+    $ sage
+\end{verbatim}
+
+You can now run the examples in the next section.
+    
+
 \section{Help and examples}
 
 This User's Guide does not attempt to be exhaustive. For more help, it is possible to use Sage's online help system. For example:
