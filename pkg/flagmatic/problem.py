@@ -948,13 +948,16 @@ class Problem(SageObject):
 		for ti in range(num_types):
 			
 			B = self._flag_bases[ti]
-			row_div = B.subdivisions()[0]
-			M = B * self._sdp_Q_matrices[ti] * B.T
-			M.subdivide(row_div, row_div)
-			# zero out bits that should be zero. Note the copy() seems to be needed.
-			M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
-			M.set_immutable()
-			self._sdp_Qdash_matrices.append(M)
+			if B.nrows() > 0:
+				row_div = B.subdivisions()[0]
+				M = B * self._sdp_Q_matrices[ti] * B.T
+				M.subdivide(row_div, row_div)
+				# zero out bits that should be zero. Note the copy() seems to be needed.
+				M = block_diagonal_matrix([copy(M.subdivision(i,i)) for i in range(len(row_div) + 1)])
+				M.set_immutable()
+				self._sdp_Qdash_matrices.append(M)
+			else:
+				self._sdp_Qdash_matrices.append(matrix(self._approximate_field, 0, 0))
 			sys.stdout.write(".")
 			sys.stdout.flush()
 	
@@ -2243,11 +2246,12 @@ class Problem(SageObject):
 			negative_types = []
 			very_small_types = []
 			for ti in self._active_types:
-				eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
-				if eigvals[0] < 0.0:
-					negative_types.append(ti)
-				elif eigvals[0] < 1e-6:
-					very_small_types.append(ti)
+				if self._exact_Qdash_matrices[ti].nrows() > 0:
+					eigvals = sorted(numpy.linalg.eigvalsh(self._exact_Qdash_matrices[ti]))
+					if eigvals[0] < 0.0:
+						negative_types.append(ti)
+					elif eigvals[0] < 1e-6:
+						very_small_types.append(ti)
 			
 			if len(negative_types) > 0:
 				sys.stdout.write("Warning! Types %s have negative eigenvalues, so the bound is not valid.\n" % negative_types)
