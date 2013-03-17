@@ -1,0 +1,5 @@
+problem = ThreeGraphProblem(7, forbid="4.3", forbid_induced="4.1")
+construction = ThreeGraphBlowupConstruction("6:123234345451512136246356256146")
+problem.set_extremal_construction(construction)
+problem.solve_sdp()
+problem.make_exact()
