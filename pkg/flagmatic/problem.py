@@ -99,7 +99,7 @@ def safe_gram_schmidt(M):
         # .gram_schmidt doesn't appear to preserve sparsity, so recreate matrix from rows.
         M = matrix(QQ, M.rows(), sparse=sparse)
 
-    else: # .gram_schmidt is broken for some number fields in 4.8.
+    else:  # .gram_schmidt is broken for some number fields in 4.8.
         rows, mu = gram_schmidt(M.rows())
         M = matrix(BR, rows, sparse=sparse)
 
@@ -107,7 +107,7 @@ def safe_gram_schmidt(M):
     return M
 
 
-def LDLdecomposition(M):	# TODO: does this handle matrices with zero eigenvalues?
+def LDLdecomposition(M):  # TODO: does this handle matrices with zero eigenvalues?
     MS = M.parent()
     D = MS.matrix()
     if M.is_zero():
@@ -117,8 +117,7 @@ def LDLdecomposition(M):	# TODO: does this handle matrices with zero eigenvalues
     for i in xrange(M.nrows()):
         for j in xrange(i):
             L[i, j] = (Integer(1) / D[j, j]) * (M[i, j] - sum(L[i, k] * L[j, k] * D[k, k] for k in xrange(j)))
-        D[i, i] = M[i, i] - sum(L[i, k]**2 * D[k, k]
-            for k in xrange(i))
+        D[i, i] = M[i, i] - sum(L[i, k] ** 2 * D[k, k] for k in xrange(i))
     L.set_immutable()
     D.set_immutable()
     return L, D
@@ -187,7 +186,6 @@ class Problem(SageObject):
             self.generate_flags(order, type_orders=type_orders, types=types, max_flags=max_flags,
                                 compute_products=compute_products)
 
-
     def state(self, state_name=None, action=None):
         r"""
         Keeps track of which things have been done. To get a list of all the states, enter
@@ -211,92 +209,92 @@ class Problem(SageObject):
         # We use tuples here because there is an order to the states.
         state_list = [
             ("specify", {
-                "requires" : [],
-                "depends" : []
+                "requires": [],
+                "depends": []
             }),
             ("set_objective", {
-                "requires" : [],
-                "depends" : []
+                "requires": [],
+                "depends": []
             }),
             ("compute_flags", {
-                "requires" : [],
-                "depends" : ["specify"]
+                "requires": [],
+                "depends": ["specify"]
             }),
             ("set_construction", {
-                "requires" : ["compute_flags"],
-                "depends" : ["set_objective"]
+                "requires": ["compute_flags"],
+                "depends": ["set_objective"]
             }),
             ("add_zero_eigenvectors", {
-                "requires" : ["set_construction"],
-                "depends" : []
+                "requires": ["set_construction"],
+                "depends": []
             }),
             ("compute_block_bases", {
-                "requires" : ["compute_flags"],
-                "depends" : []
+                "requires": ["compute_flags"],
+                "depends": []
             }),
             ("compute_flag_bases", {
-                "requires" : ["set_construction"], # makes block bases if required
-                "depends" : ["add_zero_eigenvectors"]
+                "requires": ["set_construction"], # makes block bases if required
+                "depends": ["add_zero_eigenvectors"]
             }),
             ("compute_products", {
-                "requires" : ["compute_flags"],
-                "depends" : []
+                "requires": ["compute_flags"],
+                "depends": []
             }),
             ("set_active_types", {
-                "requires" : ["compute_flags"],
-                "depends" : []
+                "requires": ["compute_flags"],
+                "depends": []
             }),
             ("set_block_matrix_structure", {
-                "requires" : ["compute_flags"],
-                "depends" : ["set_active_types"]
+                "requires": ["compute_flags"],
+                "depends": ["set_active_types"]
             }),
             ("write_sdp_input_file", {
-                "requires" : ["set_block_matrix_structure"],
-                "depends" : ["set_objective", "set_active_types"]
+                "requires": ["set_block_matrix_structure"],
+                "depends": ["set_objective", "set_active_types"]
             }),
             ("write_sdp_initial_point_file", {
-                "requires" : ["set_block_matrix_structure"],
-                "depends" : ["set_objective", "set_active_types"]
+                "requires": ["set_block_matrix_structure"],
+                "depends": ["set_objective", "set_active_types"]
             }),
             ("run_sdp_solver", {
-                "requires" : ["write_sdp_input_file"],
-                "depends" : ["write_sdp_input_file", "write_sdp_initial_point_file"]
+                "requires": ["write_sdp_input_file"],
+                "depends": ["write_sdp_input_file", "write_sdp_initial_point_file"]
             }),
             ("read_solution", {
-                "requires" : ["run_sdp_solver"],
-                "depends" : []
+                "requires": ["run_sdp_solver"],
+                "depends": []
             }),
             ("check_solution", {
-                "requires" : ["read_solution"],
-                "depends" : []
+                "requires": ["read_solution"],
+                "depends": []
             }),
             ("transform_solution", {
-                "requires" : ["compute_flag_bases", "check_solution"],
-                "depends" : []
+                "requires": ["compute_flag_bases", "check_solution"],
+                "depends": []
             }),
             ("add_sharp_graphs", {
-                "requires" : ["set_construction"],
-                "depends" : []
+                "requires": ["set_construction"],
+                "depends": []
             }),
             ("make_exact", {
-                "requires" : ["check_solution"],
-                "depends" : ["transform_solution", "add_sharp_graphs"]
+                "requires": ["check_solution"],
+                "depends": ["transform_solution", "add_sharp_graphs"]
             }),
             ("meet_target_bound", {
-                "requires" : ["transform_solution", "make_exact"],
-                "depends" : []
+                "requires": ["transform_solution", "make_exact"],
+                "depends": []
             }),
             ("check_exact", {
-                "requires" : ["make_exact"],
-                "depends" : ["meet_target_bound"]
+                "requires": ["make_exact"],
+                "depends": ["meet_target_bound"]
             }),
             ("diagonalize", {
-                "requires" : ["meet_target_bound", "check_exact"],
-                "depends" : []
+                "requires": ["meet_target_bound", "check_exact"],
+                "depends": []
             }),
             ("write_certificate", {
-                "requires" : ["check_exact"],
-                "depends" : ["diagonalize"]
+                "requires": ["check_exact"],
+                "depends": ["diagonalize"]
             })
         ]
 
@@ -428,17 +426,19 @@ class Problem(SageObject):
         for s, m in orders:
 
             these_types = self._flag_cls.generate_graphs(s, forbidden_edge_numbers=self._forbidden_edge_numbers,
-                                                         forbidden_graphs=self._forbidden_graphs, forbidden_induced_graphs=self._forbidden_induced_graphs)
-            sys.stdout.write("Generated %d types of order %d, " % (
-                len(these_types), s))
+                                                         forbidden_graphs=self._forbidden_graphs,
+                                                         forbidden_induced_graphs=self._forbidden_induced_graphs)
 
             if types:
                 these_types = [h for h in these_types if h in allowed_types]
 
+            sys.stdout.write("Generated %d types of order %d, " % (len(these_types), s))
+
             these_flags = []
             for tg in these_types:
                 these_flags.append(self._flag_cls.generate_flags(m, tg, forbidden_edge_numbers=self._forbidden_edge_numbers,
-                                                                 forbidden_graphs=self._forbidden_graphs, forbidden_induced_graphs=self._forbidden_induced_graphs))
+                                                                 forbidden_graphs=self._forbidden_graphs,
+                                                                 forbidden_induced_graphs=self._forbidden_induced_graphs))
             sys.stdout.write("with %s flags of order %d.\n" % ([len(L) for L in these_flags], m))
 
             self._types.extend(these_types)
@@ -504,7 +504,6 @@ class Problem(SageObject):
         """
         return copy(self._density_graphs)
 
-
     def set_objective(self, minimize=False):
         r"""
         Sets the Problem to be a "maximization" or a "minimization" problem.
@@ -525,7 +524,6 @@ class Problem(SageObject):
 
         self._minimize = minimize
 
-
     def _compute_densities(self):
 
         self._densities = []
@@ -543,7 +541,6 @@ class Problem(SageObject):
                         dv += coeff * g.subgraph_density(h)
                 density_values.append(dv)
             self._densities.append(density_values)
-
 
     def set_density(self, *args):
 
@@ -613,7 +610,6 @@ class Problem(SageObject):
         if self.state("compute_flags") == "yes":
             self._compute_densities()
 
-
     def _forbid(self, h, induced):
 
         self.state("specify", "yes")
@@ -645,13 +641,12 @@ class Problem(SageObject):
 
         if induced:
             self._forbidden_induced_graphs.append(copy(h))
-            self._forbidden_induced_graphs.sort(key = lambda g : (g.n, g.ne))
+            self._forbidden_induced_graphs.sort(key=lambda g: (g.n, g.ne))
             sys.stdout.write("Forbidding %s as an induced subgraph.\n" % h)
         else:
             self._forbidden_graphs.append(copy(h))
-            self._forbidden_graphs.sort(key = lambda g : (g.n, g.ne))
+            self._forbidden_graphs.sort(key=lambda g: (g.n, g.ne))
             sys.stdout.write("Forbidding %s as a subgraph.\n" % h)
-
 
     def forbid(self, *args):
         r"""
@@ -899,7 +894,6 @@ class Problem(SageObject):
         self._zero_eigenvectors[ti] = self._zero_eigenvectors[ti].stack(NZ)
         self._zero_eigenvectors[ti].set_immutable()
 
-
     # TODO: is good idea to assume zero densities?
 
     def add_sharp_graphs(self, *args):
@@ -924,7 +918,6 @@ class Problem(SageObject):
                 self._sharp_graph_densities.append(Integer(0))
             else:
                 sys.stdout.write("Warning: graph %d is already marked as sharp.\n" % si)
-
 
     def change_solution_bases(self, use_blocks=True):
         r"""
@@ -971,7 +964,6 @@ class Problem(SageObject):
 
         sys.stdout.write("\n")
 
-
     def compute_block_bases(self):
         r"""
         Computes a basis for the solution's Q matrices, that will give them a block structure with
@@ -989,7 +981,6 @@ class Problem(SageObject):
             num_blocks, block_sizes, block_offsets = block_structure(B)
             sys.stdout.write("Type %d (%d flags) blocks: %s \n" % (ti, len(self._flags[ti]), block_sizes))
             self._block_bases.append(B)
-
 
     def compute_flag_bases(self, use_blocks=True, keep_rows=False, use_smaller=False):
         r"""
@@ -1045,7 +1036,7 @@ class Problem(SageObject):
                     B = B * self._block_bases[ti].subdivision(bi, 0)
 
                 if not keep_rows:
-                    B = B[nzev:, :] # delete rows corresponding to zero eigenvectors
+                    B = B[nzev:, :]  # delete rows corresponding to zero eigenvectors
 
                 if B.nrows() > 0:
                     BS.append(B)
@@ -1076,13 +1067,13 @@ class Problem(SageObject):
                 MT.set_immutable()
                 self._inverse_flag_bases.append(MT)
                 for j in range(M.nrows()):
-                    M[j, :] /= sum([x**2 for x in M.row(j)])
+                    M[j, :] /= sum([x ** 2 for x in M.row(j)])
                 M.set_immutable()
                 self._flag_bases[ti] = M
 
             else:
                 for j in range(M.nrows()):
-                    M[j, :] /= sum([x**2 for x in M.row(j)])
+                    M[j, :] /= sum([x ** 2 for x in M.row(j)])
                 MT = M.T
                 MT.set_immutable()
                 self._inverse_flag_bases.append(MT)
@@ -1116,7 +1107,6 @@ class Problem(SageObject):
 
         sys.stdout.write("\n")
 
-
     def _set_block_matrix_structure(self):
 
         self.state("set_block_matrix_structure", "yes")
@@ -1140,7 +1130,6 @@ class Problem(SageObject):
             for bi in range(num_blocks):
                 self._block_matrix_structure.append((ti, block_sizes[bi], block_offsets[bi]))
 
-
     def _get_block_matrix_structure(self, ti):
 
         num_blocks = 0
@@ -1156,8 +1145,7 @@ class Problem(SageObject):
                 block_sizes.append(b[1])
                 block_offsets.append(b[2])
 
-        return (num_blocks, block_sizes, block_offsets, block_indices)
-
+        return num_blocks, block_sizes, block_offsets, block_indices
 
     def solve_sdp(self, show_output=False, solver="csdp",
         force_sharp_graphs=False, force_zero_eigenvectors=False,
@@ -1221,11 +1209,11 @@ class Problem(SageObject):
 
             if self.state("write_sdp_input_file") != "yes":
                 self.write_sdp_input_file(force_sharp_graphs=force_sharp_graphs,
-                    force_zero_eigenvectors=force_zero_eigenvectors)
+                                          force_zero_eigenvectors=force_zero_eigenvectors)
             if use_initial_point and self.state("write_sdp_initial_point_file") != "yes":
                 self.write_sdp_initial_point_file()
             self._run_sdp_solver(show_output=show_output, solver=solver,
-                use_initial_point=use_initial_point)
+                                 use_initial_point=use_initial_point)
 
         else:
 
@@ -1236,9 +1224,7 @@ class Problem(SageObject):
         self._read_sdp_output_file()
 
         if check_solution:
-            self.check_solution(tolerance=tolerance, show_sorted=show_sorted,
-                show_all=show_all)
-
+            self.check_solution(tolerance=tolerance, show_sorted=show_sorted, show_all=show_all)
 
     # TODO: add option for forcing sharps
 
@@ -1345,7 +1331,7 @@ class Problem(SageObject):
                         k -= block_offsets[bi]
                     value = Integer(row[3]) / Integer(row[4])
                     f.write("%d %d %d %d %s\n" %
-                        (gi + 1, block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
+                            (gi + 1, block_indices[bi] + 2, j + 1, k + 1, value.n(digits=64)))
 
             # TODO: get working with blocks, inactive types
             if force_zero_eigenvectors:
@@ -1358,7 +1344,7 @@ class Problem(SageObject):
                                 value = self._zero_eigenvectors[ti][zi, j] * self._zero_eigenvectors[ti][zi, k]
                                 if value != 0:
                                     f.write("%d %d %d %d %s\n" %
-                                        (num_graphs + num_density_coeff_blocks + mi + 1, ti + 2, j + 1, k + 1, value.n(digits=64)))
+                                            (num_graphs + num_density_coeff_blocks + mi + 1, ti + 2, j + 1, k + 1, value.n(digits=64)))
                         f.write("%d %d %d %d -1.0\n" % (num_graphs + num_density_coeff_blocks + mi + 1, total_num_blocks + 4, mi + 1, mi + 1))
                         mi += 1
 
@@ -1500,7 +1486,7 @@ class Problem(SageObject):
             else:
 
                 densities = [sum([self._densities[j][gi] for j in self._active_densities])
-                        / num_active_densities for gi in range(num_graphs)]
+                             / num_active_densities for gi in range(num_graphs)]
 
                 bound = min(densities) if self._minimize else max(densities)
 
@@ -1528,7 +1514,6 @@ class Problem(SageObject):
                 value = Integer(1) / num_active_densities
                 for j in range(num_active_densities):
                     f.write("2 %d %d %d %s\n" % (total_num_blocks + 3, j + 1, j + 1, value.n(digits=64)))
-
 
     # TODO: report error if problem infeasible
 
@@ -1566,7 +1551,7 @@ class Problem(SageObject):
         # must be negated.
         obj_value_factor = 1.0 if self._minimize else -1.0
 
-        p = pexpect.spawn(cmd, timeout=60*60*24*7)
+        p = pexpect.spawn(cmd, timeout=60 * 60 * 24 * 7)
         obj_val = None
         self._sdp_solver_output = ""
         while True:
@@ -1580,11 +1565,11 @@ class Problem(SageObject):
                 if show_output:
                     sys.stdout.write(line)
 
-                if "Primal objective value:" in line: # CSDP
+                if "Primal objective value:" in line:  # CSDP
                     obj_val = self._approximate_field(line.split()[-1]) * obj_value_factor
-                elif "objValPrimal" in line: # SDPA
+                elif "objValPrimal" in line:  # SDPA
                     obj_val = self._approximate_field(line.split()[-1]) * obj_value_factor
-                elif "DSDP Solution" in line: # DSDP: seems to print absolute value
+                elif "DSDP Solution" in line:  # DSDP: seems to print absolute value
                     obj_val = self._approximate_field(line.split()[-1])
 
             except pexpect.EOF:
@@ -1632,7 +1617,7 @@ class Problem(SageObject):
                         for a in line.split(","):
                             try:
                                 v = a.strip()
-                                vf = float(v) # only done to see if we get ValueError
+                                vf = float(v)  # only done to see if we get ValueError
                                 if diagonal:
                                     f.write("2 %d %d %d %s\n" % (t, row, col, v))
                                     row += 1
@@ -1642,12 +1627,11 @@ class Problem(SageObject):
                             except ValueError:
                                 pass
 
-                        if col > 1: # at least one number found...
+                        if col > 1:  # at least one number found...
                             row += 1
 
         self._sdp_output_filename = os.path.join(unicode(SAGE_TMP), "sdp.out")
         os.chdir(previous_directory)
-
 
     # TODO: read in dual solution
 
@@ -1693,7 +1677,6 @@ class Problem(SageObject):
 
         for ti in range(num_types):
             self._sdp_Q_matrices[ti].set_immutable()
-
 
     def check_solution(self, tolerance=1e-5, show_sorted=False, show_all=False):
         r"""
@@ -1754,7 +1737,7 @@ class Problem(SageObject):
                 return
             sharp_graphs = self._sharp_graphs
         else:
-            sharp_graphs = [] # set dummy sharp_graphs
+            sharp_graphs = []  # set dummy sharp_graphs
 
         apparently_sharp_graphs = [gi for gi in range(num_graphs) if abs(fbounds[gi] - bound) < tolerance]
 
@@ -1795,7 +1778,6 @@ class Problem(SageObject):
 
         for gi in missing_sharp_graphs:
             sys.stdout.write("Warning: graph %d (%s) does not appear to be sharp.\n" % (gi, self._graphs[gi]))
-
 
     def import_solution(self, directory, complement=False):
         r"""
@@ -1880,7 +1862,7 @@ class Problem(SageObject):
             flag_translations.append(ftr)
 
         self._sdp_Q_matrices = [matrix(self._approximate_field, len(self._flags[ti]),
-            len(self._flags[ti])) for ti in range(num_types)]
+                                len(self._flags[ti])) for ti in range(num_types)]
 
         try:
             f = open(directory + "/" + flags.out_filename, "r")
@@ -1888,8 +1870,7 @@ class Problem(SageObject):
             try:
                 f = gzip.open(directory + "/" + flags.out_filename + ".gz", "rb")
             except IOError:
-                print "Could not open %s or %s.gz" % (flags.out_filename,
-                    flags.out_filename)
+                print "Could not open %s or %s.gz" % (flags.out_filename, flags.out_filename)
                 return
 
         for line in f:
@@ -1915,10 +1896,9 @@ class Problem(SageObject):
         sys.path.remove(directory)
         sys.dont_write_bytecode = dont_write_bytecode
 
-
     def make_exact(self, denominator=1024, meet_target_bound=True,
-        protect=None, use_densities=True, use_blocks=True, rank=None, show_changes=False,
-        check_exact_bound=True, diagonalize=True):
+                   protect=None, use_densities=True, use_blocks=True, rank=None, show_changes=False,
+                   check_exact_bound=True, diagonalize=True):
         r"""
         Makes an exact bound for the problem using the approximate floating point bound
         found by the SDP solver.
@@ -2019,7 +1999,7 @@ class Problem(SageObject):
                     return
                 L = matrix(QQ, q_sizes[ti], q_sizes[ti], sparse=True)
                 for j in range(q_sizes[ti]):
-                    for k in range(j + 1): # only lower triangle
+                    for k in range(j + 1):  # only lower triangle
                         L[j, k] = rationalize(LF[j, k])
                 L.set_immutable()
                 M = L * L.T
@@ -2054,7 +2034,7 @@ class Problem(SageObject):
             self.state("meet_target_bound", "yes")
 
             triples = [(ti, j, k) for ti in self._active_types for j in range(q_sizes[ti])
-                for k in range(j, q_sizes[ti])]
+                       for k in range(j, q_sizes[ti])]
 
             num_triples = len(triples)
             triples.sort()
@@ -2103,7 +2083,7 @@ class Problem(SageObject):
             sys.stdout.write("\n")
 
             density_cols_to_use = []
-            DR = matrix(self._field, num_sharps, 0) # sparsity harms performance too much here
+            DR = matrix(self._field, num_sharps, 0)  # sparsity harms performance too much here
             EDR = DR.T
 
             sys.stdout.write("Constructing DR matrix")
@@ -2153,9 +2133,9 @@ class Problem(SageObject):
                     break
 
                 ti, j, k = triples[i]
-                if ti in protect: # don't use protected types
+                if ti in protect:  # don't use protected types
                     continue
-                new_col = R[:, i : i + 1]
+                new_col = R[:, i: i + 1]
                 if new_col.is_zero():
                     continue
                 EDR = EDR.stack(new_col.T)
@@ -2226,7 +2206,6 @@ class Problem(SageObject):
         if check_exact_bound:
             self.check_exact_bound()
 
-
     def check_exact_bound(self, diagonalize=True):
         r"""
         Usually called by ``make_exact``. If the solution was transformed, then computes
@@ -2281,7 +2260,7 @@ class Problem(SageObject):
             self._exact_Q_matrices = self._exact_Qdash_matrices
 
         bounds = [sum([self._densities[j][i] * self._exact_density_coeffs[j]
-            for j in range(num_densities)]) for i in range(num_graphs)]
+                  for j in range(num_densities)]) for i in range(num_graphs)]
 
         for ti in self._active_types:
             for row in self._product_densities_arrays[ti]:
@@ -2336,7 +2315,7 @@ class Problem(SageObject):
 
         if len(unexpectedly_sharp) > 0:
             sys.stdout.write("Warning: the following graphs unexpectedly attain the bound: %s\n"
-                % ", ".join([str(gi) for gi in unexpectedly_sharp]))
+                             % ", ".join([str(gi) for gi in unexpectedly_sharp]))
 
         if len(violators) > 0:
             sys.stdout.write("Bound violated by:")
@@ -2345,7 +2324,6 @@ class Problem(SageObject):
 
         if diagonalize:
             self.diagonalize()
-
 
     def diagonalize(self):
         r"""
@@ -2380,11 +2358,10 @@ class Problem(SageObject):
         for ti in range(len(self._types)):
             Q = self._exact_r_matrices[ti] * self._exact_diagonal_matrices[ti] * self._exact_r_matrices[ti].T
             if Q != self._exact_Q_matrices[ti]:
-                raise ValueError # TODO: choose appropriate error
+                raise ValueError  # TODO: choose appropriate error
             sys.stdout.write(".")
             sys.stdout.flush()
         sys.stdout.write("\n")
-
 
     def describe(self):
         r"""
@@ -2408,7 +2385,6 @@ class Problem(SageObject):
 
         return description
 
-
     def _describe_density(self):
 
         if len(self._density_graphs) == 0:
@@ -2422,10 +2398,8 @@ class Problem(SageObject):
         else:
             return "combination of quantum graphs"
 
-
     def _augment_certificate(self, data):
         pass
-
 
     def write_certificate(self, filename):
         r"""
@@ -2450,17 +2424,17 @@ class Problem(SageObject):
             r_matrices = self._inverse_flag_bases
 
         data = {
-            "description" : self.describe(),
-            "bound" : self._bound,
-            "order_of_admissible_graphs" : self._n,
-            "number_of_admissible_graphs" : len(self._graphs),
-            "admissible_graphs" : self._graphs,
-            "number_of_types" : len(self._types),
-            "types" : self._types,
-            "numbers_of_flags" : [len(L) for L in self._flags],
-            "flags" : self._flags,
-            "qdash_matrices" : [upper_triangular_matrix_to_list(M) for M in qdash_matrices],
-            "r_matrices" : [matrix_to_list(M) for M in r_matrices]
+            "description": self.describe(),
+            "bound": self._bound,
+            "order_of_admissible_graphs": self._n,
+            "number_of_admissible_graphs": len(self._graphs),
+            "admissible_graphs": self._graphs,
+            "number_of_types": len(self._types),
+            "types": self._types,
+            "numbers_of_flags": [len(L) for L in self._flags],
+            "flags": self._flags,
+            "qdash_matrices": [upper_triangular_matrix_to_list(M) for M in qdash_matrices],
+            "r_matrices": [matrix_to_list(M) for M in r_matrices],
         }
 
         if len(self._density_graphs) == 1:
@@ -2469,7 +2443,7 @@ class Problem(SageObject):
         # Allow subclasses to add more things
         self._augment_certificate(data)
 
-        def default_handler (O):
+        def default_handler(O):
             # Only output an int if it is less than 2^53 (to be valid JSON).
             if O in ZZ and O < 9007199254740992:
                 return int(Integer(O))
@@ -2484,7 +2458,6 @@ class Problem(SageObject):
             sys.stdout.write("Cannot open file for writing.\n")
 
 
-
 def ThreeGraphProblem(order=None, **kwargs):
     r"""
     Returns a Problem object, that will represent a Turán-type 3-graph problem. For help
@@ -2493,6 +2466,7 @@ def ThreeGraphProblem(order=None, **kwargs):
     sage: help(Problem)
     """
     return Problem(ThreeGraphFlag, order, **kwargs)
+
 
 def GraphProblem(order=None, **kwargs):
     r"""
@@ -2503,6 +2477,7 @@ def GraphProblem(order=None, **kwargs):
     """
     return Problem(GraphFlag, order, **kwargs)
 
+
 def OrientedGraphProblem(order=None, **kwargs):
     r"""
     Returns a Problem object, that will represent a Turán-type oriented graph problem. For
@@ -2511,6 +2486,7 @@ def OrientedGraphProblem(order=None, **kwargs):
     sage: help(Problem)
     """
     return Problem(OrientedGraphFlag, order, **kwargs)
+
 
 def TwoMultigraphProblem(order=None, **kwargs):
     r"""
@@ -2521,6 +2497,7 @@ def TwoMultigraphProblem(order=None, **kwargs):
     """
     return Problem(TwoMultigraphFlag, order, **kwargs)
 
+
 def ThreeMultigraphProblem(order=None, **kwargs):
     r"""
     Returns a Problem object, that will represent a Turán-type 3-multigraph problem. For
@@ -2529,4 +2506,3 @@ def ThreeMultigraphProblem(order=None, **kwargs):
     sage: help(Problem)
     """
     return Problem(ThreeMultigraphFlag, order, **kwargs)
-
