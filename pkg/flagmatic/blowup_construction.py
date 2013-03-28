@@ -43,322 +43,313 @@ from construction import *
 
 class BlowupConstruction(Construction):
 
+    def __init__(self, g, weights=None, field=None, phantom_edge=None, no_symmetry=False):
 
-	def __init__(self, g, weights=None, field=None, phantom_edge=None, no_symmetry=False):
-	
-		if g.oriented and g.is_degenerate:
-			raise NotImplementedError("degenerate oriented graphs not supported.")
-	
-		self._graph = copy(g)
-		self._flag_cls = type(g)
+        if g.oriented and g.is_degenerate:
+            raise NotImplementedError("degenerate oriented graphs not supported.")
 
-		if weights is None:
-			self._weights = None
-		else:
-			if len(weights) != g.n:
-				raise ValueError
-			self._weights = weights
-	
-		if field is None:
-			self._field = RationalField()
-		else:
-			self._field = field
+        self._graph = copy(g)
+        self._flag_cls = type(g)
 
-		if not phantom_edge is None:
-			# check edge is valid; will get an Exception if not.
-			h = copy(g)
-			h.add_edge(phantom_edge)
-			self._phantom_edge = phantom_edge
+        if weights is None:
+            self._weights = None
+        else:
+            if len(weights) != g.n:
+                raise ValueError
+            self._weights = weights
 
-		# Only make use of symmetry when all the conditions are right...
-		# Should probably allow OrientedGraphFlag
-	
-		if (field is None and weights is None and g.n > 4 and not no_symmetry
-			and (type(g) is GraphFlag or type(g) is OrientedGraphFlag)
-			and phantom_edge is None):
-			self._use_symmetry = True
-		else:
-			self._use_symmetry = False
+        if field is None:
+            self._field = RationalField()
+        else:
+            self._field = field
 
+        if not phantom_edge is None:
+            # check edge is valid; will get an Exception if not.
+            h = copy(g)
+            h.add_edge(phantom_edge)
+            self._phantom_edge = phantom_edge
 
-	@property
-	def graph(self):
-		return self._graph
+        # Only make use of symmetry when all the conditions are right...
 
-		
-	@property
-	def weights(self):
-		return self._weights
+        self._use_symmetry = False
+        if field is None and weights is None and phantom_edge is None:
+            if g.n > 4 and not no_symmetry:
+                # Should probably allow OrientedGraphFlag
+                if type(g) is GraphFlag or type(g) is OrientedGraphFlag:
+                    self._use_symmetry = True
 
+    @property
+    def graph(self):
+        return self._graph
 
-	@property
-	def field(self):
-		return self._field
-	
+    @property
+    def weights(self):
+        return self._weights
 
-	def subgraph_densities(self, n):
+    @property
+    def field(self):
+        return self._field
 
-		if n < 0:
-			raise ValueError
+    def subgraph_densities(self, n):
 
-		if self._use_symmetry:
-			return self.symm_subgraph_densities(n)
+        if n < 0:
+            raise ValueError
 
-		cn = self._graph.n
-		total = Integer(0)
-		sharp_graph_counts = {}
-		sharp_graphs = []
+        if self._use_symmetry:
+            return self.symm_subgraph_densities(n)
 
-		for P in UnorderedTuples(range(1, cn + 1), n):
-		
-			factor = factorial(n)
-			for i in range(1, cn + 1):
-				factor /= factorial(P.count(i))
-			
-			if self._weights:
-				for v in P:
-					factor *= self._weights[v - 1]
-			
-			ig = self._graph.degenerate_induced_subgraph(P)
-			igc = copy(ig) # copy for phantom edge
-			ig.make_minimal_isomorph()
-			
-			ghash = hash(ig)
-			if ghash in sharp_graph_counts:
-				sharp_graph_counts[ghash] += factor
-			else:
-				sharp_graphs.append(ig)
-				sharp_graph_counts[ghash] = factor
+        cn = self._graph.n
+        total = Integer(0)
+        sharp_graph_counts = {}
+        sharp_graphs = []
 
-			total += factor
-		
-			if hasattr(self, "_phantom_edge") and all(x in P for x in self._phantom_edge):
-				phantom_edge = [P.index(x) + 1 for x in self._phantom_edge]
-				igc.add_edge(phantom_edge)
-				igc.make_minimal_isomorph()
+        for P in UnorderedTuples(range(1, cn + 1), n):
 
-				ghash = hash(igc)
-				if not ghash in sharp_graph_counts:
-					sharp_graphs.append(igc)
-					sharp_graph_counts[ghash] = Integer(0)
-				
-		
-		return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
+            factor = factorial(n)
+            for i in range(1, cn + 1):
+                factor /= factorial(P.count(i))
 
+            if self._weights:
+                for v in P:
+                    factor *= self._weights[v - 1]
 
-	def zero_eigenvectors(self, tg, flags):
+            ig = self._graph.degenerate_induced_subgraph(P)
+            igc = copy(ig)  # copy for phantom edge
+            ig.make_minimal_isomorph()
 
-		if self._use_symmetry:
-			return self.symm_zero_eigenvectors(tg, flags)
+            ghash = hash(ig)
+            if ghash in sharp_graph_counts:
+                sharp_graph_counts[ghash] += factor
+            else:
+                sharp_graphs.append(ig)
+                sharp_graph_counts[ghash] = factor
 
-		cn = self._graph.n
-		s = tg.n
-		k = flags[0].n # assume all flags the same order
+            total += factor
 
-		rows = []
+            if hasattr(self, "_phantom_edge") and all(x in P for x in self._phantom_edge):
+                phantom_edge = [P.index(x) + 1 for x in self._phantom_edge]
+                igc.add_edge(phantom_edge)
+                igc.make_minimal_isomorph()
 
-		for tv in Tuples(range(1, cn + 1), s):
+                ghash = hash(igc)
+                if not ghash in sharp_graph_counts:
+                    sharp_graphs.append(igc)
+                    sharp_graph_counts[ghash] = Integer(0)
 
-			it = self._graph.degenerate_induced_subgraph(tv)
-			
-			using_phantom_edge = False
+        return [(g, sharp_graph_counts[hash(g)] / total) for g in sharp_graphs]
 
-			if hasattr(self, "_phantom_edge") and it.ne == tg.ne - 1:
-				extra_edges = [e for e in tg if not e in it]
-				if len(extra_edges) == 1:
-					phantom_edge = extra_edges[0]
-					if all(tv[phantom_edge[i] - 1] == self._phantom_edge[i] for i in range(tg.r)):
-						it.add_edge(phantom_edge)
-						using_phantom_edge = True
-		
-			if not (using_phantom_edge or it.is_labelled_isomorphic(tg)):
-				continue
+    def zero_eigenvectors(self, tg, flags):
 
-			total = Integer(0)
-			row = [0] * len(flags)
-		
-			for ov in UnorderedTuples(range(1, cn + 1), k - s):
-		
-				factor = factorial(k - s)
-				for i in range(1, cn + 1):
-					factor /= factorial(ov.count(i))
+        if self._use_symmetry:
+            return self.symm_zero_eigenvectors(tg, flags)
 
-				if self._weights:
-					for v in ov:
-						factor *= self._weights[v - 1]
-				
-				ig = self._graph.degenerate_induced_subgraph(tv + ov)
-				if using_phantom_edge:
-					ig.add_edge(phantom_edge)
-				ig.t = s
-				ig.make_minimal_isomorph()
-				
-				for j in range(len(flags)):
-					if ig.is_labelled_isomorphic(flags[j]):
-						row[j] += factor
-						total += factor
-						break
-						
-			for j in range(len(flags)):
-				row[j] /= total	
-			rows.append(row)
+        cn = self._graph.n
+        s = tg.n
+        k = flags[0].n  # assume all flags the same order
 
-		return matrix_of_independent_rows(self._field, rows, len(flags))
+        rows = []
 
+        for tv in Tuples(range(1, cn + 1), s):
 
-	#
-	# "Symmetric" versions follow.
-	#
-		
+            it = self._graph.degenerate_induced_subgraph(tv)
 
-	# NOTE: This computes orbits on *sets* and then expands these sets in different
-	# ways to form k-tuples. This results in more representatives than is strictly
-	# necessary, but it is much faster than doing otherwise.
+            using_phantom_edge = False
+            phantom_edge = None
 
-	def tuple_orbit_reps(self, k, prefix=None):
-		
-		if prefix is None:
-			prefix = []
-		
-		s = len(prefix)
-		tp = tuple(prefix)
-		if s > k:
-			raise ValueError
+            if hasattr(self, "_phantom_edge") and it.ne == tg.ne - 1:
+                extra_edges = [e for e in tg if not e in it]
+                if len(extra_edges) == 1:
+                    phantom_edge = extra_edges[0]
+                    if all(tv[phantom_edge[i] - 1] == self._phantom_edge[i] for i in range(tg.r)):
+                        it.add_edge(phantom_edge)
+                        using_phantom_edge = True
 
-		if k == 0:
-			return (1, {() : 1})
+            if not (using_phantom_edge or it.is_labelled_isomorphic(tg)):
+                continue
 
-		gens = self._graph.automorphism_group_gens()
-		
-		# Pass generators to GAP to create a group for us.
-		
-		gen_str = ",".join("(" + "".join(str(cy) for cy in cys) + ")" for cys in gens)
-		gap.eval("g := Group(%s);" % gen_str)
-		if len(prefix) > 0:
-			gap.eval("g := Stabilizer(g, %s, OnTuples);" % list(set(prefix)))
+            total = Integer(0)
+            row = [0] * len(flags)
 
-		S = []
-		for i in range(1, k - s + 1):
-			S.extend([tuple(sorted(list(x))) for x in Subsets(self._graph.n, i)])
-		
-		set_orb_reps = {}
+            for ov in UnorderedTuples(range(1, cn + 1), k - s):
 
-		#sys.stdout.write("Calculating orbits")
+                factor = factorial(k - s)
+                for i in range(1, cn + 1):
+                    factor /= factorial(ov.count(i))
 
-		while len(S) > 0:
+                if self._weights:
+                    for v in ov:
+                        factor *= self._weights[v - 1]
 
-			rep = list(S[0])
+                ig = self._graph.degenerate_induced_subgraph(tv + ov)
+                if using_phantom_edge:
+                    ig.add_edge(phantom_edge)
+                ig.t = s
+                ig.make_minimal_isomorph()
 
-			o = gap.new("Orbit(g, %s, OnSets);" % (rep,)).sage()
-			o = list(set([tuple(sorted(t)) for t in o]))
-			ot = o[0]
-			set_orb_reps[ot] = len(o)
-			for t in o:
-				S.remove(t)
-			#sys.stdout.write(".")
-			#sys.stdout.flush()
+                for j in range(len(flags)):
+                    if ig.is_labelled_isomorphic(flags[j]):
+                        row[j] += factor
+                        total += factor
+                        break
 
-		#sys.stdout.write("\n")
+            for j in range(len(flags)):
+                row[j] /= total
+            rows.append(row)
 
-		combs = [tuple(c) for c in Compositions(k - s)]
-		factors = []
-		for c in combs:
-			factor = factorial(k - s)
-			for x in c:
-				factor /= factorial(x)
-			factors.append(factor)
+        return matrix_of_independent_rows(self._field, rows, len(flags))
 
-		orb_reps = {}
-		total = 0
-		
-		for ot, length in set_orb_reps.iteritems():
+    #
+    # "Symmetric" versions follow.
+    #
 
-			ne = len(ot)
-			for ci in range(len(combs)):
-				c = combs[ci]
-				if len(c) == ne:
-					t = tp
-					for i in range(ne):
-						t += c[i] * (ot[i],)
-					weight = factors[ci] * length
-					orb_reps[t] = weight
-					total += weight
+    # NOTE: This computes orbits on *sets* and then expands these sets in different
+    # ways to form k-tuples. This results in more representatives than is strictly
+    # necessary, but it is much faster than doing otherwise.
 
-		return (total, orb_reps)
-	
+    def tuple_orbit_reps(self, k, prefix=None):
 
-	def symm_zero_eigenvectors(self, tg, flags, flag_basis=None):
+        if prefix is None:
+            prefix = []
 
-		s = tg.n
-		k = flags[0].n # assume all flags the same order
+        s = len(prefix)
+        tp = tuple(prefix)
+        if s > k:
+            raise ValueError
 
-		rows = []
+        if k == 0:
+            return 1, {() : 1}
 
-		t_total, t_orb_reps = self.tuple_orbit_reps(s)
+        gens = self._graph.automorphism_group_gens()
 
-		for t_rep, t_factor in t_orb_reps.iteritems():
-			
-			for tp in Permutations(t_rep):
+        # Pass generators to GAP to create a group for us.
 
-				it = self._graph.degenerate_induced_subgraph(tp)
-				if not it.is_labelled_isomorphic(tg):
-					continue
+        gen_str = ",".join("(" + "".join(str(cy) for cy in cys) + ")" for cys in gens)
+        gap.eval("g := Group(%s);" % gen_str)
+        if len(prefix) > 0:
+            gap.eval("g := Stabilizer(g, %s, OnTuples);" % list(set(prefix)))
 
-				total, orb_reps = self.tuple_orbit_reps(k, prefix=tp)
-				
-				row = [0] * len(flags)
-				
-				for P, factor in orb_reps.iteritems():
-				
-					ig = self._graph.degenerate_induced_subgraph(P)
-					ig.t = s
-					ig.make_minimal_isomorph()
-					
-					for j in range(len(flags)):
-						if ig.is_labelled_isomorphic(flags[j]):
-							row[j] += Integer(factor) / total
-							break
-				
-				rows.append(row)
+        S = []
+        for i in range(1, k - s + 1):
+            S.extend([tuple(sorted(list(x))) for x in Subsets(self._graph.n, i)])
 
-		return matrix_of_independent_rows(self._field, rows, len(flags))
-	
-	
-	def symm_subgraph_densities(self, n):
+        set_orb_reps = {}
 
-		sharp_graph_counts = {}
-		sharp_graphs = []
-		
-		total, orb_reps = self.tuple_orbit_reps(n)
-		
-		sys.stdout.write("Found %d orbits.\n" % len(orb_reps))
-		
-		for P, factor in orb_reps.iteritems():
-		
-			ig = self._graph.degenerate_induced_subgraph(P)
-			ig.make_minimal_isomorph()
-			
-			ghash = hash(ig)
-			if ghash in sharp_graph_counts:
-				sharp_graph_counts[ghash] += factor
-			else:
-				sharp_graphs.append(ig)
-				sharp_graph_counts[ghash] = factor
+        #sys.stdout.write("Calculating orbits")
 
-		return [(g, sharp_graph_counts[hash(g)] / Integer(total)) for g in sharp_graphs]
+        while len(S) > 0:
+
+            rep = list(S[0])
+
+            o = gap.new("Orbit(g, %s, OnSets);" % (rep,)).sage()
+            o = list(set([tuple(sorted(t)) for t in o]))
+            ot = o[0]
+            set_orb_reps[ot] = len(o)
+            for t in o:
+                S.remove(t)
+            #sys.stdout.write(".")
+            #sys.stdout.flush()
+
+        #sys.stdout.write("\n")
+
+        combs = [tuple(c) for c in Compositions(k - s)]
+        factors = []
+        for c in combs:
+            factor = factorial(k - s)
+            for x in c:
+                factor /= factorial(x)
+            factors.append(factor)
+
+        orb_reps = {}
+        total = 0
+
+        for ot, length in set_orb_reps.iteritems():
+
+            ne = len(ot)
+            for ci in range(len(combs)):
+                c = combs[ci]
+                if len(c) == ne:
+                    t = tp
+                    for i in range(ne):
+                        t += c[i] * (ot[i],)
+                    weight = factors[ci] * length
+                    orb_reps[t] = weight
+                    total += weight
+
+        return total, orb_reps
+
+    def symm_zero_eigenvectors(self, tg, flags, flag_basis=None):
+
+        s = tg.n
+        k = flags[0].n  # assume all flags the same order
+
+        rows = []
+
+        t_total, t_orb_reps = self.tuple_orbit_reps(s)
+
+        for t_rep, t_factor in t_orb_reps.iteritems():
+
+            for tp in Permutations(t_rep):
+
+                it = self._graph.degenerate_induced_subgraph(tp)
+                if not it.is_labelled_isomorphic(tg):
+                    continue
+
+                total, orb_reps = self.tuple_orbit_reps(k, prefix=tp)
+
+                row = [0] * len(flags)
+
+                for P, factor in orb_reps.iteritems():
+
+                    ig = self._graph.degenerate_induced_subgraph(P)
+                    ig.t = s
+                    ig.make_minimal_isomorph()
+
+                    for j in range(len(flags)):
+                        if ig.is_labelled_isomorphic(flags[j]):
+                            row[j] += Integer(factor) / total
+                            break
+
+                rows.append(row)
+
+        return matrix_of_independent_rows(self._field, rows, len(flags))
+
+    def symm_subgraph_densities(self, n):
+
+        sharp_graph_counts = {}
+        sharp_graphs = []
+
+        total, orb_reps = self.tuple_orbit_reps(n)
+
+        sys.stdout.write("Found %d orbits.\n" % len(orb_reps))
+
+        for P, factor in orb_reps.iteritems():
+
+            ig = self._graph.degenerate_induced_subgraph(P)
+            ig.make_minimal_isomorph()
+
+            ghash = hash(ig)
+            if ghash in sharp_graph_counts:
+                sharp_graph_counts[ghash] += factor
+            else:
+                sharp_graphs.append(ig)
+                sharp_graph_counts[ghash] = factor
+
+        return [(g, sharp_graph_counts[hash(g)] / Integer(total)) for g in sharp_graphs]
 
 
 def GraphBlowupConstruction(graph, **kwargs):
-	if isinstance(graph, basestring):
-		graph = GraphFlag(graph)
-	return BlowupConstruction(graph, **kwargs)
+    if isinstance(graph, basestring):
+        graph = GraphFlag(graph)
+    return BlowupConstruction(graph, **kwargs)
+
 
 def ThreeGraphBlowupConstruction(graph, **kwargs):
-	if isinstance(graph, basestring):
-		graph = ThreeGraphFlag(graph)
-	return BlowupConstruction(graph, **kwargs)
+    if isinstance(graph, basestring):
+        graph = ThreeGraphFlag(graph)
+    return BlowupConstruction(graph, **kwargs)
+
 
 def OrientedGraphBlowupConstruction(graph, **kwargs):
-	if isinstance(graph, basestring):
-		graph = OrientedGraphFlag(graph)
-	return BlowupConstruction(graph, **kwargs)
+    if isinstance(graph, basestring):
+        graph = OrientedGraphFlag(graph)
+    return BlowupConstruction(graph, **kwargs)

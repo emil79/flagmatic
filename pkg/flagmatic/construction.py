@@ -35,67 +35,64 @@ from copy import copy
 
 def matrix_of_independent_rows(field, rows, width):
 
-	M = matrix(field, rows, sparse=True)
-	N = matrix(field, 0, width, sparse=True)
-	NE = copy(N)
-	
-	for i in range(M.nrows()):
-		NE2 = NE.stack(M[i, :])
-		NE2.echelonize()
-		if not NE2[-1, :].is_zero():
-			NE = NE2
-			N = N.stack(M[i, :])
+    M = matrix(field, rows, sparse=True)
+    N = matrix(field, 0, width, sparse=True)
+    NE = copy(N)
 
-	return N
+    for i in range(M.nrows()):
+        NE2 = NE.stack(M[i, :])
+        NE2.echelonize()
+        if not NE2[-1, :].is_zero():
+            NE = NE2
+            N = N.stack(M[i, :])
+
+    return N
 
 
 class Construction(SageObject):
 
-	def __init__(self):
-		self._field = RationalField()
-		self._flag_cls = None
+    def __init__(self):
+        self._field = RationalField()
+        self._flag_cls = None
 
-	@property
-	def field(self):
-		return self._field
+    @property
+    def field(self):
+        return self._field
 
-	@property
-	def flag_cls(self):
-		return self._flag_cls
+    @property
+    def flag_cls(self):
+        return self._flag_cls
 
-	def density(self, graph=None):
-		r"""
-		If graph is None, returns the edge density of the construction. Otherwise returns
-		the density of ``graph``.
-		"""
-		if self._flag_cls is None:
-			return 0
+    def density(self, graph=None):
+        r"""
+        If graph is None, returns the edge density of the construction. Otherwise returns
+        the density of ``graph``.
+        """
+        if self._flag_cls is None:
+            return 0
 
-		if graph is None:
-			dg = self._flag_cls.default_density_graph()
-		elif type(graph) is self._flag_cls:
-			dg = graph
-		else:
-			dg = self._flag_cls(graph)
+        if graph is None:
+            dg = self._flag_cls.default_density_graph()
+        elif type(graph) is self._flag_cls:
+            dg = graph
+        else:
+            dg = self._flag_cls(graph)
 
-		sg = self.subgraph_densities(dg.n)
-		for g, den in sg:
-			if g == dg:
-				return den
-		return 0
-	
+        sg = self.subgraph_densities(dg.n)
+        for g, den in sg:
+            if g == dg:
+                return den
+        return 0
 
-	def subgraphs(self, n):
-		if n < 0:
-			raise ValueError
-		return [p[0] for p in self.subgraph_densities(n)]
+    def subgraphs(self, n):
+        if n < 0:
+            raise ValueError
+        return [p[0] for p in self.subgraph_densities(n)]
 
+    def subgraph_densities(self, n):
+        if n < 0:
+            raise ValueError
+        return None
 
-	def subgraph_densities(self, n):
-		if n < 0:
-			raise ValueError
-		return None
-
-
-	def zero_eigenvectors(self, tg, flags, flag_basis=None):
-		return None
+    def zero_eigenvectors(self, tg, flags, flag_basis=None):
+        return None
