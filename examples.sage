@@ -29,64 +29,69 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from flagmatic.all import *
 
-import cStringIO, datetime, os, sys, time, traceback
+import cStringIO
+import datetime
+import os
+import sys
+import time
+import traceback
 
 
 class Tee:
 
-	def __init__(self, *args):
-		self.files = list(args)
-		self.start_time = time.time()
-		self.needs_stamp = True
+    def __init__(self, *args):
+        self.files = list(args)
+        self.start_time = time.time()
+        self.needs_stamp = True
 
-	def write(self, text):
-		if self.needs_stamp:
-			ts = "[%s] " % datetime.timedelta(seconds=int(time.time() - self.start_time))
-			for f in self.files:
-				f.write(ts)
-		for f in self.files:
-			f.write(text)
-		self.needs_stamp = len(text) == 0 or text[-1] == "\n"
+    def write(self, text):
+        if self.needs_stamp:
+            ts = "[%s] " % datetime.timedelta(seconds=int(time.time() - self.start_time))
+            for f in self.files:
+                f.write(ts)
+        for f in self.files:
+            f.write(text)
+        self.needs_stamp = len(text) == 0 or text[-1] == "\n"
 
-	def flush(self):
-		for f in self.files:
-			f.flush()
+    def flush(self):
+        for f in self.files:
+            f.flush()
 
 
 class Example:
 
-	def __init__(self, name):
+    def __init__(self, name):
 
-		problem = None
-		construction = None
+        problem = None
+        construction = None
 
-		base_filename = os.path.join("examples", name)	
-		with open(base_filename + ".sage", "r") as f:
-			lines = f.readlines()
-		
-		# last line of file might not end in a newline
-		if lines[-1][-1] != "\n":
-			lines[-1] += "\n"
-		lines.append('problem.write_certificate("' + base_filename + '.js")\n')
-		lines.append('problem.save("' + base_filename + '")\n')
+        base_filename = os.path.join("examples", name)
+        with open(base_filename + ".sage", "r") as f:
+            lines = f.readlines()
 
-		buffer = cStringIO.StringIO()
-		saved_stdout = sys.stdout
-		sys.stdout = Tee(sys.stdout, buffer)
-		
-		for line in lines:
-			sys.stdout.write("sage: %s" % line)
-			try:
-				exec(preparse(line))
-			except:
-				traceback.print_exc(None, sys.stdout)
-				break
-		
-		sys.stdout = saved_stdout
-	
-		self.problem = problem
-		self.construction = construction
-		self.output = buffer.getvalue()
-	
-		with open(base_filename + ".txt", "w") as f:
-			f.write(self.output)
+        # last line of file might not end in a newline
+        if lines[-1][-1] != "\n":
+            lines[-1] += "\n"
+        lines.append('problem.write_certificate("' + base_filename + '.js")\n')
+        lines.append('problem.save("' + base_filename + '")\n')
+
+        buff = cStringIO.StringIO()
+        saved_stdout = sys.stdout
+        sys.stdout = Tee(sys.stdout, buff)
+
+        for line in lines:
+            sys.stdout.write("sage: %s" % line)
+            try:
+                exec(preparse(line))
+            except:
+                traceback.print_exc(None, sys.stdout)
+                break
+
+        sys.stdout = saved_stdout
+
+        self.problem = problem
+        self.construction = construction
+        self.output = buff.getvalue()
+
+        with open(base_filename + ".txt", "w") as f:
+            f.write(self.output)
