@@ -4,4 +4,4 @@ construction = GraphBlowupConstruction("g:12131415162728292a373b3c3d484b4e4f595c
 problem.set_extremal_construction(construction)
 #problem.add_zero_eigenvectors(0, vector(QQ, [611/4096, 225/1024, 135/512, 125/1024, 45/2048, 45/256, 195/4096]))
 problem.solve_sdp(show_output=True, solver="sdpa_dd")
-problem.make_exact(2^40, rank=231)
+problem.make_exact(2^40)
