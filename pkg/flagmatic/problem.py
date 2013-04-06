@@ -1744,9 +1744,9 @@ class Problem(SageObject):
         if show_sorted or show_all:
 
             if not self._minimize:
-                sorted_indices = sorted(range(num_graphs), key = lambda i : -fbounds[i])
+                sorted_indices = sorted(range(num_graphs), key=lambda i: -fbounds[i])
             else:
-                sorted_indices = sorted(range(num_graphs), key = lambda i : fbounds[i])
+                sorted_indices = sorted(range(num_graphs), key=lambda i: fbounds[i])
 
             for gi in sorted_indices:
                 if gi in apparently_sharp_graphs:
@@ -1968,7 +1968,7 @@ class Problem(SageObject):
 
         q_sizes = [self._sdp_Qdash_matrices[ti].nrows() for ti in range(num_types)]
 
-        def rationalize (f):
+        def rationalize(f):
             return Integer(round(f * denominator)) / denominator
 
         sys.stdout.write("Rounding matrices")
@@ -2049,7 +2049,7 @@ class Problem(SageObject):
             for ti in self._active_types:
 
                 Ds = [matrix(QQ, len(self._flags[ti]), len(self._flags[ti]))
-                    for si in range(num_sharps)]
+                      for si in range(num_sharps)]
 
                 for row in self._product_densities_arrays[ti]:
                     gi = row[0]
@@ -2283,9 +2283,9 @@ class Problem(SageObject):
             # Sorting doesn't currently work for number fields with embeddings, so use float approximation.
             # TODO: Check if Sage 5.0 fixes this.
             if not self._minimize:
-                bound = max(bounds, key = lambda x : float(x))
+                bound = max(bounds, key=lambda x: float(x))
             else:
-                bound = min(bounds, key = lambda x : float(x))
+                bound = min(bounds, key=lambda x: float(x))
 
         self._bounds = bounds
         self._bound = bound
@@ -2410,10 +2410,10 @@ class Problem(SageObject):
 
         self.state("write_certificate", "yes")
 
-        def upper_triangular_matrix_to_list (M):
+        def upper_triangular_matrix_to_list(M):
             return [list(M.row(i))[i:] for i in range(M.nrows())]
 
-        def matrix_to_list (M):
+        def matrix_to_list(M):
             return [list(M.row(i)) for i in range(M.nrows())]
 
         if self.state("meet_target_bound") != "yes" or self.state("diagonalize") == "yes":
