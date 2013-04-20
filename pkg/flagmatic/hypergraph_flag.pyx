@@ -33,8 +33,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # TODO: More sanity checking.
 #
 
-include "interrupt.pxi"
-include "stdsage.pxi"
+#include "interrupt.pxi"
+#include "stdsage.pxi"
 include "cdefs.pxi"
 
 # This doesn't seem to be remembered from .pxd file
@@ -1455,7 +1455,7 @@ cdef class HypergraphFlag (Flag):
 		rarray = numpy.zeros([0, 5], dtype=numpy.int)
 		row = 0
 		
-		sig_on()
+		#sig_on()
 		
 		n = gb.n
 		s = tg.n
@@ -1481,7 +1481,7 @@ cdef class HypergraphFlag (Flag):
 	
 		for gi in range(gb.len):
 	
-			sig_on()
+			#sig_on()
 		
 			g = <HypergraphFlag> gb.graphs[gi]
 		
@@ -1593,7 +1593,7 @@ cdef class HypergraphFlag (Flag):
 		free(pf2)
 		free(grb)
 	
-		sig_off()
+		#sig_off()
 		
 		return rarray
 
