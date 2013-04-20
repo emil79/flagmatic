@@ -27,8 +27,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-import sys
-
 from sage.rings.arith import binomial
 from sage.combinat.all import Tuples, Combinations
 from sage.rings.all import Integer, RationalField
@@ -39,93 +37,88 @@ from three_graph_flag import *
 
 class RandomTournamentConstruction(Construction):
 
+    def __init__(self, variant=False):
+        self._variant = variant
+        self._field = RationalField()
+        self._flag_cls = ThreeGraphFlag
 
-	def __init__(self, variant=False):
+    def subgraph_densities(self, n):
 
-		self._variant = variant
-		self._field = RationalField()
-		self._flag_cls = ThreeGraphFlag
+        if n < 0:
+            raise ValueError
 
+        tg = ThreeGraphFlag()
+        return self._induced_flags(n, tg, [])
 
-	def subgraph_densities(self, n):
+    def zero_eigenvectors(self, tg, flags):
 
-		if n < 0:
-			raise ValueError
+        rows = set()
+        for p in Tuples([0, 1], binomial(tg.n, 2)):
+            edges = []
+            c = 0
+            for i in range(1, tg.n + 1):
+                for j in range(1, i):
+                    if p[c] == 0:
+                        edges.append((i, j))
+                    else:
+                        edges.append((j, i))
+                    c += 1
+            graphs = self._induced_flags(flags[0].n, tg, edges)
+            row = [0 for f in flags]
+            for pair in graphs:
+                g, den = pair
+                for i in range(len(flags)):
+                    if g.is_labelled_isomorphic(flags[i]):
+                        row[i] = den
+                        break
+            rows.add(tuple(row))
 
-		tg = ThreeGraphFlag()
-		return self._induced_flags(n, tg, [])
+        return matrix_of_independent_rows(self._field, list(rows), len(flags))
 
+    def _induced_flags(self, n, tg, type_edges):
 
-	def zero_eigenvectors(self, tg, flags):
-		
-		rows = set()
-		for p in Tuples([0, 1], binomial(tg.n, 2)):
-			edges = []
-			c = 0
-			for i in range(1, tg.n + 1):
-				for j in range(1, i):
-					if p[c] == 0:
-						edges.append((i, j))
-					else:	
-						edges.append((j, i))
-					c += 1
-			graphs = self._induced_flags(flags[0].n, tg, edges)
-			row = [0 for f in flags]
-			for pair in graphs:
-				g, den = pair
-				for i in range(len(flags)):
-					if g.is_labelled_isomorphic(flags[i]):
-						row[i] = den
-						break
-			rows.add(tuple(row))
+        flag_counts = {}
+        flags = []
+        total = 0
 
-		return matrix_of_independent_rows(self._field, list(rows), len(flags))
+        for p in Tuples([0, 1], binomial(n, 2) - binomial(tg.n, 2)):
 
+            edges = list(type_edges)
 
-	def _induced_flags(self, n, tg, type_edges):
-	
-		flag_counts = {}
-		flags = []
-		total = 0
-		
-		for p in Tuples([0, 1], binomial(n, 2) - binomial(tg.n, 2)):
-			
-			edges = list(type_edges)
-			
-			c = 0
-			for i in range(tg.n + 1, n + 1):
-				for j in range(1, i):
-					if p[c] == 0:
-						edges.append((i, j))
-					else:	
-						edges.append((j, i))
-					c += 1
+            c = 0
+            for i in range(tg.n + 1, n + 1):
+                for j in range(1, i):
+                    if p[c] == 0:
+                        edges.append((i, j))
+                    else:
+                        edges.append((j, i))
+                    c += 1
 
-			ig = ThreeGraphFlag()
-			ig.n = n
-			ig.t = tg.n
-			
-			for s in Combinations(range(1, n + 1), 3):
-				if self._variant:
-					if ((s[1], s[0]) in edges and (s[0], s[2]) in edges) or (
-						(s[2], s[0]) in edges and (s[0], s[1]) in edges):
-						ig.add_edge(s)			
-				else:
-					if ((s[0], s[1]) in edges and (s[1], s[2]) in edges and (s[2], s[0]) in edges) or (
-						(s[0], s[2]) in edges and (s[2], s[1]) in edges and (s[1], s[0]) in edges):
-						ig.add_edge(s)
-			
-			it = ig.induced_subgraph(range(1, tg.n + 1))
-			if tg.is_labelled_isomorphic(it):
-				ig.make_minimal_isomorph()
-				
-				ghash = hash(ig)
-				if ghash in flag_counts:
-					flag_counts[ghash] += 1
-				else:
-					flags.append(ig)
-					flag_counts[ghash] = 1
-	
-			total += 1
-		
-		return [(f, flag_counts[hash(f)] / Integer(total)) for f in flags]
+            ig = ThreeGraphFlag()
+            ig.n = n
+            ig.t = tg.n
+
+            for s in Combinations(range(1, n + 1), 3):
+                if self._variant:
+                    if ((s[1], s[0]) in edges and (s[0], s[2]) in edges) or (
+                            (s[2], s[0]) in edges and (s[0], s[1]) in edges):
+                        ig.add_edge(s)
+                else:
+                    if ((s[0], s[1]) in edges and (s[1], s[2]) in edges and (s[2], s[0]) in edges) or (
+                            (s[0], s[2]) in edges and (s[2], s[1]) in edges and (s[1], s[0]) in edges):
+                        ig.add_edge(s)
+
+            it = ig.induced_subgraph(range(1, tg.n + 1))
+            if tg.is_labelled_isomorphic(it):
+                ig.make_minimal_isomorph()
+
+                ghash = hash(ig)
+                if ghash in flag_counts:
+                    flag_counts[ghash] += 1
+                else:
+                    flags.append(ig)
+                    flag_counts[ghash] = 1
+
+            total += 1
+
+        return [(f, flag_counts[hash(f)] / Integer(total)) for f in flags]
