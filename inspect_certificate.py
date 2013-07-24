@@ -414,10 +414,24 @@ if action == "print pair densities":
 
 print "Computing bound..."
 
-if using_sage:
-    bounds = [sage_eval(str(s), locals={'x': x}) for s in certificate["admissible_graph_densities"]]
+if certificate["admissible_graph_densities"] and isinstance(certificate["admissible_graph_densities"][0], list):
+    graph_densities = certificate["admissible_graph_densities"]
+    density_coefficients = certificate["density_coefficients"]
 else:
-    bounds = [fractions.Fraction(s) for s in certificate["admissible_graph_densities"]]
+    graph_densities = [certificate["admissible_graph_densities"]]
+    density_coefficients = [1]
+
+bounds = [0 for _ in certificate["admissible_graphs"]]
+for di, sdc in enumerate(density_coefficients):
+    if using_sage:
+        dc = sage_eval(str(sdc), locals={'x': x})
+    else:
+        dc = fractions.Fraction(sdc)
+    for i, s in enumerate(graph_densities[di]):
+        if using_sage:
+            bounds[i] += dc * sage_eval(str(s), locals={'x': x})
+        else:
+            bounds[i] += dc * fractions.Fraction(s)
 
 for key in pair_densities.keys():
     t, i, j, k = key
@@ -432,16 +446,7 @@ for key in pair_densities.keys():
     else:
         bounds[i] += d * v * 2
 
-if minimize:
-    bound = min(bounds)
-else:
-    # sage seems to be unable to return max of a list containing 0!
-    nonzero_bounds = [b for b in bounds if b != 0]
-
-    if len(nonzero_bounds) == 0:
-        bound = 0
-    else:
-        bound = max(nonzero_bounds)
+bound = min(bounds) if minimize else max(bounds)
 
 print "Bound is {}.".format(bound)
 
