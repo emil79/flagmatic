@@ -11,3 +11,4 @@ doc/
 !doc/*.pdf
 *.sobj
 *.out
+*~
