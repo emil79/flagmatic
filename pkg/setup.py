@@ -55,9 +55,9 @@ setup (
 				os.path.join(SAGE_ROOT, 'local/include'),
 				os.path.join(SAGE_ROOT, 'local/include/csage'),
 				os.path.join(SAGE_ROOT, 'devel/sage/sage/ext'),
-        		os.path.join(SAGE_ROOT, 'src/sage/ext'),
+	        		os.path.join(SAGE_ROOT, 'src/sage/ext'),
 				os.path.join(SAGE_ROOT, 'devel/sage'),
-        		os.path.join(SAGE_ROOT, 'src')],
+        			os.path.join(SAGE_ROOT, 'src')],
 			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
 			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
@@ -68,9 +68,9 @@ setup (
 				os.path.join(SAGE_ROOT, 'local/lib/python/site-packages/numpy/core/include'),
 				os.path.join(SAGE_ROOT, 'local/include/csage'),
 				os.path.join(SAGE_ROOT, 'devel/sage/sage/ext'),
-        		os.path.join(SAGE_ROOT, 'src/sage/ext'),
+        			os.path.join(SAGE_ROOT, 'src/sage/ext'),
 				os.path.join(SAGE_ROOT, 'devel/sage'),
-        		os.path.join(SAGE_ROOT, 'src')],
+        			os.path.join(SAGE_ROOT, 'src')],
 			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
 			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
