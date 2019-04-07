@@ -9,7 +9,7 @@ To install, first download and enter the `pkg` directory of the download:
 
 Then, assuming the command `sage` is in your `PATH`, type:
 
-    $sage -python setup.py install
+    $ sage -pip install -e .
 
 (Replace `sage` by whatever you use to start Sage from the command line
 if necessary.)
