@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
 
-from sage.rings.arith import binomial
+from sage.arith.misc import binomial
 from sage.graphs.digraph import DiGraph
 from hypergraph_flag cimport HypergraphFlag
 

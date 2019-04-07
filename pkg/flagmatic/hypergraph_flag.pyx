@@ -49,7 +49,7 @@ from libc.string cimport memset
 import numpy
 cimport numpy
 
-from sage.rings.arith import binomial, falling_factorial
+from sage.arith.misc import binomial, falling_factorial
 from sage.combinat.all import Combinations, Permutations, Tuples, Subsets
 from sage.rings.all import Integer, QQ, ZZ
 from sage.matrix.all import matrix, block_matrix

@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
 
-from sage.rings.arith import factorial
+from sage.arith.misc import factorial
 from sage.combinat.all import UnorderedTuples, Tuples, Combinations, Permutations, Compositions, Subsets
 from sage.rings.all import Integer, RationalField
 from sage.interfaces.gap import gap
