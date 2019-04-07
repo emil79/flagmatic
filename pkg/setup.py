@@ -33,7 +33,7 @@ import sys
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
-
+import numpy
 if not 'SAGE_ROOT' in os.environ:
 	print "	   ERROR: The environment variable SAGE_ROOT must be defined."
 	sys.exit(1)
@@ -70,7 +70,9 @@ setup (
 				os.path.join(SAGE_ROOT, 'devel/sage/sage/ext'),
         			os.path.join(SAGE_ROOT, 'src/sage/ext'),
 				os.path.join(SAGE_ROOT, 'devel/sage'),
-        			os.path.join(SAGE_ROOT, 'src')],
+                os.path.join(SAGE_ROOT, 'src'),
+			    numpy.get_include()
+            ],
 			library_dirs = [os.path.join(SAGE_ROOT, 'local/lib')],
 			extra_compile_args = ["-O3", "-Wall", "-Wno-strict-prototypes"]
 		),
