@@ -33,10 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # TODO: More sanity checking.
 #
 
-#include "interrupt.pxi"
-#include "stdsage.pxi"
-include "cdefs.pxi"
-
 # This doesn't seem to be remembered from .pxd file
 # 35 + 42 + 7 = 84, 84 * 3 = 252
 DEF MAX_NUMBER_OF_EDGE_INTS = 256
