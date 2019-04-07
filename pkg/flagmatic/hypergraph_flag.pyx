@@ -1445,8 +1445,8 @@ cdef class HypergraphFlag (Flag):
 	@classmethod
 	def flag_products (cls, graph_block gb, HypergraphFlag tg, graph_block flags1, graph_block flags2):
 	
-		cdef int *p, np, *pp, *pf1, *pf2, *edges, *cur_edges
-		cdef int n, s, m1, m2, ne, i, j, k, gi
+		cdef int *p, *pp, *pf1, *pf2, *edges, *cur_edges
+		cdef int np, n, s, m1, m2, ne, i, j, k, gi
 		cdef int cnte, cnf1e, cnf2e
 		cdef int has_type, has_f1
 		cdef int f1index, f2index, *grb, equal_flags_mode, nzcount, row
@@ -1884,7 +1884,8 @@ previous_equal_pair_combinations = {}
 
 cdef int *generate_equal_pair_combinations(int n, int s, int m, int *number_of):
 
-	cdef int *p, fac, i, j, smallest
+	cdef int *p
+	cdef int fac, i, j, smallest
 
 	# see if we've already generated it!
 	key = (n, s, m)
@@ -1943,7 +1944,8 @@ cdef int *generate_equal_pair_combinations(int n, int s, int m, int *number_of):
 
 def get_equal_pair_combinations (n, s, m):
 
-	cdef int *p, np, i, j
+	cdef int *p
+	cdef int np, i, j
 	p = generate_equal_pair_combinations(n, s, m, &np)
 	return [[p[(i * n) + j] for j in range(n)] for i in range(np)]
 
