@@ -1,4 +1,4 @@
-Flagmatic 2.0
+Flagmatic 2.1
 =============
 
 A package for the Sage system.

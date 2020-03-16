@@ -401,9 +401,19 @@ class Problem(SageObject):
         self._n = n
 
         sys.stdout.write("Generating graphs...\n")
+
+        import cProfile, pstats, StringIO
+        pr = cProfile.Profile()
+        pr.enable()
+
         self._graphs = self._flag_cls.generate_graphs(n, forbidden_edge_numbers=self._forbidden_edge_numbers,
                                                       forbidden_graphs=self._forbidden_graphs, forbidden_induced_graphs=self._forbidden_induced_graphs)
-        sys.stdout.write("Generated %d graphs.\n" % len(self._graphs))
+
+        pr.disable()
+        ps = pstats.Stats(pr).sort_stats('cumulative')
+        ps.print_stats()
+
+        sys.stdout.write("x Generated %d graphs.\n" % len(self._graphs))
 
         for g in self._graphs:    # Make all the graphs immutable
             g.set_immutable()

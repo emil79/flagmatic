@@ -1,3 +1,4 @@
+# cython: profile=True
 """
 
 flagmatic 2
@@ -26,7 +27,6 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-
 #clang c
 
 #
@@ -487,94 +487,10 @@ cdef class HypergraphFlag (Flag):
 		
 		
 		"""
-	
-		if not (r == 2 or r == 3):
-			raise NotImplementedError
-			
-		if oriented and r != 2:
-			raise NotImplementedError
-	
-		if tg is None:
-			raise ValueError
-	
-		if r != tg.r or oriented != tg.oriented:
-			raise ValueError
-	
-		if tg.t != 0:
-			raise NotImplementedError("type must not contain labelled vertices.")
-	
-		s = tg.n
-	
-		if n < s:
-			return []
-	
-		if n == s:
-			ntg = tg.__copy__()
-			ntg.t = s
-			return [ntg]
-	
-		max_ne = binomial(n - 1, r - 1) * multiplicity
-		max_e = binomial(n, r) * multiplicity
-		
-		new_graphs = []
-		hashes = set()
-		
-		smaller_graphs = cls.generate_flags(n - 1, tg, r, oriented, multiplicity, forbidden_edge_numbers=forbidden_edge_numbers,
-			forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
-		
-		possible_edges = []
-	
-		if r == 3:
-			for c in Combinations(range(1, n), 2):
-				possible_edges.append((c[0], c[1], n))
-	
-		elif r == 2:
-			for x in range(1, n):
-				possible_edges.append((x, n))
-				if oriented:
-					possible_edges.append((n, x))
-	
-		if multiplicity > 1:
-			possible_edges = sum(([e] * multiplicity for e in possible_edges), [])
-	
-		for sg in smaller_graphs:
-		
-			pe = sg.ne
-			ds = sg.degrees()
-			maxd = max(ds[s:] + (0,))
-				
-			for ne in range(maxd, max_ne + 1):
-			
-				for nb in Combinations(possible_edges, ne):
-	
-					# For oriented graphs, can't have bidirected edges.
-					# TODO: exclude these in a more efficient way!
-					if oriented:
-						if any(e in nb and (e[1], e[0]) in nb for e in possible_edges):
-							continue
-							
-					ng = sg.__copy__()
-					ng.n = n
-					for e in nb:
-						ng.add_edge(e)
-	
-					if not forbidden_edge_numbers is None and ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
-						continue
-	
-					if not forbidden_graphs is None and ng.has_forbidden_graphs(forbidden_graphs, must_have_highest=True):
-						continue
-	
-					if not forbidden_induced_graphs is None and ng.has_forbidden_graphs(forbidden_induced_graphs, must_have_highest=True, induced=True):
-						continue
-	
-					ng.make_minimal_isomorph()
-					ng_hash = hash(ng)
-					if not ng_hash in hashes:
-						new_graphs.append(ng)
-						hashes.add(ng_hash)
-	
-		return new_graphs
-
+		return generate_flags(
+            n, tg, r, oriented, multiplicity, forbidden_edge_numbers, forbidden_graphs,
+			forbidden_induced_graphs,
+		)
 
 	@classmethod
 	def generate_graphs(cls, n, r=3, oriented=False, multiplicity=1, forbidden_edge_numbers=None, forbidden_graphs=None, forbidden_induced_graphs=None):
@@ -1966,3 +1882,93 @@ def print_graph_block(graph_block gb):
 	for i in range(gb.len):
 		g = <HypergraphFlag ?> gb.graphs[i]
 		print str(g)
+
+
+def generate_flags(n, tg, r, oriented, multiplicity, forbidden_edge_numbers, forbidden_graphs,
+				   forbidden_induced_graphs):
+	if not (r == 2 or r == 3):
+		raise NotImplementedError
+
+	if oriented and r != 2:
+		raise NotImplementedError
+
+	if tg is None:
+		raise ValueError
+
+	if r != tg.r or oriented != tg.oriented:
+		raise ValueError
+
+	if tg.t != 0:
+		raise NotImplementedError("type must not contain labelled vertices.")
+
+	s = tg.n
+
+	if n < s:
+		return []
+
+	if n == s:
+		ntg = tg.__copy__()
+		ntg.t = s
+		return [ntg]
+
+	max_ne = binomial(n - 1, r - 1) * multiplicity
+	max_e = binomial(n, r) * multiplicity
+
+	new_graphs = []
+	hashes = set()
+
+	smaller_graphs = generate_flags(n - 1, tg, r, oriented, multiplicity, forbidden_edge_numbers=forbidden_edge_numbers,
+		forbidden_graphs=forbidden_graphs, forbidden_induced_graphs=forbidden_induced_graphs)
+
+	possible_edges = []
+
+	if r == 3:
+		for c in Combinations(range(1, n), 2):
+			possible_edges.append((c[0], c[1], n))
+
+	elif r == 2:
+		for x in range(1, n):
+			possible_edges.append((x, n))
+			if oriented:
+				possible_edges.append((n, x))
+
+	if multiplicity > 1:
+		possible_edges = sum(([e] * multiplicity for e in possible_edges), [])
+
+	for sg in smaller_graphs:
+
+		pe = sg.ne
+		ds = sg.degrees()
+		maxd = max(ds[s:] + (0,))
+
+		for ne in range(maxd, max_ne + 1):
+
+			for nb in Combinations(possible_edges, ne):
+
+				# For oriented graphs, can't have bidirected edges.
+				# TODO: exclude these in a more efficient way!
+				if oriented:
+					if any(e in nb and (e[1], e[0]) in nb for e in possible_edges):
+						continue
+
+				ng = sg.__copy__()
+				ng.n = n
+				for e in nb:
+					ng.add_edge(e)
+
+				if not forbidden_edge_numbers is None and ng.has_forbidden_edge_numbers(forbidden_edge_numbers, must_have_highest=True):
+					continue
+
+				if not forbidden_graphs is None and ng.has_forbidden_graphs(forbidden_graphs, must_have_highest=True):
+					continue
+
+				if not forbidden_induced_graphs is None and ng.has_forbidden_graphs(forbidden_induced_graphs, must_have_highest=True, induced=True):
+					continue
+
+				ng.make_minimal_isomorph()
+				ng_hash = hash(ng)
+				if not ng_hash in hashes:
+					new_graphs.append(ng)
+					hashes.add(ng_hash)
+
+	return new_graphs
