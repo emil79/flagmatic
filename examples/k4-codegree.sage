@@ -1,0 +1,6 @@
+problem = ThreeGraphAxiomsProblem(7, forbid=[(4, 3)])
+problem.make_codegree_problem(1/4)
+construction = RandomTournamentConstruction()
+problem.set_extremal_construction(construction)
+problem.solve_sdp()
+problem.make_exact(2^20)
